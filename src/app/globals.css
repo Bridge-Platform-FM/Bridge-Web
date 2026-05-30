@@ -97,8 +97,19 @@ a {
   text-decoration: none;
 }
 
-button {
+button {  
   cursor: pointer;
+}
+
+/* Use the primary focus ring (set per-field) instead of the browser's
+   default black focus outline on form controls. */
+input:focus,
+input:focus-visible,
+textarea:focus,
+textarea:focus-visible,
+select:focus,
+select:focus-visible {
+  outline: none;
 }
 
 /* Signature surfaces from the Stitch <style> blocks */
