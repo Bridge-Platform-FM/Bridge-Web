@@ -43,9 +43,9 @@ export default function DocumentUploadPage() {
 
   return (
     
-    <div className="mx-auto max-w-3xl px-6 py-10">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-6 py-6">
       <FocusedHeader backHref="/complete-profile" />
-      <div className="mb-12">
+      <div>
         <StepProgress stepKey="authorized" />
         <p className="mt-3 flex items-center gap-2 text-sm text-on-surface-variant">
           <Icon name="verified" size={16} filled className="text-primary" />
@@ -53,7 +53,7 @@ export default function DocumentUploadPage() {
         </p>
       </div>
 
-      <h2 className="mb-6 font-headline text-3xl font-extrabold tracking-tight text-on-surface">Document Upload</h2>
+      <h2 className="font-headline text-3xl font-extrabold tracking-tight text-on-surface">Document Upload</h2>
 
       <DocumentUploadCard
         title="Aadhaar Card"
@@ -68,9 +68,11 @@ export default function DocumentUploadPage() {
           clearError("aadhaar");
         }}
       />
-      <div className="-mt-6 mb-8">
-        <ErrorText msg={errors.aadhaar} />
-      </div>
+      {errors.aadhaar && (
+        <div className="-mt-2">
+          <ErrorText msg={errors.aadhaar} />
+        </div>
+      )}
 
       <DocumentUploadCard
         title="PAN Card"
@@ -84,9 +86,11 @@ export default function DocumentUploadPage() {
         hint="Ensure all details including Name, DOB and PAN Number are clearly visible. Avoid glare from lights."
       />
       
-      <div className="-mt-6 mb-2">
-        <ErrorText msg={errors.pan} />
-      </div>
+      {errors.pan && (
+        <div className="-mt-2">
+          <ErrorText msg={errors.pan} />
+        </div>
+      )}
 
 
       {/* <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:justify-between">
@@ -100,20 +104,13 @@ export default function DocumentUploadPage() {
       </div> */}
 
 
-      <div className="mt-6 flex flex-col gap-3">
+      <div className=" flex flex-col gap-3">
               <Button
                 variant="primary"
                 className="h-[52px] text-base rounded-xl"
               >
                 Submit for Verification
               </Button>
-              <Button
-                variant="secondary"
-                className="w-full h-11 flex items-center justify-center text-on-surface-variant font-semibold text-sm hover:bg-surface-container rounded-xl transition-colors"
-              >
-                Save & Exit
-              </Button>
-          
       </div>
       </div>
   )

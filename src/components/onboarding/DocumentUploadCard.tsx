@@ -72,9 +72,9 @@ export function DocumentUploadCard({
 
   return (
     <section
-      className={`mb-8 rounded-2xl p-6 ${allFilled ? "bg-surface-container-lowest ambient-shadow" : "bg-surface-container-low"}`}
+      className={`rounded-2xl p-5 ${allFilled ? "bg-surface-container-lowest ambient-shadow" : "bg-surface-container-low"}`}
     >
-      <div className="mb-6 flex items-center justify-between gap-3">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div
             className={`flex size-10 items-center justify-center rounded-xl ${
