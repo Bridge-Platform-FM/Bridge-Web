@@ -1,9 +1,5 @@
-"use client";
+import { redirect } from 'next/navigation';
 
-export default function HomePage() {
-  return (
-    <div>
-      <h1>Onboard</h1>
-    </div>
-  );
+export default function OnboardRedirect() {
+  redirect('/onboard/step-1');
 }

@@ -26,8 +26,8 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, InputPro
     ) => {
         // Focus, default, and error states
         const borderClass = error
-            ? "focus:ring-4 focus:ring-error/10 border border-error bg-error-container/5 text-on-surface"
-            : "focus:ring-4 focus:ring-primary/10 border border-transparent focus:border-primary/40 focus:bg-surface-container-lowest text-on-surface";
+            ? "focus:ring-4 focus:ring-red-500/10 border border-red-500 bg-red-50/50 text-slate-900"
+            : "focus:ring-4 focus:ring-blue-500/10 border border-transparent focus:border-blue-500/40 focus:bg-white text-slate-900";
 
         if (type === "checkbox" || type === "radio") {
             return (
@@ -37,17 +37,17 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, InputPro
                             ref={ref as React.Ref<HTMLInputElement>}
                             type={type}
                             disabled={disabled}
-                            className={`w-4 h-4 cursor-pointer accent-primary transition-all ${error ? "outline outline-1 outline-error outline-offset-1" : ""}`}
+                            className={`w-4 h-4 cursor-pointer accent-blue-600 transition-all ${error ? "outline outline-1 outline-red-500 outline-offset-1" : ""}`}
                             {...props}
                         />
                         {label && (
-                            <span className={`text-sm font-medium select-none ${error ? "text-error" : "text-on-surface"}`}>
+                            <span className={`text-sm font-medium select-none ${error ? "text-red-500" : "text-slate-900"}`}>
                                 {label}
                             </span>
                         )}
                     </label>
                     {error && (
-                        <span className="text-xs text-error font-medium px-1 mt-0.5">
+                        <span className="text-xs text-red-500 font-medium px-1 mt-0.5">
                             {error}
                         </span>
                     )}
@@ -58,13 +58,13 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, InputPro
         return (
             <div className={`flex flex-col gap-1.5 w-full ${disabled ? "opacity-60 pointer-events-none" : ""}`}>
                 {label && (
-                    <label className="text-[11px] font-bold text-on-surface-variant tracking-wide px-1 uppercase select-none">
+                    <label className="text-[11px] font-bold text-slate-500 tracking-wide px-1 uppercase select-none">
                         {label}
                     </label>
                 )}
                 <div className="relative w-full flex items-center">
                     {icon && iconPosition === "left" && type !== "textarea" && (
-                        <div className="absolute left-4 text-on-surface-variant flex items-center justify-center pointer-events-none">
+                        <div className="absolute left-4 text-slate-400 flex items-center justify-center">
                             {icon}
                         </div>
                     )}
@@ -74,7 +74,7 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, InputPro
                             ref={ref as React.Ref<HTMLTextAreaElement>}
                             disabled={disabled}
                             rows={rows}
-                            className={`w-full min-h-[100px] p-4 bg-surface-container rounded-xl text-sm outline-none transition-all placeholder:text-outline-variant resize-y ${borderClass} ${className}`}
+                            className={`w-full min-h-[100px] p-4 bg-slate-100 rounded-xl text-sm outline-none transition-all placeholder:text-slate-400 resize-y ${borderClass} ${className}`}
                             {...(props as any)}
                         />
                     ) : (
@@ -87,19 +87,19 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, InputPro
                                 paddingRight: icon && iconPosition === "right" ? "2.75rem" : "1rem",
                                 ...props.style,
                             }}
-                            className={`w-full h-[52px] bg-surface-container rounded-xl text-sm outline-none transition-all placeholder:text-outline-variant ${borderClass} ${className}`}
+                            className={`w-full h-[52px] bg-slate-100 rounded-xl text-sm outline-none transition-all placeholder:text-slate-400 ${borderClass} ${className}`}
                             {...props}
                         />
                     )}
 
                     {icon && iconPosition === "right" && type !== "textarea" && (
-                        <div className="absolute right-4 text-on-surface-variant flex items-center justify-center pointer-events-none">
+                        <div className="absolute right-4 text-slate-400 flex items-center justify-center">
                             {icon}
                         </div>
                     )}
                 </div>
                 {error && (
-                    <span className="text-xs text-error font-medium px-1 mt-0.5">
+                    <span className="text-xs text-red-500 font-medium px-1 mt-0.5">
                         {error}
                     </span>
                 )}
