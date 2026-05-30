@@ -6,6 +6,8 @@ import { Icon } from "@/components/ui/Icon";
 import { Card } from "@/components/ui/Card";
 import { StepProgress } from "@/components/onboarding/StepProgress";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
+import { registerCompany } from "@/services/auth.service";
+import type { ApiError } from "@/lib/axios";
 
 const ROLES = [
   { value: "startup", label: "Startup" },
@@ -36,6 +38,8 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState((data.role as string) ?? "");
   const [errors, setErrors] = useState<Errors>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const isB2B = role === "b2b_enterprise";
 
@@ -77,7 +81,7 @@ export default function RegisterPage() {
     return e;
   };
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const form = new FormData(e.currentTarget as HTMLFormElement);
     const values = {
@@ -93,15 +97,27 @@ export default function RegisterPage() {
     setErrors(found);
     if (Object.keys(found).length > 0) return;
 
-    setData({
+    // Password is intentionally excluded from the API payload.
+    const payload = {
       legalName: values.legalName,
       email: values.email,
       contact: values.contact,
       role,
       gstNumber: isB2B ? values.gstNumber : undefined,
       cinNumber: isB2B ? values.cinNumber : undefined,
-    });
-    goNext("details");
+    };
+
+    setApiError(null);
+    setSubmitting(true);
+    try {
+      await registerCompany(payload);
+      setData(payload);
+      goNext("details");
+    } catch (err) {
+      setApiError((err as ApiError).message ?? "Registration failed. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -296,9 +312,15 @@ export default function RegisterPage() {
               </span>
             </label>
 
+            {apiError && <ErrorText msg={apiError} />}
+
             <div className="flex flex-col gap-4 pt-4">
-              <button type="submit" className="cta-gradient flex h-14 w-full items-center justify-center gap-2 bg-primary rounded-xl font-headline text-lg font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01]">
-                Continue
+              <button
+                type="submit"
+                disabled={submitting}
+                className="cta-gradient flex h-14 w-full items-center justify-center gap-2 bg-primary rounded-xl font-headline text-lg font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {submitting ? "Submitting…" : "Continue"}
               </button>
               <p className="text-center text-sm text-on-surface-variant">
                 Already registered? <Link href="#" className="font-bold text-primary hover:underline">Sign in to portal</Link>

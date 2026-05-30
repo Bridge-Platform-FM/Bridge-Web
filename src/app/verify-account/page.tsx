@@ -7,6 +7,10 @@ import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
 import { OtpInput } from "@/components/onboarding/OtpInput";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { Button } from "@/components/ui/Button";
+import { verifyMobileOtp, verifyEmailOtp } from "@/services/auth.service";
+import type { ApiError } from "@/lib/axios";
+
+const OTP_LENGTH = 4;
 
 const RESEND_SECONDS = 60;
 
@@ -51,18 +55,68 @@ function ResendControl({ onResend }: { onResend: () => void }) {
 }
 
 export default function VerifyAccountPage() {
-  const { goNext } = useOnboarding();
-  const [mobileOtp, setMobileOtp] = useState<string[]>(Array(6).fill(""));
-  const [emailOtp, setEmailOtp] = useState<string[]>(Array(6).fill(""));
+  const { data, goNext } = useOnboarding();
+  const [mobileOtp, setMobileOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
+  const [emailOtp, setEmailOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
+
+  const [mobileVerified, setMobileVerified] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [verifyingMobile, setVerifyingMobile] = useState(false);
+  const [verifyingEmail, setVerifyingEmail] = useState(false);
+  const [mobileError, setMobileError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+
+  // Both channels verified → advance to complete-profile.
+  useEffect(() => {
+    if (mobileVerified && emailVerified) goNext("verification");
+  }, [mobileVerified, emailVerified, goNext]);
+
+  const handleVerifyMobileOtp = async () => {
+    const otp = mobileOtp.join("");
+    if (otp.length < OTP_LENGTH) {
+      setMobileError(`Enter the ${OTP_LENGTH}-digit code.`);
+      return;
+    }
+    setMobileError(null);
+    setVerifyingMobile(true);
+    try {
+      await verifyMobileOtp({ channel: "mobile", identifier: String(data.contact ?? ""), otp });
+      setMobileVerified(true);
+    } catch (err) {
+      setMobileError((err as ApiError).message ?? "Verification failed. Please try again.");
+    } finally {
+      setVerifyingMobile(false);
+    }
+  };
+
+  const handleVerifyEmailOtp = async () => {
+    const otp = emailOtp.join("");
+    if (otp.length < OTP_LENGTH) {
+      setEmailError(`Enter the ${OTP_LENGTH}-digit code.`);
+      return;
+    }
+    setEmailError(null);
+    setVerifyingEmail(true);
+    try {
+      await verifyEmailOtp({ channel: "email", identifier: String(data.email ?? ""), otp });
+      setEmailVerified(true);
+    } catch (err) {
+      setEmailError((err as ApiError).message ?? "Verification failed. Please try again.");
+    } finally {
+      setVerifyingEmail(false);
+    }
+  };
 
   const handleResendMobileOtp = () => {
     // Existing resend handler hook-up point (mobile).
-    setMobileOtp(Array(6).fill(""));
+    setMobileOtp(Array(OTP_LENGTH).fill(""));
+    setMobileError(null);
   };
 
   const handleResendEmailOtp = () => {
     // Existing resend handler hook-up point (email).
-    setEmailOtp(Array(6).fill(""));
+    setEmailOtp(Array(OTP_LENGTH).fill(""));
+    setEmailError(null);
   };
 
   return (
@@ -103,12 +157,14 @@ export default function VerifyAccountPage() {
 
             <Button
               variant="primary"
-            // onClick={handleVerifyMobileOtp}
+              onClick={handleVerifyMobileOtp}
+              disabled={verifyingMobile || mobileVerified}
               className="bg-primary"
             >
-              Verify
+              {mobileVerified ? "Verified" : verifyingMobile ? "Verifying…" : "Verify"}
             </Button>
           </div>
+          {mobileError && <span className="px-1 text-xs font-medium text-error">{mobileError}</span>}
         </div>
 
 
@@ -132,33 +188,15 @@ export default function VerifyAccountPage() {
 
             <Button
               variant="primary"
-            // onClick={handleVerifyEmailOtp}
+              onClick={handleVerifyEmailOtp}
+              disabled={verifyingEmail || emailVerified}
               className="bg-primary"
             >
-              Verify
+              {emailVerified ? "Verified" : verifyingEmail ? "Verifying…" : "Verify"}
             </Button>
           </div>
+          {emailError && <span className="px-1 text-xs font-medium text-error">{emailError}</span>}
         </div>
-
-
-
-        {/* <div className="flex flex-col gap-6 pt-6">
-          <button
-            onClick={() => goNext("verification")}
-            className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-primary font-bold text-lg text-on-primary shadow-xl  transition-opacity hover:opacity-95"
-          >
-            Verify &amp; Continue
-            <Icon name="chevron_right" size={20} />
-          </button>
-          <div className="flex flex-col items-center gap-3">
-            <div className="flex items-center gap-2 text-sm font-medium text-on-surface-variant">
-              Didn&apos;t receive the codes? <span className="font-bold text-on-surface">00:54</span>
-            </div>
-            <button disabled className="rounded-full px-4 py-2 text-sm font-bold text-primary transition-colors hover:bg-surface-container disabled:opacity-40">
-              Resend Codes
-            </button>
-          </div>
-        </div> */}
       </div>
 
       <div className="mt-7 flex items-center justify-center gap-6 opacity-60">
