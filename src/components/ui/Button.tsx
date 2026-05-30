@@ -1,40 +1,68 @@
 import React from "react";
-import { Loader } from "../common/loader";
+import Link from "next/link";
+import { Icon } from "./Icon";
 
-export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  text: string;
-  size?: "small" | "medium" | "full";
-  isDisabled?: boolean;
-  loading?: boolean;
+type Variant = "primary" | "secondary" | "ghost";
+
+interface BaseProps {
+  variant?: Variant;
+  leadingIcon?: string;
+  trailingIcon?: string;
+  fullWidth?: boolean;
+  className?: string;
+  children?: React.ReactNode;
 }
 
-export function Button({
-  text,
-  size = "medium",
-  isDisabled = false,
-  loading = false,
-  className = "",
-  ...props
-}: ButtonProps) {
+type ButtonAsButton = BaseProps &
+  Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, keyof BaseProps> & { href?: undefined };
+type ButtonAsLink = BaseProps &
+  Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, keyof BaseProps> & { href: string };
 
-  let sizeClass = "";
-  if (size === "small") {
-    sizeClass = "btn-small";
-  } else if (size === "full") {
-    sizeClass = "btn-full";
-  } else {
-    sizeClass = "btn-medium";
+type ButtonProps = ButtonAsButton | ButtonAsLink;
+
+const variantClasses: Record<Variant, string> = {
+  // Signature gradient CTA from the Stitch screens.
+  primary: "cta-gradient text-on-primary shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-[0.98]",
+  secondary: "bg-surface-container-high text-on-surface hover:bg-surface-container-highest",
+  ghost: "text-on-surface-variant hover:bg-surface-container",
+};
+
+/** h-14 rounded-xl action button. Renders an <a> when `href` is provided. */
+export function Button(props: ButtonProps) {
+  const {
+    variant = "primary",
+    leadingIcon,
+    trailingIcon,
+    fullWidth = false,
+    className = "",
+    children,
+    ...rest
+  } = props;
+
+  const classes = `inline-flex h-14 items-center justify-center gap-2 rounded-xl px-8 font-headline text-lg font-bold tracking-tight transition-all disabled:opacity-50 disabled:pointer-events-none ${variantClasses[variant]} ${fullWidth ? "w-full" : ""} ${className}`;
+
+  const inner = (
+    <>
+      {leadingIcon && <Icon name={leadingIcon} size={20} />}
+      {children}
+      {trailingIcon && <Icon name={trailingIcon} size={20} />}
+    </>
+  );
+
+  if ("href" in props && props.href) {
+    const { href, ...anchorRest } = rest as React.AnchorHTMLAttributes<HTMLAnchorElement> & {
+      href: string;
+    };
+    return (
+      <Link href={href} className={classes} {...anchorRest}>
+        {inner}
+      </Link>
+    );
   }
 
-
   return (
-    <button
-      disabled={isDisabled || loading}
-      className={`flex items-center justify-center gap-5 rounded-md font-medium ${sizeClass} ${className}`}
-      {...props}
-    >
-      {loading && <Loader size="small" />}
-      <span>{text}</span>
+    <button className={classes} {...(rest as React.ButtonHTMLAttributes<HTMLButtonElement>)}>
+      {inner}
     </button>
   );
 }
