@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { StepProgress } from "@/components/onboarding/StepProgress";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
@@ -28,7 +28,24 @@ function TimeBox({ value, unit }: { value: string; unit: string }) {
   );
 }
 
+// Initial estimate shown in the countdown (23h 59m 42s).
+const INITIAL_SECONDS = 23 * 3600 + 59 * 60 + 42;
+
 export default function VerificationStatusPage() {
+  const [remaining, setRemaining] = useState(INITIAL_SECONDS);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setRemaining((s) => (s <= 0 ? 0 : s - 1));
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const hours = Math.floor(remaining / 3600);
+  const mins = Math.floor((remaining % 3600) / 60);
+  const secs = remaining % 60;
+  const pad = (n: number) => String(n).padStart(2, "0");
+
   return (
     <div className="mx-auto flex max-w-[960px] flex-col px-6 py-5">
       <FocusedHeader backLabel="Back to Overview" backHref="/document-upload" />
@@ -55,11 +72,11 @@ export default function VerificationStatusPage() {
         <div className="flex flex-col items-center rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-8 shadow-sm">
           <span className="mb-6 font-label text-sm uppercase tracking-wider text-on-surface-variant">Estimated Time Remaining</span>
           <div className="flex items-center gap-4">
-            <TimeBox value="23" unit="Hours" />
+            <TimeBox value={pad(hours)} unit="Hours" />
             <span className="mb-6 text-2xl font-bold text-surface-dim">:</span>
-            <TimeBox value="59" unit="Mins" />
+            <TimeBox value={pad(mins)} unit="Mins" />
             <span className="mb-6 text-2xl font-bold text-surface-dim">:</span>
-            <TimeBox value="42" unit="Secs" />
+            <TimeBox value={pad(secs)} unit="Secs" />
           </div>
         </div>
 
@@ -94,9 +111,6 @@ export default function VerificationStatusPage() {
 
       {/* Actions */}
       <div className="mb-20 flex flex-col items-center justify-center gap-4 sm:flex-row">
-        <button className="cta-gradient flex h-14 w-full items-center justify-center gap-2 rounded-xl px-8 font-bold text-white shadow-lg transition-all hover:shadow-xl sm:w-auto">
-          <Icon name="edit_document" size={20} /> Edit Submitted Documents
-        </button>
         <button className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-surface-container-high px-8 font-bold text-on-surface transition-all hover:bg-surface-container-highest sm:w-auto">
           <Icon name="contact_support" size={20} /> Contact Support
         </button>

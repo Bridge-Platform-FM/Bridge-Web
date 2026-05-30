@@ -27,10 +27,10 @@ export function Navbar() {
                 href="/"
                 className="flex items-center gap-2 text-slate-500 cursor-pointer group"
             >
-                <ArrowLeft size={20} />
+                {/* <ArrowLeft size={20} />
                 <span className="text-sm font-medium group-hover:text-blue-600 transition-colors">
                     Return to Website
-                </span>
+                </span> */}
             </Link>
         </nav>
     );
