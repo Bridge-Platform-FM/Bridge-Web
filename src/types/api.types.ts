@@ -28,9 +28,14 @@ export interface VerifyOtpPayload {
   phoneNumber?: string;
 }
 
-/** Response from an OTP verify endpoint. Adjust once the real API is known. */
+/** Response from an OTP verify endpoint. Tokens arrive only on the call that verifies the final channel. */
 export interface VerifyOtpResponse {
   success?: boolean;
   message?: string;
-  data?: unknown;
+  data?: {
+    /** True once both channels are verified and registration completed. */
+    isCompleted?: boolean;
+    /** Present only on the pair-completing verify response. */
+    company?: { accessToken: string; refreshToken: string };
+  };
 }

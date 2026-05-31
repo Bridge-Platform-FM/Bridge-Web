@@ -8,6 +8,7 @@ import { OtpInput } from "@/components/onboarding/OtpInput";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { Button } from "@/components/ui/Button";
 import { verifyMobileOtp, verifyEmailOtp } from "@/services/auth.service";
+import { setTokens } from "@/lib/auth-tokens";
 import type { ApiError } from "@/lib/axios";
 
 const OTP_LENGTH = 4;
@@ -80,7 +81,9 @@ export default function VerifyAccountPage() {
     setMobileError(null);
     setVerifyingMobile(true);
     try {
-      await verifyMobileOtp({ channel: "MOBILE", phoneNumber: String(data.contact ?? ""), otp });
+      const res = await verifyMobileOtp({ channel: "MOBILE", phoneNumber: String(data.contact ?? ""), otp });
+      // Tokens are only present on the call that verifies the final channel.
+      if (res.data?.company) setTokens(res.data.company);
       setMobileVerified(true);
     } catch (err) {
       setMobileError((err as ApiError).message ?? "Verification failed. Please try again.");
@@ -98,7 +101,9 @@ export default function VerifyAccountPage() {
     setEmailError(null);
     setVerifyingEmail(true);
     try {
-      await verifyEmailOtp({ channel: "EMAIL", email: String(data.email ?? ""), otp });
+      const res = await verifyEmailOtp({ channel: "EMAIL", email: String(data.email ?? ""), otp });
+      // Tokens are only present on the call that verifies the final channel.
+      if (res.data?.company) setTokens(res.data.company);
       setEmailVerified(true);
     } catch (err) {
       setEmailError((err as ApiError).message ?? "Verification failed. Please try again.");
@@ -153,7 +158,7 @@ export default function VerifyAccountPage() {
           <div className="flex flex-wrap items-center gap-3">
             <OtpInput value={mobileOtp} onChange={setMobileOtp} />
 
-            <ResendControl onResend={handleResendMobileOtp} />
+            {!mobileVerified && <ResendControl onResend={handleResendMobileOtp} />}
 
             <Button
               variant="primary"
@@ -184,7 +189,7 @@ export default function VerifyAccountPage() {
           <div className="flex flex-wrap items-center gap-3">
             <OtpInput value={emailOtp} onChange={setEmailOtp} />
 
-            <ResendControl onResend={handleResendEmailOtp} />
+            {!emailVerified && <ResendControl onResend={handleResendEmailOtp} />}
 
             <Button
               variant="primary"
