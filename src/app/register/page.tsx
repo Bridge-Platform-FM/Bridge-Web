@@ -15,6 +15,13 @@ const ROLES = [
   { value: "b2b_enterprise", label: "B2B Enterprise" },
 ];
 
+// Maps the UI role values to the backend's expected enum.
+const ROLE_MAP: Record<string, "INVESTOR" | "B2B" | "STARTUP"> = {
+  startup: "STARTUP",
+  investor: "INVESTOR",
+  b2b_enterprise: "B2B",
+};
+
 const GST_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[A-Z0-9]{1}Z[A-Z0-9]{1}$/;
 const CIN_REGEX = /^[A-Z]{1}[0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/;
 const PHONE_REGEX = /^[6-9]\d{9}$/;
@@ -55,6 +62,8 @@ export default function RegisterPage() {
     const e: Errors = {};
 
     if (!values.legalName.trim()) e.legalName = "Company name is required.";
+    else if (values.legalName.trim().length < 3)
+      e.legalName = "Company name must be at least 3 characters.";
 
     if (!values.email.trim()) e.email = "Email is required.";
     else if (!EMAIL_REGEX.test(values.email)) e.email = "Enter a valid email address.";
@@ -93,16 +102,22 @@ export default function RegisterPage() {
       cinNumber: String(form.get("cinNumber") ?? ""),
     };
 
+    const termsAccepted = form.get("termsAccepted") === "on";
+
     const found = validate(values);
+    if (!termsAccepted)
+      found.termsAccepted = "Please accept the Terms of Service and Privacy Policy.";
     setErrors(found);
     if (Object.keys(found).length > 0) return;
 
-    // Password is intentionally excluded from the API payload.
+    // Payload shaped to the backend schema (field names, role enum, password, terms).
     const payload = {
-      legalName: values.legalName,
+      companyName: values.legalName,
       email: values.email,
-      contact: values.contact,
-      role,
+      phoneNumber: values.contact,
+      password: values.password,
+      role: ROLE_MAP[role],
+      termsAccepted: true,
       gstNumber: isB2B ? values.gstNumber : undefined,
       cinNumber: isB2B ? values.cinNumber : undefined,
     };
@@ -111,7 +126,15 @@ export default function RegisterPage() {
     setSubmitting(true);
     try {
       await registerCompany(payload);
-      setData(payload);
+      // Persist UI-shaped fields so prefill (defaultValue) keeps working on back-navigation.
+      setData({
+        legalName: values.legalName,
+        email: values.email,
+        contact: values.contact,
+        role,
+        gstNumber: values.gstNumber,
+        cinNumber: values.cinNumber,
+      });
       goNext("details");
     } catch (err) {
       setApiError((err as ApiError).message ?? "Registration failed. Please try again.");
@@ -304,13 +327,16 @@ export default function RegisterPage() {
               </div>
             )}
 
-            <label className="flex cursor-pointer items-start gap-3 px-1">
-              <input type="checkbox" required className="mt-1 size-4 rounded border-outline-variant text-primary focus:ring-primary/20" />
-              <span className="text-sm leading-tight text-on-surface-variant">
-                I agree to the <Link href="#" className="font-bold text-primary hover:underline">Terms of Service</Link> and{" "}
-                <Link href="#" className="font-bold text-primary hover:underline">Privacy Policy</Link> regarding corporate data handling.
-              </span>
-            </label>
+            <div className="flex flex-col gap-2">
+              <label className="flex cursor-pointer items-start gap-3 px-1">
+                <input type="checkbox" name="termsAccepted" onChange={() => clearError("termsAccepted")} className="mt-1 size-4 rounded border-outline-variant text-primary focus:ring-primary/20" />
+                <span className="text-sm leading-tight text-on-surface-variant">
+                  I agree to the <Link href="#" className="font-bold text-primary hover:underline">Terms of Service</Link> and{" "}
+                  <Link href="#" className="font-bold text-primary hover:underline">Privacy Policy</Link> regarding corporate data handling.
+                </span>
+              </label>
+              <ErrorText msg={errors.termsAccepted} />
+            </div>
 
             {apiError && <ErrorText msg={apiError} />}
 

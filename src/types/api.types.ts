@@ -1,9 +1,11 @@
-/** Payload sent when registering a company (step 1). Password is intentionally excluded. */
+/** Payload sent when registering a company (step 1). Field names/values match the backend schema. */
 export interface RegisterPayload {
-  legalName: string;
+  companyName: string;
   email: string;
-  contact: string;
-  role: string;
+  phoneNumber: string;
+  password: string;
+  role: "INVESTOR" | "B2B" | "STARTUP";
+  termsAccepted: boolean;
   gstNumber?: string;
   cinNumber?: string;
 }
@@ -15,13 +17,15 @@ export interface RegisterResponse {
   data?: unknown;
 }
 
-/** Payload for verifying a one-time code (mobile or email). */
+/** Payload for verifying a one-time code. Field names/values match the backend schema. */
 export interface VerifyOtpPayload {
   /** Which channel the code was sent over. */
-  channel: "mobile" | "email";
-  /** Recipient identifier — phone for mobile, email for email. */
-  identifier: string;
+  channel: "EMAIL" | "MOBILE";
   otp: string;
+  /** Required when channel is EMAIL. */
+  email?: string;
+  /** Required when channel is MOBILE. */
+  phoneNumber?: string;
 }
 
 /** Response from an OTP verify endpoint. Adjust once the real API is known. */

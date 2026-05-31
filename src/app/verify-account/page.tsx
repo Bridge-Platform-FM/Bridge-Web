@@ -80,7 +80,7 @@ export default function VerifyAccountPage() {
     setMobileError(null);
     setVerifyingMobile(true);
     try {
-      await verifyMobileOtp({ channel: "mobile", identifier: String(data.contact ?? ""), otp });
+      await verifyMobileOtp({ channel: "MOBILE", phoneNumber: String(data.contact ?? ""), otp });
       setMobileVerified(true);
     } catch (err) {
       setMobileError((err as ApiError).message ?? "Verification failed. Please try again.");
@@ -98,7 +98,7 @@ export default function VerifyAccountPage() {
     setEmailError(null);
     setVerifyingEmail(true);
     try {
-      await verifyEmailOtp({ channel: "email", identifier: String(data.email ?? ""), otp });
+      await verifyEmailOtp({ channel: "EMAIL", email: String(data.email ?? ""), otp });
       setEmailVerified(true);
     } catch (err) {
       setEmailError((err as ApiError).message ?? "Verification failed. Please try again.");
