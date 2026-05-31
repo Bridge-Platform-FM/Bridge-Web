@@ -121,23 +121,23 @@ export default function RegisterPage() {
   };
 
   return (
-    <main className=" mx-auto grid max-w-[1200px]  grid-cols-1 items-start gap-16 px-6 py-12 lg:grid-cols-12">
+    <main className=" mx-auto grid max-w-[1200px]  grid-cols-1 items-start gap-10 px-4 py-8 sm:px-6 lg:grid-cols-12 lg:gap-16 lg:py-12">
       {/* Left: editorial context */}
-      <div className="flex flex-col gap-8 pt-4 lg:col-span-5">
+      <div className="flex flex-col gap-6 pt-4 lg:col-span-5 lg:gap-8">
         <div className="space-y-4">
           <span className="inline-flex rounded-full bg-secondary-container px-3 py-1 text-xs font-semibold uppercase tracking-wider text-on-secondary-container">
             Onboarding
           </span>
-          <h1 className="font-headline text-[3.5rem] font-extrabold leading-[1.1] tracking-[-0.03em] text-on-surface">
+          <h1 className="font-headline text-4xl font-extrabold leading-[1.1] tracking-[-0.03em] text-on-surface sm:text-5xl lg:text-[3.5rem]">
             Unlock Your <br />
             <span className="text-primary">Enterprise</span> Future.
           </h1>
-          <p className="max-w-md text-lg leading-relaxed text-on-surface-variant">
+          <p className="max-w-md text-base leading-relaxed text-on-surface-variant sm:text-lg">
             Join over 5,000 corporate partners streamlining their digital operations with our
             precision-engineered toolset.
           </p>
         </div>
-        <div className="flex flex-col gap-6 rounded-2xl bg-surface-container p-8">
+        <div className="flex flex-col gap-6 rounded-2xl bg-surface-container p-6 sm:p-8">
           {[
             { icon: "verified_user", title: "Secure Infrastructure", body: "Military-grade encryption for all financial data." },
             { icon: "rocket_launch", title: "Instant Approval", body: "Automated GST verification for faster access." },
@@ -157,7 +157,7 @@ export default function RegisterPage() {
 
       {/* Right: form card */}
       <div className="lg:col-span-7">
-        <Card padding="lg" className="flex flex-col gap-8 !p-10">
+        <Card padding="lg" className="flex flex-col gap-6 !p-6 sm:!p-8 lg:gap-8 lg:!p-10">
           <div className="flex flex-col gap-1">
             <h2 className="font-headline text-2xl font-bold text-on-surface">Company Registration</h2>
           </div>
@@ -329,7 +329,7 @@ export default function RegisterPage() {
           </form>
         </Card>
 
-        <div className="mt-8 flex justify-center gap-8 font-label text-[11px] font-bold uppercase tracking-widest text-on-surface-variant/60">
+        <div className="mt-8 flex flex-wrap justify-center gap-4 font-label text-[11px] font-bold uppercase tracking-widest text-on-surface-variant/60 sm:gap-8">
           <span className="flex items-center gap-1"><Icon name="lock" size={14} /> SSL Secured</span>
           <span className="flex items-center gap-1"><Icon name="gpp_maybe" size={14} /> GDPR Compliant</span>
           <span className="flex items-center gap-1"><Icon name="public" size={14} /> Global Registration</span>
