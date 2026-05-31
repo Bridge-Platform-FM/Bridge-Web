@@ -88,6 +88,21 @@ body {
   min-height: 100vh;
 }
 
+/* Chrome, Safari, Edge */
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* Firefox */
+html {
+  scrollbar-width: none;
+}
+
+/* IE/Edge Legacy */
+body {
+  -ms-overflow-style: none;
+}
+
 body {
   overflow-x: hidden;
 }
