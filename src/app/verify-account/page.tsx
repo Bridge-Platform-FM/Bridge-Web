@@ -6,7 +6,6 @@ import { StepProgress } from "@/components/onboarding/StepProgress";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
 import { OtpInput } from "@/components/onboarding/OtpInput";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
-import { Button } from "@/components/ui/Button";
 import { verifyMobileOtp, verifyEmailOtp } from "@/services/auth.service";
 import { setTokens } from "@/lib/auth-tokens";
 import type { ApiError } from "@/lib/axios";
@@ -88,12 +87,7 @@ export default function VerifyAccountPage() {
     if (mobileVerified && emailVerified) goNext("verification");
   }, [mobileVerified, emailVerified, goNext]);
 
-  const handleVerifyMobileOtp = async () => {
-    const otp = mobileOtp.join("");
-    if (otp.length < OTP_LENGTH) {
-      setMobileError(`Enter the ${OTP_LENGTH}-digit code.`);
-      return;
-    }
+  const verifyMobile = async (otp: string) => {
     setMobileError(null);
     setVerifyingMobile(true);
     try {
@@ -105,15 +99,11 @@ export default function VerifyAccountPage() {
       setMobileError((err as ApiError).message ?? "Verification failed. Please try again.");
     } finally {
       setVerifyingMobile(false);
+      setMobileOtp(Array(OTP_LENGTH).fill(""));
     }
   };
 
-  const handleVerifyEmailOtp = async () => {
-    const otp = emailOtp.join("");
-    if (otp.length < OTP_LENGTH) {
-      setEmailError(`Enter the ${OTP_LENGTH}-digit code.`);
-      return;
-    }
+  const verifyEmail = async (otp: string) => {
     setEmailError(null);
     setVerifyingEmail(true);
     try {
@@ -125,7 +115,21 @@ export default function VerifyAccountPage() {
       setEmailError((err as ApiError).message ?? "Verification failed. Please try again.");
     } finally {
       setVerifyingEmail(false);
+      setEmailOtp(Array(OTP_LENGTH).fill(""));
     }
+  };
+
+  // Auto-trigger verification once all digits are entered (no Verify button).
+  const handleMobileChange = (next: string[]) => {
+    setMobileOtp(next);
+    if (mobileVerified || verifyingMobile) return;
+    if (next.join("").length === OTP_LENGTH) verifyMobile(next.join(""));
+  };
+
+  const handleEmailChange = (next: string[]) => {
+    setEmailOtp(next);
+    if (emailVerified || verifyingEmail) return;
+    if (next.join("").length === OTP_LENGTH) verifyEmail(next.join(""));
   };
 
   const handleResendMobileOtp = () => {
@@ -173,20 +177,19 @@ export default function VerifyAccountPage() {
           </label>
 
           <div className="flex flex-wrap items-center gap-3">
-            <OtpInput value={mobileOtp} onChange={setMobileOtp} />
+            <OtpInput value={mobileOtp} onChange={handleMobileChange} />
 
             {!mobileVerified && <ResendControl onResend={handleResendMobileOtp} />}
-
-            <Button
-              variant="primary"
-              onClick={handleVerifyMobileOtp}
-              disabled={verifyingMobile || mobileVerified}
-              className="bg-primary"
-            >
-              {mobileVerified ? "Verified" : verifyingMobile ? "Verifying…" : "Verify"}
-            </Button>
           </div>
-          {mobileError && <span className="px-1 text-xs font-medium text-error">{mobileError}</span>}
+          {mobileVerified ? (
+            <span className="flex items-center gap-1 px-1 text-xs font-medium text-primary">
+              <Icon name="check_circle" size={16} /> Verified
+            </span>
+          ) : verifyingMobile ? (
+            <span className="px-1 text-xs font-medium text-on-surface-variant">Verifying…</span>
+          ) : mobileError ? (
+            <span className="px-1 text-xs font-medium text-error">{mobileError}</span>
+          ) : null}
         </div>
 
 
@@ -204,20 +207,19 @@ export default function VerifyAccountPage() {
           </label>
 
           <div className="flex flex-wrap items-center gap-3">
-            <OtpInput value={emailOtp} onChange={setEmailOtp} />
+            <OtpInput value={emailOtp} onChange={handleEmailChange} />
 
             {!emailVerified && <ResendControl onResend={handleResendEmailOtp} />}
-
-            <Button
-              variant="primary"
-              onClick={handleVerifyEmailOtp}
-              disabled={verifyingEmail || emailVerified}
-              className="bg-primary"
-            >
-              {emailVerified ? "Verified" : verifyingEmail ? "Verifying…" : "Verify"}
-            </Button>
           </div>
-          {emailError && <span className="px-1 text-xs font-medium text-error">{emailError}</span>}
+          {emailVerified ? (
+            <span className="flex items-center gap-1 px-1 text-xs font-medium text-primary">
+              <Icon name="check_circle" size={16} /> Verified
+            </span>
+          ) : verifyingEmail ? (
+            <span className="px-1 text-xs font-medium text-on-surface-variant">Verifying…</span>
+          ) : emailError ? (
+            <span className="px-1 text-xs font-medium text-error">{emailError}</span>
+          ) : null}
         </div>
       </div>
 
