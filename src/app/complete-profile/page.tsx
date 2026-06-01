@@ -18,14 +18,14 @@ export default function CompleteProfilePage() {
     e.preventDefault();
     const form = new FormData(e.target as HTMLFormElement);
     setData({ firstName: form.get("firstName"), lastName: form.get("lastName"), bio: form.get("bio") });
-    goNext("address");
+    goNext("profile");
   };
 
   return (
     <div className="mx-auto flex w-full max-w-[560px] flex-col gap-8 px-6 py-10">
       <FocusedHeader backLabel="Back to Overview" backHref="/verify-account" />
 
-      <StepProgress stepKey="address" />
+      <StepProgress stepKey="profile" />
 
       <div className="flex flex-col gap-2">
         <h1 className="text-4xl font-bold leading-tight tracking-tight text-on-surface font-headline">
@@ -90,7 +90,7 @@ export default function CompleteProfilePage() {
             Save &amp; Continue
             <Icon name="chevron_right" size={20} />
           </button>
-          <button type="button" onClick={() => goNext("address")} className="h-12 w-full rounded-xl text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-container">
+          <button type="button" onClick={() => goNext("profile")} className="h-12 w-full rounded-xl text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-container">
             I&apos;ll do this later
           </button>
         </div>

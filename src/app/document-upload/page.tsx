@@ -38,7 +38,7 @@ export default function DocumentUploadPage() {
     setErrors(found);
     if (Object.keys(found).length > 0) return;
 
-    goNext("authorized");
+    goNext("kycdoc");
   };
 
   return (
@@ -46,7 +46,7 @@ export default function DocumentUploadPage() {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-6 py-6">
       <FocusedHeader backHref="/complete-profile" />
       <div>
-        <StepProgress stepKey="authorized" />
+        <StepProgress stepKey="kycdoc" />
         <p className="mt-3 flex items-center gap-2 text-sm text-on-surface-variant">
           <Icon name="verified" size={16} filled className="text-primary" />
           Government issued ID required for secure verification

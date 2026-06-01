@@ -51,7 +51,7 @@ export default function VerificationStatusPage() {
       <FocusedHeader backLabel="Back to Overview" backHref="/document-upload" />
 
       <div className="mb-8 mt-4 rounded-xl bg-surface-container-low p-6">
-        <StepProgress stepKey="finalize" showLabels={false} />
+        <StepProgress stepKey="status" showLabels={false} />
       </div>
 
       {/* Status hero */}
