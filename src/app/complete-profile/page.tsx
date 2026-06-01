@@ -2,30 +2,49 @@
 
 import React, { useState } from "react";
 import { Icon } from "@/components/ui/Icon";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/Textarea";
-import { StepProgress } from "@/components/onboarding/StepProgress";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 
-const FIELD =
-  "w-full h-14 px-4 rounded-xl bg-surface-container-highest border-none text-on-surface placeholder:text-outline focus:ring-2 focus:ring-primary/40 transition-all";
+/** Human-readable labels for the role values captured at registration. */
+const ROLE_LABELS: Record<string, string> = {
+  startup: "Startup",
+  investor: "Investor",
+  b2b_enterprise: "B2B Enterprise",
+};
+
+/** Role-specific profile fields. Filled in per role; empty arrays render nothing. */
+type ProfileField = { name: string; label: string; type?: string; placeholder?: string };
+const ROLE_FIELDS: Record<string, ProfileField[]> = {
+  startup: [],
+  investor: [],
+  b2b_enterprise: [],
+};
 
 export default function CompleteProfilePage() {
   const { data, setData, goNext } = useOnboarding();
   const [photo, setPhoto] = useState<string | null>(null);
 
+  const role = String(data.role ?? "");
+  const roleFields = ROLE_FIELDS[role] ?? [];
+
   const save = (e: React.FormEvent) => {
     e.preventDefault();
     const form = new FormData(e.target as HTMLFormElement);
-    setData({ firstName: form.get("firstName"), lastName: form.get("lastName"), bio: form.get("bio") });
+    const roleValues = Object.fromEntries(roleFields.map((f) => [f.name, form.get(f.name)]));
+    setData({
+      firstName: form.get("firstName"),
+      lastName: form.get("lastName"),
+      bio: form.get("bio"),
+      ...roleValues,
+    });
     goNext("profile");
   };
 
   return (
     <div className="mx-auto my-6 w-full max-w-[560px] rounded-2xl bg-surface-container-lowest ambient-shadow border border-white/40 flex flex-col gap-3 !p-6 sm:!p-8 lg:gap-6 lg:!p-8">
       <FocusedHeader backLabel="Back to Overview" backHref="/verify-account" />
-
-      {/* <StepProgress stepKey="profile" /> */}
 
       <div className="flex flex-col gap-2">
         <h1 className="text-4xl font-bold leading-tight tracking-tight text-on-surface font-headline">
@@ -72,16 +91,70 @@ export default function CompleteProfilePage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <div className="flex flex-col gap-2">
-            <label htmlFor="firstName" className="ml-1 text-sm font-medium text-on-surface-variant">First Name</label>
-            <input id="firstName" name="firstName" type="text" placeholder="e.g. Michael" className={FIELD} defaultValue={data.firstName as string} />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label htmlFor="lastName" className="ml-1 text-sm font-medium text-on-surface-variant">Last Name</label>
-            <input id="lastName" name="lastName" type="text" placeholder="e.g. Scott" className={FIELD} defaultValue={data.lastName as string} />
+        {/* Account details — captured at registration, shown locked */}
+        <div className="flex flex-col gap-4">
+          <p className="text-base font-semibold text-on-surface">Account Details</p>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <Input
+              label="Company Name"
+              value={String(data.legalName ?? "")}
+              readOnly
+              adornment={<Icon name="lock" size={18} />}
+              className="cursor-not-allowed text-on-surface-variant"
+            />
+            <Input
+              label="Role"
+              value={ROLE_LABELS[role] ?? role}
+              readOnly
+              adornment={<Icon name="lock" size={18} />}
+              className="cursor-not-allowed text-on-surface-variant"
+            />
+            <Input
+              label="Email"
+              type="email"
+              value={String(data.email ?? "")}
+              readOnly
+              adornment={<Icon name="lock" size={18} />}
+              className="cursor-not-allowed text-on-surface-variant"
+            />
+            <Input
+              label="Phone"
+              type="tel"
+              value={String(data.contact ?? "")}
+              readOnly
+              adornment={<Icon name="lock" size={18} />}
+              className="cursor-not-allowed text-on-surface-variant"
+            />
           </div>
         </div>
+
+        {/* Personal */}
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <Input id="firstName" name="firstName" label="First Name" placeholder="e.g. Michael" defaultValue={data.firstName as string} />
+          <Input id="lastName" name="lastName" label="Last Name" placeholder="e.g. Scott" defaultValue={data.lastName as string} />
+        </div>
+
+        {/* Role-specific fields (filled in per role) */}
+        {roleFields.length > 0 && (
+          <div className="flex flex-col gap-4">
+            <p className="text-base font-semibold text-on-surface">
+              {ROLE_LABELS[role] ?? "Additional"} Details
+            </p>
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              {roleFields.map((f) => (
+                <Input
+                  key={f.name}
+                  id={f.name}
+                  name={f.name}
+                  label={f.label}
+                  type={f.type}
+                  placeholder={f.placeholder}
+                  defaultValue={data[f.name] as string}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         <Textarea id="bio" name="bio" label="Short Bio (Optional)" placeholder="Tell us a little bit about what you do..." defaultValue={data.bio as string} />
 
