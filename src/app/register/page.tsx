@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
 import { Card } from "@/components/ui/Card";
+import { Input } from "@/components/ui/input";
 import { StepProgress } from "@/components/onboarding/StepProgress";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { registerCompany } from "@/services/auth.service";
@@ -28,9 +29,6 @@ const PHONE_REGEX = /^[6-9]\d{9}$/;
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const FIELD =
-  "w-full h-14 bg-surface-container-highest border-none rounded-xl px-4 text-on-surface focus:ring-1 focus:ring-primary/40 transition-all placeholder:text-outline-variant";
-const FIELD_ERROR = "ring-2 ring-error/60 focus:ring-error/60";
 const LABEL = "text-xs font-bold text-on-surface-variant tracking-wide px-1 font-label";
 
 type Errors = Record<string, string>;
@@ -187,76 +185,61 @@ export default function RegisterPage() {
           <StepProgress stepKey="details" />
 
           <form onSubmit={submit} noValidate className="flex flex-col gap-6">
-            <div className="flex flex-col gap-2">
-              <label className={LABEL}>LEGAL COMPANY NAME</label>
-              <div className="group relative">
-                <input
-                  name="legalName"
-                  type="text"
-                  placeholder="Global Tech Corp"
-                  className={`${FIELD} ${errors.legalName ? FIELD_ERROR : ""}`}
-                  defaultValue={data.legalName as string}
-                  onChange={() => clearError("legalName")}
-                />
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-primary opacity-0 transition-opacity group-focus-within:opacity-100">
-                  <Icon name="corporate_fare" size={20} />
-                </div>
-              </div>
-              <ErrorText msg={errors.legalName} />
-            </div>
+            <Input
+              id="legalName"
+              name="legalName"
+              type="text"
+              label="LEGAL COMPANY NAME"
+              placeholder="Global Tech Corp"
+              defaultValue={data.legalName as string}
+              onChange={() => clearError("legalName")}
+              error={errors.legalName}
+              adornment={<Icon name="corporate_fare" size={20} />}
+              adornmentClassName="text-primary opacity-0 transition-opacity group-focus-within:opacity-100"
+            />
 
-            <div className="flex flex-col gap-2">
-              <label className={LABEL}>OFFICIAL EMAIL ADDRESS</label>
-              <div className="relative">
-                <input
-                  name="email"
-                  type="email"
-                  placeholder="admin@company.com"
-                  className={`${FIELD} ${errors.email ? FIELD_ERROR : ""}`}
-                  defaultValue={data.email as string}
-                  onChange={() => clearError("email")}
-                />
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant">
-                  <Icon name="mail" size={20} />
-                </div>
-              </div>
-              <ErrorText msg={errors.email} />
-            </div>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              label="OFFICIAL EMAIL ADDRESS"
+              placeholder="admin@company.com"
+              defaultValue={data.email as string}
+              onChange={() => clearError("email")}
+              error={errors.email}
+              adornment={<Icon name="mail" size={20} />}
+            />
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <div className="flex flex-col gap-2">
-                <label className={LABEL}>ACCOUNT PASSWORD</label>
-                <div className="relative">
-                  <input
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••••••"
-                    className={`${FIELD} ${errors.password ? FIELD_ERROR : ""}`}
-                    onChange={() => clearError("password")}
-                  />
-                  <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant transition-colors hover:text-primary">
+              <Input
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                label="ACCOUNT PASSWORD"
+                placeholder="••••••••••••"
+                onChange={() => clearError("password")}
+                error={errors.password}
+                adornment={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="text-on-surface-variant transition-colors hover:text-primary"
+                  >
                     <Icon name={showPassword ? "visibility_off" : "visibility"} size={20} />
                   </button>
-                </div>
-                <ErrorText msg={errors.password} />
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className={LABEL}>CONTACT NUMBER</label>
-                <div className="relative">
-                  <input
-                    name="contact"
-                    type="tel"
-                    placeholder="9632585698"
-                    className={`${FIELD} ${errors.contact ? FIELD_ERROR : ""}`}
-                    defaultValue={data.contact as string}
-                    onChange={() => clearError("contact")}
-                  />
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant">
-                    <Icon name="smartphone" size={20} />
-                  </div>
-                </div>
-                <ErrorText msg={errors.contact} />
-              </div>
+                }
+              />
+              <Input
+                id="contact"
+                name="contact"
+                type="tel"
+                label="CONTACT NUMBER"
+                placeholder="9632585698"
+                defaultValue={data.contact as string}
+                onChange={() => clearError("contact")}
+                error={errors.contact}
+                adornment={<Icon name="smartphone" size={20} />}
+              />
             </div>
 
             <div className="flex flex-col gap-2">
@@ -278,7 +261,7 @@ export default function RegisterPage() {
                         setRole(r.value);
                         clearError("role");
                       }}
-                      className="size-4 border-outline-variant text-primary focus:ring-primary/20"
+                      className="size-4 accent-primary border-outline-variant text-primary focus:ring-primary/20"
                     />
                     <span className="text-sm font-medium text-on-surface">{r.label}</span>
                   </label>
@@ -290,46 +273,34 @@ export default function RegisterPage() {
             {/* B2B-only: GST + CIN, revealed after role selection */}
             {isB2B && (
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div className="flex flex-col gap-2">
-                  <label className={LABEL}>GST NUMBER</label>
-                  <div className="relative">
-                    <input
-                      name="gstNumber"
-                      type="text"
-                      placeholder="22AAAAA0000A1Z5"
-                      className={`${FIELD} ${errors.gstNumber ? FIELD_ERROR : ""}`}
-                      defaultValue={data.gstNumber as string}
-                      onChange={() => clearError("gstNumber")}
-                    />
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant">
-                      <Icon name="pin" size={20} />
-                    </div>
-                  </div>
-                  <ErrorText msg={errors.gstNumber} />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className={LABEL}>CIN NUMBER</label>
-                  <div className="relative">
-                    <input
-                      name="cinNumber"
-                      type="text"
-                      placeholder="U12345MH2024PTC123456"
-                      className={`${FIELD} ${errors.cinNumber ? FIELD_ERROR : ""}`}
-                      defaultValue={data.cinNumber as string}
-                      onChange={() => clearError("cinNumber")}
-                    />
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant">
-                      <Icon name="pin" size={20} />
-                    </div>
-                  </div>
-                  <ErrorText msg={errors.cinNumber} />
-                </div>
+                <Input
+                  id="gstNumber"
+                  name="gstNumber"
+                  type="text"
+                  label="GST NUMBER"
+                  placeholder="22AAAAA0000A1Z5"
+                  defaultValue={data.gstNumber as string}
+                  onChange={() => clearError("gstNumber")}
+                  error={errors.gstNumber}
+                  adornment={<Icon name="pin" size={20} />}
+                />
+                <Input
+                  id="cinNumber"
+                  name="cinNumber"
+                  type="text"
+                  label="CIN NUMBER"
+                  placeholder="U12345MH2024PTC123456"
+                  defaultValue={data.cinNumber as string}
+                  onChange={() => clearError("cinNumber")}
+                  error={errors.cinNumber}
+                  adornment={<Icon name="pin" size={20} />}
+                />
               </div>
             )}
 
             <div className="flex flex-col gap-2">
               <label className="flex cursor-pointer items-start gap-3 px-1">
-                <input type="checkbox" name="termsAccepted" onChange={() => clearError("termsAccepted")} className="mt-1 size-4 rounded border-outline-variant text-primary focus:ring-primary/20" />
+                <input type="checkbox" name="termsAccepted" onChange={() => clearError("termsAccepted")} className="mt-1 size-4 rounded accent-primary border-outline-variant text-primary focus:ring-primary/20" />
                 <span className="text-sm leading-tight text-on-surface-variant">
                   I agree to the <Link href="#" className="font-bold text-primary hover:underline">Terms of Service</Link> and{" "}
                   <Link href="#" className="font-bold text-primary hover:underline">Privacy Policy</Link> regarding corporate data handling.

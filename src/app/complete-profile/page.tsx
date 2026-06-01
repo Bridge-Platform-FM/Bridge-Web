@@ -22,7 +22,7 @@ export default function CompleteProfilePage() {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-[560px] flex-col gap-8 px-6 py-10">
+    <div className="mx-auto flex w-full max-w-[560px] flex-col gap-5 px-6 py-8">
       <FocusedHeader backLabel="Back to Overview" backHref="/verify-account" />
 
       <StepProgress stepKey="profile" />
@@ -36,7 +36,7 @@ export default function CompleteProfilePage() {
         </p>
       </div>
 
-      <form onSubmit={save} className="flex flex-col gap-10">
+      <form onSubmit={save} className="flex flex-col gap-6">
         {/* Profile picture */}
         <div className="flex flex-col gap-4">
           <p className="text-base font-semibold text-on-surface">Profile Picture</p>
@@ -96,7 +96,7 @@ export default function CompleteProfilePage() {
         </div>
       </form>
 
-      <div className="mt-4 flex items-start gap-4 rounded-2xl bg-surface-container-low p-6">
+      <div className="mt-2 flex items-start gap-4 rounded-2xl bg-surface-container-low p-5">
         <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-container-high">
           <Icon name="lock" size={20} filled className="text-primary" />
         </div>

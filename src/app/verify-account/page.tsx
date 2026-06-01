@@ -22,11 +22,13 @@ function maskPhone(phone: string): string {
   return `••• ••• ${digits.slice(-4)}`;
 }
 
-/** Mask an email, keeping the first char of the local part and the full domain. */
+/** Mask an email: first char + dots for the hidden middle + last 4 chars, domain shown. */
 function maskEmail(email: string): string {
   const [local, domain] = email.split("@");
   if (!local || !domain) return "(j•••@company.com)";
-  return `${local[0]}•••@${domain}`;
+  if (local.length <= 5) return `${local}@${domain}`;
+  const hidden = local.length - 5; // 1 first char + 4 last chars revealed
+  return `${local[0]}${".".repeat(hidden)}${local.slice(-4)}@${domain}`;
 }
 
 /**
