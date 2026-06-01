@@ -4,8 +4,10 @@ import React, { useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/Textarea";
+import { Select } from "@/components/ui/Select";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
+import { COUNTRIES, CONTINENTS, continentForCountry } from "@/lib/countries";
 import {
   StartupProfileFields,
   defaultStartupValues,
@@ -38,6 +40,14 @@ export default function CompleteProfilePage() {
     ...((data.startup as Partial<StartupValues>) ?? {}),
   });
 
+  const [country, setCountry] = useState(String(data.country ?? ""));
+  const [continent, setContinent] = useState(String(data.continent ?? ""));
+
+  const handleCountry = (v: string) => {
+    setCountry(v);
+    setContinent(continentForCountry(v));
+  };
+
   const save = (e: React.FormEvent) => {
     e.preventDefault();
     const form = new FormData(e.target as HTMLFormElement);
@@ -46,6 +56,8 @@ export default function CompleteProfilePage() {
       firstName: form.get("firstName"),
       lastName: form.get("lastName"),
       bio: form.get("bio"),
+      country,
+      continent,
       ...roleValues,
       ...(role === "startup" ? { startup } : {}),
     });
@@ -142,6 +154,23 @@ export default function CompleteProfilePage() {
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <Input id="firstName" name="firstName" label="First Name" placeholder="e.g. Michael" defaultValue={data.firstName as string} />
           <Input id="lastName" name="lastName" label="Last Name" placeholder="e.g. Scott" defaultValue={data.lastName as string} />
+          <Select
+            required
+            id="country"
+            label="Country"
+            placeholder="Select country"
+            options={COUNTRIES}
+            value={country}
+            onChange={handleCountry}
+          />
+          <Select
+            id="continent"
+            label="Continent"
+            placeholder="Select continent"
+            options={CONTINENTS}
+            value={continent}
+            onChange={setContinent}
+          />
         </div>
 
         {/* Role-specific fields */}

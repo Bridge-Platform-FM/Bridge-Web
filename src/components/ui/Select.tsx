@@ -13,6 +13,8 @@ interface BaseProps {
   disabled?: boolean;
   /** Enforce a selection via native form validation. */
   required?: boolean;
+  /** Show a search box in the panel. Defaults to true when options.length > 6. */
+  searchable?: boolean;
   "aria-label"?: string;
 }
 
@@ -36,20 +38,31 @@ export type SelectProps = SingleProps | MultiProps;
  * and stays open while toggling. Closes on outside-click / Esc.
  */
 export function Select(props: SelectProps) {
-  const { label, error, placeholder = "Select…", options, id, disabled, required } = props;
+  const { label, error, placeholder = "Select…", options, id, disabled, required, searchable } = props;
   const ariaLabel = props["aria-label"];
   const multiple = props.multiple === true;
+  const showSearch = searchable ?? options.length > 6;
 
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
+
+  const close = () => {
+    setOpen(false);
+    setQuery("");
+  };
+  const toggle = () => {
+    if (open) close();
+    else setOpen(true);
+  };
 
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) close();
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") close();
     };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
@@ -61,13 +74,17 @@ export function Select(props: SelectProps) {
 
   const selectedValues = props.multiple ? props.value : props.value ? [props.value] : [];
   const labelFor = (v: string) => options.find((o) => o.value === v)?.label ?? v;
+  const filteredOptions =
+    showSearch && query.trim()
+      ? options.filter((o) => o.label.toLowerCase().includes(query.trim().toLowerCase()))
+      : options;
 
   const pick = (v: string) => {
     if (props.multiple) {
       props.onChange(props.value.includes(v) ? props.value.filter((x) => x !== v) : [...props.value, v]);
     } else {
       props.onChange(v);
-      setOpen(false);
+      close();
     }
   };
 
@@ -88,7 +105,7 @@ export function Select(props: SelectProps) {
           id={id}
           aria-label={ariaLabel}
           disabled={disabled}
-          onClick={() => setOpen((o) => !o)}
+          onClick={toggle}
           className={`flex w-full items-center justify-between gap-2 rounded-xl border-none bg-surface-container-highest px-4 text-left transition-all focus:ring-1 focus:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-60 ${
             multiple ? "min-h-14 py-2" : "h-14"
           } ${error ? "ring-2 ring-error/60" : ""}`}
@@ -137,8 +154,29 @@ export function Select(props: SelectProps) {
         )}
 
         {open && (
-          <div className="absolute z-20 mt-2 max-h-64 w-full overflow-auto rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-1 shadow-lg">
-            {options.map((o) => {
+          <div className="absolute z-20 mt-2 flex max-h-72 w-full flex-col overflow-hidden rounded-xl border border-outline-variant/30 bg-surface-container-lowest shadow-lg">
+            {showSearch && (
+              <div className="sticky top-0 border-b border-outline-variant/20 bg-surface-container-lowest p-2">
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">
+                    <Icon name="search" size={18} />
+                  </span>
+                  <input
+                    autoFocus
+                    type="text"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search…"
+                    className="h-10 w-full rounded-lg border-none bg-surface-container-highest pl-9 pr-3 text-sm text-on-surface placeholder:text-outline-variant focus:ring-1 focus:ring-primary/40"
+                  />
+                </div>
+              </div>
+            )}
+            <div className="overflow-auto p-1">
+            {filteredOptions.length === 0 ? (
+              <div className="px-3 py-2 text-sm text-on-surface-variant">No results</div>
+            ) : (
+              filteredOptions.map((o) => {
               const isSelected = selectedValues.includes(o.value);
               return (
                 <button
@@ -162,7 +200,9 @@ export function Select(props: SelectProps) {
                   {!multiple && isSelected && <Icon name="check" size={16} className="text-primary" />}
                 </button>
               );
-            })}
+              })
+            )}
+            </div>
           </div>
         )}
       </div>
