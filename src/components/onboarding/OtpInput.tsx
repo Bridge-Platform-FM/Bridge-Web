@@ -25,7 +25,7 @@ export function OtpInput({ length = 4, value, onChange }: OtpInputProps) {
   };
 
   return (
-    <div className="flex  gap-2 md:gap-2">
+    <div className="flex gap-4 md:gap-4">
       {Array.from({ length }).map((_, i) => (
         <input
           key={i}

@@ -52,7 +52,7 @@ function ResendControl({ onResend }: { onResend: () => void }) {
   };
 
   return (
-    <div className="flex min-w-[10px] items-center justify-center text-sm font-medium text-on-surface-variant">
+    <div className="flex min-w-[10px] items-center justify-center font-label text-sm font-semibold text-on-surface-variant">
       {seconds > 0 ? (
         <span>
          <span className="font-bold text-on-surface">0:{String(seconds).padStart(2, "0")}</span>
@@ -170,26 +170,29 @@ export default function VerifyAccountPage() {
           <OtpInput value={mobileOtp} onChange={setMobileOtp} />
         </div> */}
 
-        <div className="flex flex-col gap-4">
-          <label className="flex items-center gap-2 font-label text-sm font-semibold text-on-surface-variant">
-            <Icon name="smartphone" size={16} />
-            Mobile OTP
-          </label>
+        <div className="flex flex-col items-center gap-4">
+          <div className="flex w-fit flex-col gap-3">
+            <div className="flex items-center justify-between gap-4">
+              <label className="flex items-center gap-2 font-label text-sm font-semibold text-on-surface-variant">
+                <Icon name="smartphone" size={16} />
+                Mobile OTP
+              </label>
 
-          <div className="flex flex-wrap items-center gap-3">
+              {!mobileVerified && <ResendControl onResend={handleResendMobileOtp} />}
+            </div>
+
             <OtpInput value={mobileOtp} onChange={handleMobileChange} />
 
-            {!mobileVerified && <ResendControl onResend={handleResendMobileOtp} />}
+            {mobileVerified ? (
+              <span className="flex items-center gap-1 px-1 text-xs font-medium text-primary">
+                <Icon name="check_circle" size={16} />Mobile Otp Verified
+              </span>
+            ) : verifyingMobile ? (
+              <span className="px-1 text-xs font-medium text-on-surface-variant">Verifying…</span>
+            ) : mobileError ? (
+              <span className="px-1 text-xs font-medium text-error">{mobileError}</span>
+            ) : null}
           </div>
-          {mobileVerified ? (
-            <span className="flex items-center gap-1 px-1 text-xs font-medium text-primary">
-              <Icon name="check_circle" size={16} /> Verified
-            </span>
-          ) : verifyingMobile ? (
-            <span className="px-1 text-xs font-medium text-on-surface-variant">Verifying…</span>
-          ) : mobileError ? (
-            <span className="px-1 text-xs font-medium text-error">{mobileError}</span>
-          ) : null}
         </div>
 
 
@@ -200,26 +203,29 @@ export default function VerifyAccountPage() {
           <OtpInput value={emailOtp} onChange={setEmailOtp} />
         </div> */}
 
-        <div className="flex flex-col gap-4">
-          <label className="flex items-center gap-2 font-label text-sm font-semibold text-on-surface-variant">
-            <Icon name="mail" size={16} />
-            Email OTP
-          </label>
+        <div className="flex flex-col items-center gap-4">
+          <div className="flex w-fit flex-col gap-3">
+            <div className="flex items-center justify-between gap-4">
+              <label className="flex items-center gap-2 font-label text-sm font-semibold text-on-surface-variant">
+                <Icon name="mail" size={16} />
+                Email OTP
+              </label>
 
-          <div className="flex flex-wrap items-center gap-3">
+              {!emailVerified && <ResendControl onResend={handleResendEmailOtp} />}
+            </div>
+
             <OtpInput value={emailOtp} onChange={handleEmailChange} />
 
-            {!emailVerified && <ResendControl onResend={handleResendEmailOtp} />}
+            {emailVerified ? (
+              <span className="flex items-center gap-1 px-1 text-xs font-medium text-primary">
+                <Icon name="check_circle" size={16} />Email Otp Verified
+              </span>
+            ) : verifyingEmail ? (
+              <span className="px-1 text-xs font-medium text-on-surface-variant">Verifying…</span>
+            ) : emailError ? (
+              <span className="px-1 text-xs font-medium text-error">{emailError}</span>
+            ) : null}
           </div>
-          {emailVerified ? (
-            <span className="flex items-center gap-1 px-1 text-xs font-medium text-primary">
-              <Icon name="check_circle" size={16} /> Verified
-            </span>
-          ) : verifyingEmail ? (
-            <span className="px-1 text-xs font-medium text-on-surface-variant">Verifying…</span>
-          ) : emailError ? (
-            <span className="px-1 text-xs font-medium text-error">{emailError}</span>
-          ) : null}
         </div>
       </div>
 
