@@ -182,7 +182,7 @@ export default function RegisterPage() {
           <div className="flex flex-col gap-1">
             <h2 className="font-headline text-2xl font-bold text-on-surface">Company Registration</h2>
           </div>
-          <StepProgress stepKey="details" />
+          {/* <StepProgress stepKey="details" /> */}
 
           <form onSubmit={submit} noValidate className="flex flex-col gap-6">
             <Input

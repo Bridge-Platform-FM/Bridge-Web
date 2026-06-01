@@ -46,7 +46,7 @@ export default function DocumentUploadPage() {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-6 py-6">
       <FocusedHeader backHref="/complete-profile" />
       <div>
-        <StepProgress stepKey="kycdoc" />
+        {/* <StepProgress stepKey="kycdoc" /> */}
         <p className="mt-3 flex items-center gap-2 text-sm text-on-surface-variant">
           <Icon name="verified" size={16} filled className="text-primary" />
           Government issued ID required for secure verification

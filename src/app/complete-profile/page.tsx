@@ -25,7 +25,7 @@ export default function CompleteProfilePage() {
     <div className="mx-auto flex w-full max-w-[560px] flex-col gap-5 px-6 py-8">
       <FocusedHeader backLabel="Back to Overview" backHref="/verify-account" />
 
-      <StepProgress stepKey="profile" />
+      {/* <StepProgress stepKey="profile" /> */}
 
       <div className="flex flex-col gap-2">
         <h1 className="text-4xl font-bold leading-tight tracking-tight text-on-surface font-headline">

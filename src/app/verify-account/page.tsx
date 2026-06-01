@@ -149,7 +149,7 @@ export default function VerifyAccountPage() {
       <FocusedHeader backHref="/register" />
 
       <div className="mb-4 mt-4">
-        <StepProgress stepKey="verification" />
+        {/* <StepProgress stepKey="verification" /> */}
       </div>
 
       <div className="mb-5 text-center">
