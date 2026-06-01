@@ -6,6 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/Textarea";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
+import {
+  StartupProfileFields,
+  defaultStartupValues,
+  type StartupValues,
+} from "@/components/onboarding/StartupProfileFields";
 
 /** Human-readable labels for the role values captured at registration. */
 const ROLE_LABELS: Record<string, string> = {
@@ -17,7 +22,6 @@ const ROLE_LABELS: Record<string, string> = {
 /** Role-specific profile fields. Filled in per role; empty arrays render nothing. */
 type ProfileField = { name: string; label: string; type?: string; placeholder?: string };
 const ROLE_FIELDS: Record<string, ProfileField[]> = {
-  startup: [],
   investor: [],
   b2b_enterprise: [],
 };
@@ -29,6 +33,11 @@ export default function CompleteProfilePage() {
   const role = String(data.role ?? "");
   const roleFields = ROLE_FIELDS[role] ?? [];
 
+  const [startup, setStartup] = useState<StartupValues>({
+    ...defaultStartupValues,
+    ...((data.startup as Partial<StartupValues>) ?? {}),
+  });
+
   const save = (e: React.FormEvent) => {
     e.preventDefault();
     const form = new FormData(e.target as HTMLFormElement);
@@ -38,6 +47,7 @@ export default function CompleteProfilePage() {
       lastName: form.get("lastName"),
       bio: form.get("bio"),
       ...roleValues,
+      ...(role === "startup" ? { startup } : {}),
     });
     goNext("profile");
   };
@@ -134,7 +144,12 @@ export default function CompleteProfilePage() {
           <Input id="lastName" name="lastName" label="Last Name" placeholder="e.g. Scott" defaultValue={data.lastName as string} />
         </div>
 
-        {/* Role-specific fields (filled in per role) */}
+        {/* Role-specific fields */}
+        {role === "startup" && (
+          <StartupProfileFields value={startup} onChange={setStartup} />
+        )}
+
+        {/* Generic scaffold for future roles (investor / b2b) */}
         {roleFields.length > 0 && (
           <div className="flex flex-col gap-4">
             <p className="text-base font-semibold text-on-surface">
@@ -162,9 +177,6 @@ export default function CompleteProfilePage() {
           <button type="submit" className="cta-gradient flex h-14 w-full items-center justify-center gap-2 rounded-xl font-bold text-lg text-on-primary shadow-lg shadow-primary/20 transition-all hover:scale-[1.01] active:scale-[0.98]">
             Save &amp; Continue
             <Icon name="chevron_right" size={20} />
-          </button>
-          <button type="button" onClick={() => goNext("profile")} className="h-12 w-full rounded-xl text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-container">
-            I&apos;ll do this later
           </button>
         </div>
       </form>

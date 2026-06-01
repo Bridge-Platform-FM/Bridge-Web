@@ -18,9 +18,13 @@ interface DocumentUploadCardProps {
   slots: UploadSlot[];
   /** Fired whenever any slot changes, with the current file per slot key. */
   onChange?: (files: Record<string, File | null>) => void;
+  /** Override accepted MIME types (defaults to PNG/JPG/PDF). */
+  accept?: string;
+  /** Optional max file size in MB; oversize files are rejected with a message. */
+  maxSizeMB?: number;
 }
 
-const ACCEPT = "image/png,image/jpeg,application/pdf";
+const DEFAULT_ACCEPT = "image/png,image/jpeg,application/pdf";
 
 function isImage(file: File) {
   return file.type.startsWith("image/");
@@ -37,11 +41,27 @@ export function DocumentUploadCard({
   hint = "PNG, JPG or PDF (max 5MB)",
   slots,
   onChange,
+  accept = DEFAULT_ACCEPT,
+  maxSizeMB,
 }: DocumentUploadCardProps) {
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [files, setFiles] = useState<Record<string, File | null>>({});
   // Object URLs for image previews, kept so we can revoke them.
   const [previews, setPreviews] = useState<Record<string, string>>({});
+  // Per-slot rejection message (wrong type / oversize).
+  const [slotErrors, setSlotErrors] = useState<Record<string, string>>({});
+
+  const acceptedTypes = accept.split(",").map((t) => t.trim()).filter(Boolean);
+
+  const rejectReason = (file: File): string | null => {
+    if (acceptedTypes.length && !acceptedTypes.includes(file.type)) {
+      return "Unsupported file type.";
+    }
+    if (maxSizeMB != null && file.size > maxSizeMB * 1024 * 1024) {
+      return `File must be ${maxSizeMB} MB or smaller.`;
+    }
+    return null;
+  };
 
   // Revoke any remaining object URLs on unmount.
   useEffect(() => {
@@ -52,6 +72,21 @@ export function DocumentUploadCard({
   }, []);
 
   const setSlot = (key: string, file: File | null) => {
+    // Validate type/size before accepting.
+    if (file) {
+      const reason = rejectReason(file);
+      if (reason) {
+        setSlotErrors((prev) => ({ ...prev, [key]: reason }));
+        return;
+      }
+    }
+    setSlotErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+
     // Revoke the previous preview URL for this slot, if any.
     setPreviews((prev) => {
       if (prev[key]) URL.revokeObjectURL(prev[key]);
@@ -169,7 +204,7 @@ export function DocumentUploadCard({
                   inputRefs.current[slot.key] = el;
                 }}
                 type="file"
-                accept={ACCEPT}
+                accept={accept}
                 className="hidden"
                 onChange={(e) => {
                   setSlot(slot.key, e.target.files?.[0] ?? null);
@@ -177,6 +212,10 @@ export function DocumentUploadCard({
                   e.target.value = "";
                 }}
               />
+
+              {slotErrors[slot.key] && (
+                <span className="px-1 text-xs font-medium text-error">{slotErrors[slot.key]}</span>
+              )}
             </div>
           );
         })}
