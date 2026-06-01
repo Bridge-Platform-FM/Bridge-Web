@@ -145,14 +145,15 @@ export default function VerifyAccountPage() {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-[560px] flex-col px-6 py-8">
+    // <div className="mx-auto flex w-full max-w-[560px] flex-col px-6 py-8">
+      <div className="mx-auto my-6 w-full max-w-[560px] rounded-2xl bg-surface-container-lowest ambient-shadow border border-white/40 flex flex-col gap-3 !p-6 sm:!p-8 lg:gap-6 lg:!p-8">
       <FocusedHeader backHref="/register" />
 
-      <div className="mb-4 mt-4">
-        {/* <StepProgress stepKey="verification" /> */}
-      </div>
+      {/* <div className="mb-4 mt-4">
+         <StepProgress stepKey="verification" /> 
+      </div>  */}
 
-      <div className="mb-5 text-center">
+      <div className="mb-3 text-center">
         <h1 className="mb-3 font-headline text-[32px] font-extrabold leading-tight tracking-[-0.02em] text-on-surface">
           Secure your account
         </h1>
@@ -162,7 +163,7 @@ export default function VerifyAccountPage() {
         </p>
       </div>
 
-      <div className="space-y-10">
+      <div className="space-y-6">
         {/* <div className="flex flex-col gap-4">
           <label className="flex items-center gap-2 font-label text-sm font-semibold text-on-surface-variant">
             <Icon name="smartphone" size={16} /> Mobile OTP

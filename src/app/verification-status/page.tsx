@@ -47,12 +47,13 @@ export default function VerificationStatusPage() {
   const pad = (n: number) => String(n).padStart(2, "0");
 
   return (
-    <div className="mx-auto flex max-w-[960px] flex-col px-6 py-5">
+    // <div className="mx-auto flex max-w-[960px] flex-col px-6 py-5">
+    <div className="mx-auto my-6 w-full max-w-[920px] rounded-2xl bg-surface-container-lowest ambient-shadow border border-white/40 flex flex-col gap-3 !p-6 sm:!p-8 lg:gap-6 lg:!p-8">
       <FocusedHeader backLabel="Back to Overview" backHref="/document-upload" />
 
-      <div className="mb-8 mt-4 rounded-xl bg-surface-container-low p-6">
-        {/* <StepProgress stepKey="status" showLabels={false} /> */}
-      </div>
+      {/* <div className="mb-8 mt-4 rounded-xl bg-surface-container-low p-6">
+         <StepProgress stepKey="status" showLabels={false} /> 
+      </div> */}
 
       {/* Status hero */}
       <div className="mb-10 flex flex-col items-center px-4 text-center">

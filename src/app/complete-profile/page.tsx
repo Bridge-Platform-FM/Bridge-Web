@@ -22,7 +22,7 @@ export default function CompleteProfilePage() {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-[560px] flex-col gap-5 px-6 py-8">
+    <div className="mx-auto my-6 w-full max-w-[560px] rounded-2xl bg-surface-container-lowest ambient-shadow border border-white/40 flex flex-col gap-3 !p-6 sm:!p-8 lg:gap-6 lg:!p-8">
       <FocusedHeader backLabel="Back to Overview" backHref="/verify-account" />
 
       {/* <StepProgress stepKey="profile" /> */}
