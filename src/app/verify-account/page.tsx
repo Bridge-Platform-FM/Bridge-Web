@@ -15,6 +15,20 @@ const OTP_LENGTH = 4;
 
 const RESEND_SECONDS = 60;
 
+/** Mask a phone number, keeping only the last 4 digits visible. */
+function maskPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 4) return "(+91 ••• ••• 4492)";
+  return `••• ••• ${digits.slice(-4)}`;
+}
+
+/** Mask an email, keeping the first char of the local part and the full domain. */
+function maskEmail(email: string): string {
+  const [local, domain] = email.split("@");
+  if (!local || !domain) return "(j•••@company.com)";
+  return `${local[0]}•••@${domain}`;
+}
+
 /**
  * Self-contained resend control: starts a 60s countdown on mount, shows the
  * timer while active, swaps to a Resend button at 0, and restarts on resend.
@@ -128,16 +142,17 @@ export default function VerifyAccountPage() {
     <div className="mx-auto flex w-full max-w-[560px] flex-col px-6 py-8">
       <FocusedHeader backHref="/register" />
 
-      <div className="mb-5 mt-8">
+      <div className="mb-4 mt-4">
         <StepProgress stepKey="verification" />
       </div>
 
       <div className="mb-5 text-center">
-        <h1 className="mb-4 font-headline text-[32px] font-extrabold leading-tight tracking-[-0.02em] text-on-surface">
+        <h1 className="mb-3 font-headline text-[32px] font-extrabold leading-tight tracking-[-0.02em] text-on-surface">
           Secure your account
         </h1>
         <p className="mx-auto max-w-sm text-base leading-relaxed text-on-surface-variant">
-          We&apos;ve sent a 4-digit code to your mobile phone (+1 ••• ••• 4492) and email (j•••@company.com).
+          We&apos;ve sent a 4-digit code to your mobile phone ({maskPhone(String(data.contact ?? ""))})
+          {" "}and email ({maskEmail(String(data.email ?? ""))}).
         </p>
       </div>
 
