@@ -1,6 +1,14 @@
 "use client";
 
 import React from "react";
+import {
+  Controller,
+  useFieldArray,
+  useWatch,
+  type Control,
+  type UseFormRegister,
+  type FieldErrors,
+} from "react-hook-form";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/Textarea";
@@ -16,6 +24,7 @@ import {
   PITCH_DECK_ACCEPT,
   PITCH_DECK_MAX_MB,
   LINKEDIN_URL_PATTERN,
+  URL_REGEX,
 } from "@/lib/startup-profile-options";
 
 export interface Founder {
@@ -42,6 +51,16 @@ export interface StartupValues {
   pitchDeck: string;
 }
 
+/** Full react-hook-form shape for the complete-profile page. */
+export interface CompleteProfileForm {
+  firstName: string;
+  lastName: string;
+  bio: string;
+  country: string;
+  continent: string;
+  startup: StartupValues;
+}
+
 export const defaultStartupValues: StartupValues = {
   industrySectors: [],
   fundingStage: "",
@@ -66,58 +85,69 @@ export function wordCount(text: string): number {
 }
 
 interface StartupProfileFieldsProps {
-  value: StartupValues;
-  onChange: (next: StartupValues) => void;
+  control: Control<CompleteProfileForm>;
+  register: UseFormRegister<CompleteProfileForm>;
+  errors: FieldErrors<CompleteProfileForm>;
 }
 
 const SECTION_TITLE = "text-base font-semibold text-on-surface";
 
-export function StartupProfileFields({ value, onChange }: StartupProfileFieldsProps) {
-  const set = <K extends keyof StartupValues>(key: K, v: StartupValues[K]) => {
-    onChange({ ...value, [key]: v });
-  };
-
-  const setFounder = (i: number, patch: Partial<Founder>) => {
-    const founders = value.founders.map((f, idx) => (idx === i ? { ...f, ...patch } : f));
-    onChange({ ...value, founders });
-  };
-  const addFounder = () => onChange({ ...value, founders: [...value.founders, { name: "", url: "" }] });
-  const removeFounder = (i: number) =>
-    onChange({ ...value, founders: value.founders.filter((_, idx) => idx !== i) });
-
-  const descWords = wordCount(value.businessDescription);
+export function StartupProfileFields({ control, register, errors }: StartupProfileFieldsProps) {
+  const e = errors.startup;
+  const { fields, append, remove } = useFieldArray({ control, name: "startup.founders" });
+  const businessDescription = useWatch({ control, name: "startup.businessDescription" });
+  const descWords = wordCount(businessDescription ?? "");
 
   return (
     <div className="flex flex-col gap-6">
       <p className={SECTION_TITLE}>Startup Details</p>
 
-      <Select
-        multiple
-        required
-        id="industrySectors"
-        label="Industry Sector"
-        placeholder="Select one or more sectors"
-        options={INDUSTRY_SECTORS}
-        value={value.industrySectors}
-        onChange={(v) => set("industrySectors", v)}
+      <Controller
+        control={control}
+        name="startup.industrySectors"
+        rules={{ validate: (v) => v.length > 0 || "Select at least one industry sector." }}
+        render={({ field }) => (
+          <Select
+            multiple
+            id="industrySectors"
+            label="Industry Sector"
+            placeholder="Select one or more sectors"
+            options={INDUSTRY_SECTORS}
+            value={field.value}
+            onChange={field.onChange}
+            error={e?.industrySectors?.message}
+          />
+        )}
       />
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <Select
-          id="fundingStage"
-          label="Funding Stage"
-          placeholder="Select stage"
-          options={FUNDING_STAGES}
-          value={value.fundingStage}
-          onChange={(v) => set("fundingStage", v)}
+        <Controller
+          control={control}
+          name="startup.fundingStage"
+          render={({ field }) => (
+            <Select
+              id="fundingStage"
+              label="Funding Stage"
+              placeholder="Select stage"
+              options={FUNDING_STAGES}
+              value={field.value}
+              onChange={field.onChange}
+            />
+          )}
         />
-        <Select
-          id="teamSize"
-          label="Team Size"
-          placeholder="Select range"
-          options={TEAM_SIZE_RANGES}
-          value={value.teamSize}
-          onChange={(v) => set("teamSize", v)}
+        <Controller
+          control={control}
+          name="startup.teamSize"
+          render={({ field }) => (
+            <Select
+              id="teamSize"
+              label="Team Size"
+              placeholder="Select range"
+              options={TEAM_SIZE_RANGES}
+              value={field.value}
+              onChange={field.onChange}
+            />
+          )}
         />
       </div>
 
@@ -127,27 +157,30 @@ export function StartupProfileFields({ value, onChange }: StartupProfileFieldsPr
           Funding Ask Amount
         </span>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[8rem_1fr_1fr]">
-          <Select
-            aria-label="Currency"
-            options={CURRENCIES}
-            value={value.fundingCurrency}
-            onChange={(v) => set("fundingCurrency", v)}
+          <Controller
+            control={control}
+            name="startup.fundingCurrency"
+            render={({ field }) => (
+              <Select aria-label="Currency" options={CURRENCIES} value={field.value} onChange={field.onChange} />
+            )}
           />
           <Input
             type="number"
             min={0}
-            required
             placeholder="Min"
-            value={value.fundingMin}
-            onChange={(e) => set("fundingMin", e.target.value)}
+            error={e?.fundingMin?.message}
+            {...register("startup.fundingMin", { required: "Required." })}
           />
           <Input
             type="number"
             min={0}
-            required
             placeholder="Max"
-            value={value.fundingMax}
-            onChange={(e) => set("fundingMax", e.target.value)}
+            error={e?.fundingMax?.message}
+            {...register("startup.fundingMax", {
+              required: "Required.",
+              validate: (v, all) =>
+                Number(v) >= Number(all.startup.fundingMin) || "Max must be ≥ min.",
+            })}
           />
         </div>
       </div>
@@ -155,10 +188,9 @@ export function StartupProfileFields({ value, onChange }: StartupProfileFieldsPr
       <Textarea
         id="useOfFunds"
         label="Use of Funds"
-        required
         placeholder="How will the funds be used? (e.g. 40% product, 30% hiring, 30% marketing)"
-        value={value.useOfFunds}
-        onChange={(e) => set("useOfFunds", e.target.value)}
+        error={e?.useOfFunds?.message}
+        {...register("startup.useOfFunds", { required: "Describe how the funds will be used." })}
       />
 
       {/* Founders + LinkedIn (repeatable) */}
@@ -166,27 +198,26 @@ export function StartupProfileFields({ value, onChange }: StartupProfileFieldsPr
         <span className="px-1 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant">
           Founders &amp; LinkedIn
         </span>
-        {value.founders.map((f, i) => (
-          <div key={i} className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-start">
+        {fields.map((row, i) => (
+          <div key={row.id} className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-start">
             <Input
-              required
               placeholder="Founder name"
-              value={f.name}
-              onChange={(e) => setFounder(i, { name: e.target.value })}
+              error={e?.founders?.[i]?.name?.message}
+              {...register(`startup.founders.${i}.name`, { required: "Required." })}
             />
             <Input
               type="url"
-              required
-              pattern={LINKEDIN_URL_PATTERN}
-              title="Enter a valid LinkedIn URL (https://linkedin.com/…)"
               placeholder="https://linkedin.com/in/…"
-              value={f.url}
-              onChange={(e) => setFounder(i, { url: e.target.value })}
+              error={e?.founders?.[i]?.url?.message}
+              {...register(`startup.founders.${i}.url`, {
+                required: "Required.",
+                pattern: { value: new RegExp(LINKEDIN_URL_PATTERN, "i"), message: "Enter a valid LinkedIn URL." },
+              })}
             />
             <button
               type="button"
-              onClick={() => removeFounder(i)}
-              disabled={value.founders.length === 1}
+              onClick={() => remove(i)}
+              disabled={fields.length === 1}
               aria-label="Remove founder"
               className="flex h-14 w-14 items-center justify-center rounded-xl bg-surface-container-highest text-on-surface-variant transition-colors hover:text-error disabled:cursor-not-allowed disabled:opacity-40"
             >
@@ -196,7 +227,7 @@ export function StartupProfileFields({ value, onChange }: StartupProfileFieldsPr
         ))}
         <button
           type="button"
-          onClick={addFounder}
+          onClick={() => append({ name: "", url: "" })}
           className="flex w-fit items-center gap-1 rounded-lg px-1 py-1 text-sm font-semibold text-primary transition-colors hover:underline"
         >
           <Icon name="add" size={18} /> Add founder
@@ -210,8 +241,12 @@ export function StartupProfileFields({ value, onChange }: StartupProfileFieldsPr
           label="Business Description"
           rows={5}
           placeholder="Describe your business, product and traction…"
-          value={value.businessDescription}
-          onChange={(e) => set("businessDescription", e.target.value)}
+          error={e?.businessDescription?.message}
+          {...register("startup.businessDescription", {
+            validate: (v) =>
+              wordCount(v) <= BUSINESS_DESCRIPTION_MAX_WORDS ||
+              `Keep the description under ${BUSINESS_DESCRIPTION_MAX_WORDS} words.`,
+          })}
         />
         <span
           className={`px-1 text-xs font-medium ${
@@ -227,47 +262,71 @@ export function StartupProfileFields({ value, onChange }: StartupProfileFieldsPr
           type="url"
           label="Company Website (optional)"
           placeholder="https://yourcompany.com"
-          value={value.websiteUrl}
-          onChange={(e) => set("websiteUrl", e.target.value)}
+          error={e?.websiteUrl?.message}
+          {...register("startup.websiteUrl", {
+            validate: (v) => !v || URL_REGEX.test(v) || "Enter a valid URL.",
+          })}
         />
         <Input
           type="url"
-          pattern={LINKEDIN_URL_PATTERN}
-          title="Enter a valid LinkedIn URL (https://linkedin.com/…)"
           label="Company LinkedIn (optional)"
           placeholder="https://linkedin.com/company/…"
-          value={value.linkedinUrl}
-          onChange={(e) => set("linkedinUrl", e.target.value)}
+          error={e?.linkedinUrl?.message}
+          {...register("startup.linkedinUrl", {
+            validate: (v) =>
+              !v || new RegExp(LINKEDIN_URL_PATTERN, "i").test(v) || "Enter a valid LinkedIn URL.",
+          })}
         />
       </div>
 
-      <Select
-        required
-        id="intent"
-        label="Intent"
-        placeholder="Select your intent"
-        options={INTENT_OPTIONS}
-        value={value.intent}
-        onChange={(v) => set("intent", v)}
+      <Controller
+        control={control}
+        name="startup.intent"
+        rules={{ required: "Select your intent." }}
+        render={({ field }) => (
+          <Select
+            id="intent"
+            label="Intent"
+            placeholder="Select your intent"
+            options={INTENT_OPTIONS}
+            value={field.value}
+            onChange={field.onChange}
+            error={e?.intent?.message}
+          />
+        )}
       />
 
       {/* Mandatory documents */}
       <div className="flex flex-col gap-4">
         <p className={SECTION_TITLE}>Documents</p>
-        <FileUploadField
-          id="incorporationCert"
-          label="Incorporation Certificate"
-          required
-          onChange={(f) => set("incorporationCert", f?.name ?? "")}
+        <Controller
+          control={control}
+          name="startup.incorporationCert"
+          rules={{ validate: (v) => !!v || "Upload your Incorporation Certificate." }}
+          render={({ field }) => (
+            <FileUploadField
+              id="incorporationCert"
+              label="Incorporation Certificate"
+              error={e?.incorporationCert?.message}
+              onChange={(f) => field.onChange(f?.name ?? "")}
+            />
+          )}
         />
-        <FileUploadField
-          id="pitchDeck"
-          label="Pitch Deck (PDF, max 20 MB)"
-          hint="PDF only (max 20MB)"
-          accept={PITCH_DECK_ACCEPT}
-          maxSizeMB={PITCH_DECK_MAX_MB}
-          required
-          onChange={(f) => set("pitchDeck", f?.name ?? "")}
+        <Controller
+          control={control}
+          name="startup.pitchDeck"
+          rules={{ validate: (v) => !!v || "Upload your Pitch Deck (PDF, max 20 MB)." }}
+          render={({ field }) => (
+            <FileUploadField
+              id="pitchDeck"
+              label="Pitch Deck (PDF, max 20 MB)"
+              hint="PDF only (max 20MB)"
+              accept={PITCH_DECK_ACCEPT}
+              maxSizeMB={PITCH_DECK_MAX_MB}
+              error={e?.pitchDeck?.message}
+              onChange={(f) => field.onChange(f?.name ?? "")}
+            />
+          )}
         />
       </div>
     </div>

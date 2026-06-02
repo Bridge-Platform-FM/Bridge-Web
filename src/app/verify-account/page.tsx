@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useForm, Controller } from "react-hook-form";
 import { Icon } from "@/components/ui/Icon";
-import { StepProgress } from "@/components/onboarding/StepProgress";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
 import { OtpInput } from "@/components/onboarding/OtpInput";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
@@ -13,6 +13,12 @@ import type { ApiError } from "@/lib/axios";
 const OTP_LENGTH = 4;
 
 const RESEND_SECONDS = 60;
+
+/** react-hook-form shape: one digit array per OTP channel. */
+interface VerifyForm {
+  mobileOtp: string[];
+  emailOtp: string[];
+}
 
 /** Mask a phone number, keeping only the last 4 digits visible. */
 function maskPhone(phone: string): string {
@@ -72,8 +78,13 @@ function ResendControl({ onResend }: { onResend: () => void }) {
 
 export default function VerifyAccountPage() {
   const { data, goNext } = useOnboarding();
-  const [mobileOtp, setMobileOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
-  const [emailOtp, setEmailOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
+
+  const { control, setValue } = useForm<VerifyForm>({
+    defaultValues: {
+      mobileOtp: Array(OTP_LENGTH).fill(""),
+      emailOtp: Array(OTP_LENGTH).fill(""),
+    },
+  });
 
   const [mobileVerified, setMobileVerified] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
@@ -102,7 +113,7 @@ export default function VerifyAccountPage() {
       setMobileError((err as ApiError).message ?? "Verification failed. Please try again.");
     } finally {
       setVerifyingMobile(false);
-      setMobileOtp(Array(OTP_LENGTH).fill(""));
+      setValue("mobileOtp", Array(OTP_LENGTH).fill(""));
     }
   };
 
@@ -119,32 +130,33 @@ export default function VerifyAccountPage() {
       setEmailError((err as ApiError).message ?? "Verification failed. Please try again.");
     } finally {
       setVerifyingEmail(false);
-      setEmailOtp(Array(OTP_LENGTH).fill(""));
+      setValue("emailOtp", Array(OTP_LENGTH).fill(""));
     }
   };
 
   // Auto-trigger verification once all digits are entered (no Verify button).
-  const handleMobileChange = (next: string[]) => {
-    setMobileOtp(next);
+  // `onChange` is RHF's field updater from the Controller.
+  const handleMobileChange = (next: string[], onChange: (v: string[]) => void) => {
+    onChange(next);
     if (mobileVerified || verifyingMobile) return;
     if (next.join("").length === OTP_LENGTH) verifyMobile(next.join(""));
   };
 
-  const handleEmailChange = (next: string[]) => {
-    setEmailOtp(next);
+  const handleEmailChange = (next: string[], onChange: (v: string[]) => void) => {
+    onChange(next);
     if (emailVerified || verifyingEmail) return;
     if (next.join("").length === OTP_LENGTH) verifyEmail(next.join(""));
   };
 
   const handleResendMobileOtp = () => {
     // Existing resend handler hook-up point (mobile).
-    setMobileOtp(Array(OTP_LENGTH).fill(""));
+    setValue("mobileOtp", Array(OTP_LENGTH).fill(""));
     setMobileError(null);
   };
 
   const handleResendEmailOtp = () => {
     // Existing resend handler hook-up point (email).
-    setEmailOtp(Array(OTP_LENGTH).fill(""));
+    setValue("emailOtp", Array(OTP_LENGTH).fill(""));
     setEmailError(null);
   };
 
@@ -152,10 +164,6 @@ export default function VerifyAccountPage() {
     // <div className="mx-auto flex w-full max-w-[560px] flex-col px-6 py-8">
       <div className="mx-auto my-6 w-full max-w-[560px] rounded-2xl bg-surface-container-lowest ambient-shadow border border-white/40 flex flex-col gap-3 !p-6 sm:!p-8 lg:gap-6 lg:!p-8">
       <FocusedHeader backHref="/register" />
-
-      {/* <div className="mb-4 mt-4">
-         <StepProgress stepKey="verification" /> 
-      </div>  */}
 
       <div className="mb-3 text-center">
         <h1 className="mb-3 font-headline text-[32px] font-extrabold leading-tight tracking-[-0.02em] text-on-surface">
@@ -186,7 +194,16 @@ export default function VerifyAccountPage() {
               {!mobileVerified && <ResendControl onResend={handleResendMobileOtp} />}
             </div>
 
-            <OtpInput value={mobileOtp} onChange={handleMobileChange} />
+            <Controller
+              control={control}
+              name="mobileOtp"
+              render={({ field }) => (
+                <OtpInput
+                  value={field.value}
+                  onChange={(next) => handleMobileChange(next, field.onChange)}
+                />
+              )}
+            />
 
             {mobileVerified ? (
               <span className="flex items-center gap-1 px-1 text-xs font-medium text-primary">
@@ -219,7 +236,16 @@ export default function VerifyAccountPage() {
               {!emailVerified && <ResendControl onResend={handleResendEmailOtp} />}
             </div>
 
-            <OtpInput value={emailOtp} onChange={handleEmailChange} />
+            <Controller
+              control={control}
+              name="emailOtp"
+              render={({ field }) => (
+                <OtpInput
+                  value={field.value}
+                  onChange={(next) => handleEmailChange(next, field.onChange)}
+                />
+              )}
+            />
 
             {emailVerified ? (
               <span className="flex items-center gap-1 px-1 text-xs font-medium text-primary">
@@ -233,17 +259,6 @@ export default function VerifyAccountPage() {
           </div>
         </div>
       </div>
-
-      <div className="mt-7 flex items-center justify-center gap-6 opacity-60">
-        <div className="flex items-center gap-2 font-label text-xs font-semibold text-on-surface-variant">
-          <Icon name="verified_user" size={16} /> 256-BIT ENCRYPTION
-        </div>
-        <div className="h-4 w-px bg-outline-variant opacity-20" />
-        <div className="flex items-center gap-2 font-label text-xs font-semibold text-on-surface-variant">
-          <Icon name="gpp_maybe" size={16} /> SECURE SESSION
-        </div>
-      </div>
-
     </div>
   );
 }

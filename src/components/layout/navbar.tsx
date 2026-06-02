@@ -21,7 +21,7 @@ export function Navbar() {
                         />
                     </svg>
                 </div>
-                <span className="font-bold text-xl tracking-tight">Corporate Portal</span>
+                <span className="font-bold text-xl tracking-tight">Bridge Platform</span>
             </div>
             <Link
                 href="/"

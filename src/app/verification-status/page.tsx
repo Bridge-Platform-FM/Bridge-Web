@@ -116,17 +116,6 @@ export default function VerificationStatusPage() {
           <Icon name="contact_support" size={20} /> Contact Support
         </button>
       </div>
-
-      <footer className="mt-auto border-t border-outline-variant/10 py-10 text-center">
-        <p className="mb-2 text-sm text-on-surface-variant">Securely encrypted with AES-256 bank-level security.</p>
-        <div className="flex items-center justify-center gap-4 text-xs font-semibold uppercase tracking-widest text-on-surface-variant">
-          <span>Privacy Policy</span>
-          <span className="size-1 rounded-full bg-outline-variant" />
-          <span>Security Standards</span>
-          <span className="size-1 rounded-full bg-outline-variant" />
-          <span>Terms of Service</span>
-        </div>
-      </footer>
     </div>
   );
 }

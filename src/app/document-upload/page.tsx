@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useForm, Controller } from "react-hook-form";
 import { Icon } from "@/components/ui/Icon";
-import { StepProgress } from "@/components/onboarding/StepProgress";
 import { DocumentUploadCard } from "@/components/onboarding/DocumentUploadCard";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { Button } from "@/components/ui/Button";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
 
-type Errors = Record<string, string>;
+/** react-hook-form shape: one record of slot→File per document card. */
+interface DocumentUploadForm {
+  aadhaar: Record<string, File | null>;
+  pan: Record<string, File | null>;
+}
 
 function ErrorText({ msg }: { msg?: string }) {
   if (!msg) return null;
@@ -17,37 +20,23 @@ function ErrorText({ msg }: { msg?: string }) {
 
 export default function DocumentUploadPage() {
   const { goNext } = useOnboarding();
-  const [aadhaar, setAadhaar] = useState<Record<string, File | null>>({});
-  const [pan, setPan] = useState<Record<string, File | null>>({});
-  const [errors, setErrors] = useState<Errors>({});
 
-  const clearError = (name: string) =>
-    setErrors((prev) => {
-      if (!prev[name]) return prev;
-      const next = { ...prev };
-      delete next[name];
-      return next;
-    });
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<DocumentUploadForm>({
+    defaultValues: { aadhaar: {}, pan: {} },
+  });
 
-  const submit = () => {
-    const found: Errors = {};
-    if (!aadhaar.front || !aadhaar.back)
-      found.aadhaar = "Upload both the front and back of your Aadhaar card.";
-    if (!pan.pan) found.pan = "Upload a clear photo of your PAN card.";
-
-    setErrors(found);
-    if (Object.keys(found).length > 0) return;
-
+  const onSubmit = () => {
     goNext("kycdoc");
   };
 
   return (
-    
-    // <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-6 py-6">
       <div className="mx-auto my-6 w-full max-w-3xl rounded-2xl bg-surface-container-lowest ambient-shadow border border-white/40 flex flex-col gap-3 !p-6 sm:!p-8 lg:gap-6 lg:!p-8">
       <FocusedHeader backHref="/complete-profile" />
       <div>
-        {/* <StepProgress stepKey="kycdoc" /> */}
         <p className="mt-3 flex items-center gap-2 text-sm text-on-surface-variant">
           <Icon name="verified" size={16} filled className="text-primary" />
           Government issued ID required for secure verification
@@ -56,63 +45,52 @@ export default function DocumentUploadPage() {
 
       <h2 className="font-headline text-3xl font-extrabold tracking-tight text-on-surface">Document Upload</h2>
 
-      <DocumentUploadCard
-        title="Aadhaar Card"
-        subtitle="Front and back view required"
-        icon="badge"
-        slots={[
-          { key: "front", label: "Front Side" },
-          { key: "back", label: "Back Side" },
-        ]}
-        onChange={(files) => {
-          setAadhaar(files);
-          clearError("aadhaar");
-        }}
-      />
-      {errors.aadhaar && (
-        <div className="-mt-2">
-          <ErrorText msg={errors.aadhaar} />
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-6">
+        <Controller
+          control={control}
+          name="aadhaar"
+          rules={{
+            validate: (v) =>
+              (!!v?.front && !!v?.back) || "Upload both the front and back of your Aadhaar card.",
+          }}
+          render={({ field }) => (
+            <DocumentUploadCard
+              title="Aadhaar Card"
+              subtitle="Front and back view required"
+              icon="badge"
+              slots={[
+                { key: "front", label: "Front Side" },
+                { key: "back", label: "Back Side" },
+              ]}
+              onChange={field.onChange}
+            />
+          )}
+        />
+        <ErrorText msg={errors.aadhaar?.message as string | undefined} />
+
+        <Controller
+          control={control}
+          name="pan"
+          rules={{ validate: (v) => !!v?.pan || "Upload a clear photo of your PAN card." }}
+          render={({ field }) => (
+            <DocumentUploadCard
+              title="PAN Card"
+              subtitle="Clear photo of the original card"
+              icon="credit_card"
+              slots={[{ key: "pan", label: "PAN Card" }]}
+              onChange={field.onChange}
+              hint="Ensure all details including Name, DOB and PAN Number are clearly visible. Avoid glare from lights."
+            />
+          )}
+        />
+        <ErrorText msg={errors.pan?.message as string | undefined} />
+
+        <div className="flex flex-col gap-3">
+          <Button type="submit" variant="primary" className="h-[52px] text-base rounded-xl" trailingIcon="chevron_right">
+            Submit for Verification
+          </Button>
         </div>
-      )}
-
-      <DocumentUploadCard
-        title="PAN Card"
-        subtitle="Clear photo of the original card"
-        icon="credit_card"
-        slots={[{ key: "pan", label: "PAN Card" }]}
-        onChange={(files) => {
-          setPan(files);
-          clearError("pan");
-        }}
-        hint="Ensure all details including Name, DOB and PAN Number are clearly visible. Avoid glare from lights."
-      />
-      
-      {errors.pan && (
-        <div className="-mt-2">
-          <ErrorText msg={errors.pan} />
-        </div>
-      )}
-
-
-      {/* <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:justify-between">
-        <button
-          onClick={submit}
-          className="cta-gradient flex h-14 items-center justify-center gap-2 rounded-xl px-8 font-bold text-lg text-on-primary shadow-lg shadow-primary/20 transition-all hover:scale-[1.01]"
-        >
-          Submit Documents
-          <Icon name="chevron_right" size={20} />
-        </button>
-      </div> */}
-
-
-      <div className=" flex flex-col gap-3">
-              <Button
-                variant="primary"
-                className="h-[52px] text-base rounded-xl"
-              >
-                Submit for Verification
-              </Button>
+      </form>
       </div>
-      </div>
-  )
+  );
 }

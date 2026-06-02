@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
+import { useForm, Controller } from "react-hook-form";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/Textarea";
@@ -12,6 +13,7 @@ import {
   StartupProfileFields,
   defaultStartupValues,
   type StartupValues,
+  type CompleteProfileForm,
 } from "@/components/onboarding/StartupProfileFields";
 
 /** Human-readable labels for the role values captured at registration. */
@@ -21,45 +23,37 @@ const ROLE_LABELS: Record<string, string> = {
   b2b_enterprise: "B2B Enterprise",
 };
 
-/** Role-specific profile fields. Filled in per role; empty arrays render nothing. */
-type ProfileField = { name: string; label: string; type?: string; placeholder?: string };
-const ROLE_FIELDS: Record<string, ProfileField[]> = {
-  investor: [],
-  b2b_enterprise: [],
-};
-
 export default function CompleteProfilePage() {
   const { data, setData, goNext } = useOnboarding();
   const [photo, setPhoto] = useState<string | null>(null);
 
   const role = String(data.role ?? "");
-  const roleFields = ROLE_FIELDS[role] ?? [];
 
-  const [startup, setStartup] = useState<StartupValues>({
-    ...defaultStartupValues,
-    ...((data.startup as Partial<StartupValues>) ?? {}),
+  const {
+    register,
+    control,
+    handleSubmit,
+    setValue,
+    formState: { errors },
+  } = useForm<CompleteProfileForm>({
+    defaultValues: {
+      firstName: (data.firstName as string) ?? "",
+      lastName: (data.lastName as string) ?? "",
+      bio: (data.bio as string) ?? "",
+      country: (data.country as string) ?? "",
+      continent: (data.continent as string) ?? "",
+      startup: { ...defaultStartupValues, ...((data.startup as Partial<StartupValues>) ?? {}) },
+    },
   });
 
-  const [country, setCountry] = useState(String(data.country ?? ""));
-  const [continent, setContinent] = useState(String(data.continent ?? ""));
-
-  const handleCountry = (v: string) => {
-    setCountry(v);
-    setContinent(continentForCountry(v));
-  };
-
-  const save = (e: React.FormEvent) => {
-    e.preventDefault();
-    const form = new FormData(e.target as HTMLFormElement);
-    const roleValues = Object.fromEntries(roleFields.map((f) => [f.name, form.get(f.name)]));
+  const onSubmit = (values: CompleteProfileForm) => {
     setData({
-      firstName: form.get("firstName"),
-      lastName: form.get("lastName"),
-      bio: form.get("bio"),
-      country,
-      continent,
-      ...roleValues,
-      ...(role === "startup" ? { startup } : {}),
+      firstName: values.firstName,
+      lastName: values.lastName,
+      bio: values.bio,
+      country: values.country,
+      continent: values.continent,
+      ...(role === "startup" ? { startup: values.startup } : {}),
     });
     goNext("profile");
   };
@@ -77,7 +71,7 @@ export default function CompleteProfilePage() {
         </p>
       </div>
 
-      <form onSubmit={save} className="flex flex-col gap-6">
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-6">
         {/* Profile picture */}
         <div className="flex flex-col gap-4">
           <p className="text-base font-semibold text-on-surface">Profile Picture</p>
@@ -152,55 +146,49 @@ export default function CompleteProfilePage() {
 
         {/* Personal */}
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <Input id="firstName" name="firstName" label="First Name" placeholder="e.g. Michael" defaultValue={data.firstName as string} />
-          <Input id="lastName" name="lastName" label="Last Name" placeholder="e.g. Scott" defaultValue={data.lastName as string} />
-          <Select
-            required
-            id="country"
-            label="Country"
-            placeholder="Select country"
-            options={COUNTRIES}
-            value={country}
-            onChange={handleCountry}
+          <Input id="firstName" label="First Name" placeholder="e.g. Michael" {...register("firstName")} />
+          <Input id="lastName" label="Last Name" placeholder="e.g. Scott" {...register("lastName")} />
+          <Controller
+            control={control}
+            name="country"
+            rules={{ required: "Country is required." }}
+            render={({ field }) => (
+              <Select
+                id="country"
+                label="Country"
+                placeholder="Select country"
+                options={COUNTRIES}
+                value={field.value}
+                onChange={(v) => {
+                  field.onChange(v);
+                  setValue("continent", continentForCountry(v));
+                }}
+                error={errors.country?.message}
+              />
+            )}
           />
-          <Select
-            id="continent"
-            label="Continent"
-            placeholder="Select continent"
-            options={CONTINENTS}
-            value={continent}
-            onChange={setContinent}
+          <Controller
+            control={control}
+            name="continent"
+            render={({ field }) => (
+              <Select
+                id="continent"
+                label="Continent"
+                placeholder="Select continent"
+                options={CONTINENTS}
+                value={field.value}
+                onChange={field.onChange}
+              />
+            )}
           />
         </div>
 
         {/* Role-specific fields */}
         {role === "startup" && (
-          <StartupProfileFields value={startup} onChange={setStartup} />
+          <StartupProfileFields control={control} register={register} errors={errors} />
         )}
 
-        {/* Generic scaffold for future roles (investor / b2b) */}
-        {roleFields.length > 0 && (
-          <div className="flex flex-col gap-4">
-            <p className="text-base font-semibold text-on-surface">
-              {ROLE_LABELS[role] ?? "Additional"} Details
-            </p>
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              {roleFields.map((f) => (
-                <Input
-                  key={f.name}
-                  id={f.name}
-                  name={f.name}
-                  label={f.label}
-                  type={f.type}
-                  placeholder={f.placeholder}
-                  defaultValue={data[f.name] as string}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        <Textarea id="bio" name="bio" label="Short Bio (Optional)" placeholder="Tell us a little bit about what you do..." defaultValue={data.bio as string} />
+        <Textarea id="bio" label="Short Bio (Optional)" placeholder="Tell us a little bit about what you do..." {...register("bio")} />
 
         <div className="flex flex-col gap-4 border-t border-outline/10 pt-6">
           <button type="submit" className="cta-gradient flex h-14 w-full items-center justify-center gap-2 rounded-xl font-bold text-lg text-on-primary shadow-lg shadow-primary/20 transition-all hover:scale-[1.01] active:scale-[0.98]">
@@ -210,17 +198,6 @@ export default function CompleteProfilePage() {
         </div>
       </form>
 
-      <div className="mt-2 flex items-start gap-4 rounded-2xl bg-surface-container-low p-5">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-container-high">
-          <Icon name="lock" size={20} filled className="text-primary" />
-        </div>
-        <div className="flex flex-col gap-1">
-          <p className="text-sm font-semibold text-on-surface">Your data is secure</p>
-          <p className="text-xs leading-relaxed text-on-surface-variant">
-            We use industry-standard encryption to protect your personal information. Your data will never be shared without your explicit consent.
-          </p>
-        </div>
-      </div>
     </div>
   );
 }
