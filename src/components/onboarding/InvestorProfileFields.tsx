@@ -176,13 +176,27 @@ export function InvestorProfileFields({ control, register, setValue, errors }: I
                 options={COUNTRIES}
                 value={field.value}
                 onChange={(v) => {
+                  const prev = field.value ?? [];
                   field.onChange(v);
-                  // Auto-add the continent of each selected country (keeps any
-                  // continents the user picked manually).
-                  const derived = v
-                    .map((c) => continentForCountry(c))
-                    .filter(Boolean);
-                  const merged = Array.from(new Set([...(geoContinents ?? []), ...derived]));
+                  // Continents derived from the countries selected before/after
+                  // this change.
+                  const derivedBefore = new Set(
+                    prev.map((c) => continentForCountry(c)).filter(Boolean),
+                  );
+                  const derivedAfter = new Set(
+                    v.map((c) => continentForCountry(c)).filter(Boolean),
+                  );
+                  // Continents whose only backing country was just removed.
+                  const dropped = [...derivedBefore].filter(
+                    (cont) => !derivedAfter.has(cont),
+                  );
+                  // Keep manually-picked continents + drop auto-derived ones whose
+                  // country is gone, then re-add the continents still backed by a
+                  // selected country.
+                  const next = (geoContinents ?? []).filter(
+                    (cont) => !dropped.includes(cont),
+                  );
+                  const merged = Array.from(new Set([...next, ...derivedAfter]));
                   setValue("investor.geoContinents", merged, { shouldValidate: true });
                 }}
                 error={e?.geoCountries?.message}
