@@ -210,7 +210,7 @@ export default function VerifyAccountPage() {
         </div> */}
 
         <div className="flex flex-col items-center gap-4">
-          <div className="flex w-fit flex-col gap-3">
+          <div className="flex w-[240px] flex-col gap-3 md:w-[304px]">
             <div className="flex items-center justify-between gap-4">
               <label className="flex items-center gap-2 font-label text-sm font-semibold text-on-surface-variant">
                 <Icon name="smartphone" size={16} />
@@ -252,7 +252,7 @@ export default function VerifyAccountPage() {
         </div> */}
 
         <div className="flex flex-col items-center gap-4">
-          <div className="flex w-fit flex-col gap-3">
+          <div className="flex w-[240px] flex-col gap-3 md:w-[304px]">
             <div className="flex items-center justify-between gap-4">
               <label className="flex items-center gap-2 font-label text-sm font-semibold text-on-surface-variant">
                 <Icon name="mail" size={16} />
