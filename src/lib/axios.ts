@@ -22,10 +22,9 @@ api.interceptors.response.use(
   (response) => response,
   (error: AxiosError<{ message?: string }>) => {
     const normalized: ApiError = {
-      message:
-        error.response?.data?.message ||
-        error.message ||
-        "Something went wrong. Please try again.",
+      // Show only the backend-provided message; fall back to a generic line so
+      // raw axios/technical strings never reach the UI.
+      message: error.response?.data?.message || "Something went wrong. Please try again.",
       status: error.response?.status,
       data: error.response?.data,
     };

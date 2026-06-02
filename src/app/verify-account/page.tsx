@@ -81,6 +81,8 @@ export default function VerifyAccountPage() {
   const [verifyingEmail, setVerifyingEmail] = useState(false);
   const [mobileError, setMobileError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [mobileMsg, setMobileMsg] = useState<string | null>(null);
+  const [emailMsg, setEmailMsg] = useState<string | null>(null);
 
   // Both channels verified → advance to complete-profile.
   useEffect(() => {
@@ -94,6 +96,7 @@ export default function VerifyAccountPage() {
       const res = await verifyMobileOtp({ channel: "MOBILE", phoneNumber: String(data.contact ?? ""), otp });
       // Tokens are only present on the call that verifies the final channel.
       if (res.data?.company) setTokens(res.data.company);
+      setMobileMsg(res.message ?? null);
       setMobileVerified(true);
     } catch (err) {
       setMobileError((err as ApiError).message ?? "Verification failed. Please try again.");
@@ -110,6 +113,7 @@ export default function VerifyAccountPage() {
       const res = await verifyEmailOtp({ channel: "EMAIL", email: String(data.email ?? ""), otp });
       // Tokens are only present on the call that verifies the final channel.
       if (res.data?.company) setTokens(res.data.company);
+      setEmailMsg(res.message ?? null);
       setEmailVerified(true);
     } catch (err) {
       setEmailError((err as ApiError).message ?? "Verification failed. Please try again.");
@@ -186,7 +190,7 @@ export default function VerifyAccountPage() {
 
             {mobileVerified ? (
               <span className="flex items-center gap-1 px-1 text-xs font-medium text-primary">
-                <Icon name="check_circle" size={16} />Mobile Otp Verified
+                <Icon name="check_circle" size={16} />{mobileMsg ?? "Mobile Otp Verified"}
               </span>
             ) : verifyingMobile ? (
               <span className="px-1 text-xs font-medium text-on-surface-variant">Verifying…</span>
@@ -219,7 +223,7 @@ export default function VerifyAccountPage() {
 
             {emailVerified ? (
               <span className="flex items-center gap-1 px-1 text-xs font-medium text-primary">
-                <Icon name="check_circle" size={16} />Email Otp Verified
+                <Icon name="check_circle" size={16} />{emailMsg ?? "Email Otp Verified"}
               </span>
             ) : verifyingEmail ? (
               <span className="px-1 text-xs font-medium text-on-surface-variant">Verifying…</span>

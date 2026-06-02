@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/input";
 import { StepProgress } from "@/components/onboarding/StepProgress";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
+import { toast } from "sonner";
 import { registerCompany } from "@/services/auth.service";
 import type { ApiError } from "@/lib/axios";
 
@@ -123,7 +124,8 @@ export default function RegisterPage() {
     setApiError(null);
     setSubmitting(true);
     try {
-      await registerCompany(payload);
+      const res = await registerCompany(payload);
+      toast.success(res.message ?? "Registration successful.");
       // Persist UI-shaped fields so prefill (defaultValue) keeps working on back-navigation.
       setData({
         legalName: values.legalName,

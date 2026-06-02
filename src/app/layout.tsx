@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Manrope } from "next/font/google";
 import { Navbar } from "@/components/layout/navbar";
 import { OnboardingProvider } from "@/components/onboarding/OnboardingProvider";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const inter = Inter({
@@ -39,6 +40,7 @@ export default function RootLayout({
         <main className="flex-1 overflow-y-auto overflow-x-hidden">
           <OnboardingProvider>{children}</OnboardingProvider>
         </main>
+        <Toaster position="top-right" richColors closeButton />
       </body>
     </html>
   );
