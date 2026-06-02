@@ -26,6 +26,7 @@ import {
   LINKEDIN_URL_PATTERN,
   URL_REGEX,
 } from "@/lib/startup-profile-options";
+import type { InvestorValues } from "@/components/onboarding/InvestorProfileFields";
 
 export interface Founder {
   name: string;
@@ -59,6 +60,7 @@ export interface CompleteProfileForm {
   country: string;
   continent: string;
   startup: StartupValues;
+  investor: InvestorValues;
 }
 
 export const defaultStartupValues: StartupValues = {

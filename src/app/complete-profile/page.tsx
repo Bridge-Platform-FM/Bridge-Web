@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/Textarea";
@@ -15,6 +15,11 @@ import {
   type StartupValues,
   type CompleteProfileForm,
 } from "@/components/onboarding/StartupProfileFields";
+import {
+  InvestorProfileFields,
+  defaultInvestorValues,
+  type InvestorValues,
+} from "@/components/onboarding/InvestorProfileFields";
 
 /** Human-readable labels for the role values captured at registration. */
 const ROLE_LABELS: Record<string, string> = {
@@ -43,8 +48,12 @@ export default function CompleteProfilePage() {
       country: (data.country as string) ?? "",
       continent: (data.continent as string) ?? "",
       startup: { ...defaultStartupValues, ...((data.startup as Partial<StartupValues>) ?? {}) },
+      investor: { ...defaultInvestorValues, ...((data.investor as Partial<InvestorValues>) ?? {}) },
     },
   });
+
+  const bio = useWatch({ control, name: "bio" });
+  const bioChars = (bio ?? "").length;
 
   const onSubmit = (values: CompleteProfileForm) => {
     setData({
@@ -54,6 +63,7 @@ export default function CompleteProfilePage() {
       country: values.country,
       continent: values.continent,
       ...(role === "startup" ? { startup: values.startup } : {}),
+      ...(role === "investor" ? { investor: values.investor } : {}),
     });
     goNext("profile");
   };
@@ -187,8 +197,24 @@ export default function CompleteProfilePage() {
         {role === "startup" && (
           <StartupProfileFields control={control} register={register} errors={errors} />
         )}
+        {role === "investor" && (
+          <InvestorProfileFields control={control} register={register} setValue={setValue} errors={errors} />
+        )}
 
-        <Textarea id="bio" label="Short Bio (Optional)" placeholder="Tell us a little bit about what you do..." {...register("bio")} />
+        <div className="flex flex-col gap-1">
+          <Textarea
+            id="bio"
+            label="Short Bio (Optional)"
+            placeholder="Tell us a little bit about what you do..."
+            error={errors.bio?.message}
+            {...register("bio", {
+              maxLength: { value: 300, message: "Keep your bio under 300 characters." },
+            })}
+          />
+          <span className={`px-1 text-xs font-medium ${bioChars > 300 ? "text-error" : "text-on-surface-variant"}`}>
+            {bioChars} / 300 characters
+          </span>
+        </div>
 
         <div className="flex flex-col gap-4 border-t border-outline/10 pt-6">
           <button type="submit" className="cta-gradient flex h-14 w-full items-center justify-center gap-2 rounded-xl font-bold text-lg text-on-primary shadow-lg shadow-primary/20 transition-all hover:scale-[1.01] active:scale-[0.98]">
