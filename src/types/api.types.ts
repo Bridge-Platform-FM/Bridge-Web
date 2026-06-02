@@ -28,6 +28,23 @@ export interface VerifyOtpPayload {
   phoneNumber?: string;
 }
 
+/** Payload for requesting a fresh OTP. Field names/values match the backend schema. */
+export interface ResendOtpPayload {
+  /** Which channel to resend the code over. */
+  channel: "EMAIL" | "MOBILE";
+  /** Required when channel is EMAIL. */
+  email?: string;
+  /** Required when channel is MOBILE. */
+  phoneNumber?: string;
+}
+
+/** Response from the resend-otp endpoint. */
+export interface ResendOtpResponse {
+  success?: boolean;
+  message?: string;
+  data?: unknown;
+}
+
 /** Response from an OTP verify endpoint. Tokens arrive only on the call that verifies the final channel. */
 export interface VerifyOtpResponse {
   success?: boolean;

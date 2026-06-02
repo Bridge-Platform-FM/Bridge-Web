@@ -6,7 +6,8 @@ import { Icon } from "@/components/ui/Icon";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
 import { OtpInput } from "@/components/onboarding/OtpInput";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
-import { verifyMobileOtp, verifyEmailOtp } from "@/services/auth.service";
+import { toast } from "sonner";
+import { verifyMobileOtp, verifyEmailOtp, resendOtp } from "@/services/auth.service";
 import { setTokens } from "@/lib/auth-tokens";
 import type { ApiError } from "@/lib/axios";
 
@@ -42,8 +43,9 @@ function maskEmail(email: string): string {
  * Each instance owns its timer, so mobile/email are independent. Occupies a
  * fixed-width slot so the timer→button swap doesn't shift layout.
  */
-function ResendControl({ onResend }: { onResend: () => void }) {
+function ResendControl({ onResend }: { onResend: () => Promise<void> }) {
   const [seconds, setSeconds] = useState(RESEND_SECONDS);
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -52,9 +54,18 @@ function ResendControl({ onResend }: { onResend: () => void }) {
     return () => clearInterval(id);
   }, []);
 
-  const handleResend = () => {
-    onResend();
-    setSeconds(RESEND_SECONDS);
+  const handleResend = async () => {
+    if (sending) return;
+    setSending(true);
+    try {
+      await onResend();
+      // Only restart the cooldown when the resend actually succeeded.
+      setSeconds(RESEND_SECONDS);
+    } catch {
+      // Leave the button active so the user can retry.
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -67,9 +78,10 @@ function ResendControl({ onResend }: { onResend: () => void }) {
         <button
           type="button"
           onClick={handleResend}
-          className="rounded-full  px-3 py-1 font-bold text-primary transition-colors hover:bg-surface-container"
+          disabled={sending}
+          className="rounded-full  px-3 py-1 font-bold text-primary transition-colors hover:bg-surface-container disabled:opacity-60"
         >
-          Resend
+          {sending ? "Sending…" : "Resend"}
         </button>
       )}
     </div>
@@ -148,16 +160,30 @@ export default function VerifyAccountPage() {
     if (next.join("").length === OTP_LENGTH) verifyEmail(next.join(""));
   };
 
-  const handleResendMobileOtp = () => {
-    // Existing resend handler hook-up point (mobile).
-    setValue("mobileOtp", Array(OTP_LENGTH).fill(""));
-    setMobileError(null);
+  const handleResendMobileOtp = async () => {
+    try {
+      const res = await resendOtp({ channel: "MOBILE", phoneNumber: String(data.contact ?? "") });
+      toast.success(res.message ?? "OTP resent to your mobile.");
+      setValue("mobileOtp", Array(OTP_LENGTH).fill(""));
+      setMobileError(null);
+    } catch (err) {
+      toast.error((err as ApiError).message ?? "Couldn't resend OTP. Please try again.");
+      // Re-throw so ResendControl keeps the button active (cooldown not reset).
+      throw err;
+    }
   };
 
-  const handleResendEmailOtp = () => {
-    // Existing resend handler hook-up point (email).
-    setValue("emailOtp", Array(OTP_LENGTH).fill(""));
-    setEmailError(null);
+  const handleResendEmailOtp = async () => {
+    try {
+      const res = await resendOtp({ channel: "EMAIL", email: String(data.email ?? "") });
+      toast.success(res.message ?? "OTP resent to your email.");
+      setValue("emailOtp", Array(OTP_LENGTH).fill(""));
+      setEmailError(null);
+    } catch (err) {
+      toast.error((err as ApiError).message ?? "Couldn't resend OTP. Please try again.");
+      // Re-throw so ResendControl keeps the button active (cooldown not reset).
+      throw err;
+    }
   };
 
   return (

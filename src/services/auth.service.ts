@@ -5,6 +5,8 @@ import type {
   RegisterResponse,
   VerifyOtpPayload,
   VerifyOtpResponse,
+  ResendOtpPayload,
+  ResendOtpResponse,
 } from "@/types/api.types";
 
 /**
@@ -33,5 +35,14 @@ export async function verifyMobileOtp(payload: VerifyOtpPayload): Promise<Verify
  */
 export async function verifyEmailOtp(payload: VerifyOtpPayload): Promise<VerifyOtpResponse> {
   const { data } = await api.post<VerifyOtpResponse>(API_ENDPOINTS.VERIFY_EMAIL_OTP, payload);
+  return data;
+}
+
+/**
+ * Request a fresh OTP for a channel (mobile or email).
+ * NOTE: swap the method/URL/body/headers here when the real curl is provided.
+ */
+export async function resendOtp(payload: ResendOtpPayload): Promise<ResendOtpResponse> {
+  const { data } = await api.post<ResendOtpResponse>(API_ENDPOINTS.RESEND_OTP, payload);
   return data;
 }
