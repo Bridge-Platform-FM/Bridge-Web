@@ -136,6 +136,7 @@ export default function CompleteProfilePage() {
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <Input
               label="Company Name"
+              required
               value={String(data.legalName ?? "")}
               readOnly
               adornment={<Icon name="lock" size={18} />}
@@ -143,6 +144,7 @@ export default function CompleteProfilePage() {
             />
             <Input
               label="Role"
+              required
               value={ROLE_LABELS[role] ?? role}
               readOnly
               adornment={<Icon name="lock" size={18} />}
@@ -150,6 +152,7 @@ export default function CompleteProfilePage() {
             />
             <Input
               label="Email"
+              required
               type="email"
               value={String(data.email ?? "")}
               readOnly
@@ -158,6 +161,7 @@ export default function CompleteProfilePage() {
             />
             <Input
               label="Phone"
+              required
               type="tel"
               value={String(data.contact ?? "")}
               readOnly
@@ -168,6 +172,7 @@ export default function CompleteProfilePage() {
               <>
                 <Input
                   label="GST Number"
+                  required
                   value={String(data.gstNumber ?? "")}
                   readOnly
                   adornment={<Icon name="lock" size={18} />}
@@ -175,6 +180,7 @@ export default function CompleteProfilePage() {
                 />
                 <Input
                   label="Company CIN Number"
+                  required
                   value={String(data.cinNumber ?? "")}
                   readOnly
                   adornment={<Icon name="lock" size={18} />}
@@ -187,8 +193,8 @@ export default function CompleteProfilePage() {
 
         {/* Personal */}
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <Input id="firstName" label="First Name" placeholder="e.g. Michael" {...register("firstName")} />
-          <Input id="lastName" label="Last Name" placeholder="e.g. Scott" {...register("lastName")} />
+          <Input id="firstName" label="First Name" required placeholder="e.g. Michael" {...register("firstName")} />
+          <Input id="lastName" label="Last Name" required placeholder="e.g. Scott" {...register("lastName")} />
           <Controller
             control={control}
             name="country"
@@ -197,6 +203,7 @@ export default function CompleteProfilePage() {
               <Select
                 id="country"
                 label="Country"
+                required
                 placeholder="Select country"
                 options={COUNTRIES}
                 value={field.value}
@@ -215,6 +222,7 @@ export default function CompleteProfilePage() {
               <Select
                 id="continent"
                 label="Continent"
+                optional
                 placeholder="Select continent"
                 options={CONTINENTS}
                 value={field.value}
@@ -238,7 +246,8 @@ export default function CompleteProfilePage() {
         <div className="flex flex-col gap-1">
           <Textarea
             id="bio"
-            label="Short Bio (Optional)"
+            label="Short Bio"
+            optional
             placeholder="Tell us a little bit about what you do..."
             error={errors.bio?.message}
             {...register("bio", {

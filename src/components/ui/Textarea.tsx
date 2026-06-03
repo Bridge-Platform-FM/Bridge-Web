@@ -3,15 +3,24 @@ import React, { forwardRef } from "react";
 export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
   error?: string;
+  /** Show a red `*` after the label (mandatory field). */
+  required?: boolean;
+  /** Show a blue "Optional" after the label (non-mandatory field). */
+  optional?: boolean;
 }
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ label, error, className = "", id, rows = 3, ...props }, ref) => {
+  ({ label, error, required, optional, className = "", id, rows = 3, ...props }, ref) => {
     return (
       <div className="flex w-full flex-col gap-2">
         {label && (
-          <label htmlFor={id} className="ml-1 font-label text-sm font-medium text-on-surface-variant">
+          <label
+            htmlFor={id}
+            className="px-1 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant"
+          >
             {label}
+            {required && <span className="text-error"> *</span>}
+            {optional && <span className="font-medium normal-case text-primary"> (Optional)</span>}
           </label>
         )}
         <textarea

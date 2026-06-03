@@ -92,6 +92,7 @@ export function InvestorProfileFields({ control, register, setValue, errors }: I
             multiple
             id="sectorPreferences"
             label="Sector Preferences"
+            required
             placeholder="Select one or more sectors"
             options={INDUSTRY_SECTORS}
             value={field.value}
@@ -110,6 +111,7 @@ export function InvestorProfileFields({ control, register, setValue, errors }: I
             multiple
             id="investmentStages"
             label="Preferred Investment Stages"
+            required
             placeholder="Select one or more stages"
             options={INVESTMENT_STAGES}
             value={field.value}
@@ -122,7 +124,7 @@ export function InvestorProfileFields({ control, register, setValue, errors }: I
       {/* Ticket size: currency + min–max range */}
       <div className="flex flex-col gap-2">
         <span className="px-1 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant">
-          Ticket Size
+          Ticket Size<span className="text-error"> *</span>
         </span>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[8rem_1fr_1fr]">
           <Controller
@@ -156,7 +158,7 @@ export function InvestorProfileFields({ control, register, setValue, errors }: I
       {/* Geographic investment preference: countries + continents (at least one) */}
       <div className="flex flex-col gap-3">
         <span className="px-1 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant">
-          Geographic Investment Preference
+          Geographic Investment Preference<span className="text-error"> *</span>
         </span>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <Controller
@@ -229,6 +231,7 @@ export function InvestorProfileFields({ control, register, setValue, errors }: I
             <Select
               id="investorType"
               label="Investor Type"
+              required
               placeholder="Select type"
               options={INVESTOR_TYPES}
               value={field.value}
@@ -245,6 +248,7 @@ export function InvestorProfileFields({ control, register, setValue, errors }: I
             <Select
               id="primaryIntent"
               label="Primary Intent"
+              required
               placeholder="Select intent"
               options={PRIMARY_INTENT_OPTIONS}
               value={field.value}
@@ -257,7 +261,8 @@ export function InvestorProfileFields({ control, register, setValue, errors }: I
 
       <Textarea
         id="investmentThesis"
-        label="Investment Thesis (optional)"
+        label="Investment Thesis"
+        optional
         placeholder="What do you look for in an investment?"
         {...register("investor.investmentThesis")}
       />
@@ -266,7 +271,8 @@ export function InvestorProfileFields({ control, register, setValue, errors }: I
       <div className="flex flex-col gap-1">
         <Textarea
           id="portfolioOverview"
-          label="Portfolio Overview (optional)"
+          label="Portfolio Overview"
+          optional
           rows={5}
           placeholder="Highlight notable investments, sectors and outcomes…"
           error={e?.portfolioOverview?.message}
@@ -289,13 +295,15 @@ export function InvestorProfileFields({ control, register, setValue, errors }: I
         <Input
           type="number"
           min={0}
-          label="Number of Investments to Date (optional)"
+          label="Number of Investments to Date"
+          optional
           placeholder="e.g. 12"
           {...register("investor.numberOfInvestments")}
         />
         <Input
           type="url"
-          label="LinkedIn Profile (optional)"
+          label="LinkedIn Profile"
+          optional
           placeholder="https://linkedin.com/in/…"
           error={e?.linkedinUrl?.message}
           {...register("investor.linkedinUrl", {
@@ -305,7 +313,8 @@ export function InvestorProfileFields({ control, register, setValue, errors }: I
         />
         <Input
           type="url"
-          label="Company Website (optional)"
+          label="Company Website"
+          optional
           placeholder="https://yourfund.com"
           error={e?.websiteUrl?.message}
           {...register("investor.websiteUrl", {
@@ -317,6 +326,7 @@ export function InvestorProfileFields({ control, register, setValue, errors }: I
       <Input
         id="address"
         label="Registered Office / Residential Address (as per government ID)"
+        required
         placeholder="Address as per your government-issued ID"
         error={e?.address?.message}
         {...register("investor.address", { required: "Address is required." })}

@@ -102,6 +102,7 @@ export function B2BProfileFields({ control, register, setValue, errors }: B2BPro
       <Input
         id="businessName"
         label="Business Name"
+        required
         readOnly
         adornment={<Icon name="lock" size={18} />}
         className="cursor-not-allowed text-on-surface-variant"
@@ -117,6 +118,7 @@ export function B2BProfileFields({ control, register, setValue, errors }: B2BPro
           <Select
             id="sector"
             label="Sector"
+            required
             placeholder="Select sector"
             options={SECTOR_OPTIONS}
             value={field.value}
@@ -140,6 +142,7 @@ export function B2BProfileFields({ control, register, setValue, errors }: B2BPro
             <Select
               id="subSector"
               label="Sub-Sector"
+              required
               placeholder={sector ? "Select sub-sector" : "Select a sector first"}
               disabled={!sector}
               options={subSectorOptions(sector)}
@@ -160,6 +163,7 @@ export function B2BProfileFields({ control, register, setValue, errors }: B2BPro
             <Select
               id="industryVertical"
               label="Industry Vertical"
+              required
               placeholder={subSector ? "Select vertical" : "Select a sub-sector first"}
               disabled={!subSector}
               options={verticalOptions(sector, subSector)}
@@ -180,6 +184,7 @@ export function B2BProfileFields({ control, register, setValue, errors }: B2BPro
             multiple
             id="primarySectors"
             label="Primary Sector"
+            required
             placeholder="Select one or more sectors"
             options={PRIMARY_SECTORS}
             value={field.value}
@@ -199,6 +204,7 @@ export function B2BProfileFields({ control, register, setValue, errors }: B2BPro
             <Select
               id="businessType"
               label="Business Type"
+              required
               placeholder="Select type"
               options={BUSINESS_TYPES}
               value={field.value}
@@ -211,7 +217,9 @@ export function B2BProfileFields({ control, register, setValue, errors }: B2BPro
           id="moq"
           type="number"
           min={0}
-          label={moqRequired ? "Minimum Order Quantity (MOQ)" : "Minimum Order Quantity (MOQ, optional)"}
+          label="Min Order Quantity (MOQ)"
+          required={moqRequired}
+          optional={!moqRequired}
           placeholder="e.g. 500"
           error={e?.moq?.message}
           {...register("b2b.moq", {
@@ -230,6 +238,7 @@ export function B2BProfileFields({ control, register, setValue, errors }: B2BPro
             <Select
               id="revenueBand"
               label="Revenue Band"
+              required
               placeholder="Select revenue band"
               options={REVENUE_BANDS}
               value={field.value}
@@ -243,6 +252,7 @@ export function B2BProfileFields({ control, register, setValue, errors }: B2BPro
           type="number"
           min={0}
           label="Years in Operation"
+          required
           placeholder="e.g. 8"
           error={e?.yearsInOperation?.message}
           {...register("b2b.yearsInOperation", {
@@ -255,7 +265,7 @@ export function B2BProfileFields({ control, register, setValue, errors }: B2BPro
       {/* Geographies: countries + continents (at least one) */}
       <div className="flex flex-col gap-3">
         <span className="px-1 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant">
-          Geographies
+          Geographies<span className="text-error"> *</span>
         </span>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <Controller
@@ -320,6 +330,7 @@ export function B2BProfileFields({ control, register, setValue, errors }: B2BPro
             <Select
               id="exportReadiness"
               label="Export Readiness"
+              required
               placeholder="Select readiness"
               options={EXPORT_READINESS}
               value={field.value}
@@ -336,6 +347,7 @@ export function B2BProfileFields({ control, register, setValue, errors }: B2BPro
             <Select
               id="businessIntent"
               label="Business Intent"
+              required
               placeholder="Select intent"
               options={BUSINESS_INTENTS}
               value={field.value}
@@ -351,6 +363,7 @@ export function B2BProfileFields({ control, register, setValue, errors }: B2BPro
         <Textarea
           id="productsServices"
           label="Products / Services Offered"
+          required
           rows={4}
           placeholder="List the products or services your business offers…"
           error={e?.productsServices?.message}
@@ -376,6 +389,7 @@ export function B2BProfileFields({ control, register, setValue, errors }: B2BPro
         <Textarea
           id="businessRequirements"
           label="Business Requirements"
+          required
           rows={4}
           placeholder="Describe what you are looking for from partners…"
           error={e?.businessRequirements?.message}
@@ -399,7 +413,8 @@ export function B2BProfileFields({ control, register, setValue, errors }: B2BPro
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <Input
           type="url"
-          label="LinkedIn Profile (optional)"
+          label="LinkedIn Profile"
+          optional
           placeholder="https://linkedin.com/company/…"
           error={e?.linkedinUrl?.message}
           {...register("b2b.linkedinUrl", {
@@ -409,7 +424,8 @@ export function B2BProfileFields({ control, register, setValue, errors }: B2BPro
         />
         <Input
           type="url"
-          label="Company Website (optional)"
+          label="Company Website"
+          optional
           placeholder="https://yourcompany.com"
           error={e?.websiteUrl?.message}
           {...register("b2b.websiteUrl", {
@@ -421,6 +437,7 @@ export function B2BProfileFields({ control, register, setValue, errors }: B2BPro
       <Input
         id="address"
         label="Registered Office / Residential Address"
+        required
         placeholder="Address as per your registration / government ID"
         error={e?.address?.message}
         {...register("b2b.address", { required: "Address is required." })}

@@ -155,6 +155,7 @@ export default function RegisterPage() {
               id="legalName"
               type="text"
               label="LEGAL COMPANY NAME"
+              required
               placeholder="Global Tech Corp"
               error={errors.legalName?.message}
               adornment={<Icon name="corporate_fare" size={20} />}
@@ -169,6 +170,7 @@ export default function RegisterPage() {
               id="email"
               type="email"
               label="OFFICIAL EMAIL ADDRESS"
+              required
               placeholder="admin@company.com"
               error={errors.email?.message}
               adornment={<Icon name="mail" size={20} />}
@@ -183,6 +185,7 @@ export default function RegisterPage() {
                 id="password"
                 type={showPassword ? "text" : "password"}
                 label="ACCOUNT PASSWORD"
+                required
                 placeholder="••••••••••••"
                 error={errors.password?.message}
                 adornment={
@@ -206,6 +209,7 @@ export default function RegisterPage() {
                 id="contact"
                 type="tel"
                 label="CONTACT NUMBER"
+                required
                 placeholder="9632585698"
                 error={errors.contact?.message}
                 adornment={<Icon name="smartphone" size={20} />}
@@ -217,7 +221,9 @@ export default function RegisterPage() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className={LABEL}>SELECT YOUR ROLE</label>
+              <label className={LABEL}>
+                SELECT YOUR ROLE<span className="text-error"> *</span>
+              </label>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 {ROLES.map((r) => (
                   <label
@@ -246,6 +252,7 @@ export default function RegisterPage() {
                   id="gstNumber"
                   type="text"
                   label="GST NUMBER"
+                  required
                   placeholder="22AAAAA0000A1Z5"
                   error={errors.gstNumber?.message}
                   adornment={<Icon name="pin" size={20} />}
@@ -258,6 +265,7 @@ export default function RegisterPage() {
                   id="cinNumber"
                   type="text"
                   label="CIN NUMBER"
+                  required
                   placeholder="U12345MH2024PTC123456"
                   error={errors.cinNumber?.message}
                   adornment={<Icon name="pin" size={20} />}
@@ -280,7 +288,7 @@ export default function RegisterPage() {
                 />
                 <span className="text-sm leading-tight text-on-surface-variant">
                   I agree to the <Link href="#" className="font-bold text-primary hover:underline">Terms of Service</Link> and{" "}
-                  <Link href="#" className="font-bold text-primary hover:underline">Privacy Policy</Link> regarding corporate data handling.
+                  <Link href="#" className="font-bold text-primary hover:underline">Privacy Policy</Link> regarding corporate data handling.<span className="text-error"> *</span>
                 </span>
               </label>
               <ErrorText msg={errors.termsAccepted?.message} />

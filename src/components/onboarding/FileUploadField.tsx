@@ -5,6 +5,8 @@ import { Icon } from "@/components/ui/Icon";
 
 interface FileUploadFieldProps {
   label: string;
+  /** Show a blue "Optional" after the label (non-mandatory field). */
+  optional?: boolean;
   /** Accepted MIME types, comma-separated (e.g. "application/pdf"). */
   accept?: string;
   /** Optional max file size in MB; oversize files are rejected. */
@@ -26,6 +28,7 @@ interface FileUploadFieldProps {
  */
 export function FileUploadField({
   label,
+  optional,
   accept,
   maxSizeMB,
   hint = "No file chosen",
@@ -63,6 +66,8 @@ export function FileUploadField({
     <div className="flex flex-col gap-2">
       <span className="px-1 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant">
         {label}
+        {required && <span className="text-error"> *</span>}
+        {optional && <span className="font-medium normal-case text-primary"> (Optional)</span>}
       </span>
 
       <div className="relative flex items-center gap-3">

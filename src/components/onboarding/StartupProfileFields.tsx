@@ -115,6 +115,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
             multiple
             id="industrySectors"
             label="Industry Sector"
+            required
             placeholder="Select one or more sectors"
             options={INDUSTRY_SECTORS}
             value={field.value}
@@ -132,6 +133,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
             <Select
               id="fundingStage"
               label="Funding Stage"
+              optional
               placeholder="Select stage"
               options={FUNDING_STAGES}
               value={field.value}
@@ -146,6 +148,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
             <Select
               id="teamSize"
               label="Team Size"
+              optional
               placeholder="Select range"
               options={TEAM_SIZE_RANGES}
               value={field.value}
@@ -158,7 +161,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
       {/* Funding ask: currency + min–max range */}
       <div className="flex flex-col gap-2">
         <span className="px-1 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant">
-          Funding Ask Amount
+          Funding Ask Amount<span className="text-error"> *</span>
         </span>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[8rem_1fr_1fr]">
           <Controller
@@ -192,6 +195,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
       <Textarea
         id="useOfFunds"
         label="Use of Funds"
+        required
         placeholder="How will the funds be used? (e.g. 40% product, 30% hiring, 30% marketing)"
         error={e?.useOfFunds?.message}
         {...register("startup.useOfFunds", { required: "Describe how the funds will be used." })}
@@ -200,7 +204,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
       {/* Founders + LinkedIn (repeatable) */}
       <div className="flex flex-col gap-3">
         <span className="px-1 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant">
-          Founders &amp; LinkedIn
+          Founders &amp; LinkedIn<span className="text-error"> *</span>
         </span>
         {fields.map((row, i) => (
           <div key={row.id} className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-start">
@@ -243,6 +247,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
         <Textarea
           id="businessDescription"
           label="Business Description"
+          optional
           rows={5}
           placeholder="Describe your business, product and traction…"
           error={e?.businessDescription?.message}
@@ -264,7 +269,8 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <Input
           type="url"
-          label="Company Website (optional)"
+          label="Company Website"
+          optional
           placeholder="https://yourcompany.com"
           error={e?.websiteUrl?.message}
           {...register("startup.websiteUrl", {
@@ -273,7 +279,8 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
         />
         <Input
           type="url"
-          label="Company LinkedIn (optional)"
+          label="Company LinkedIn"
+          optional
           placeholder="https://linkedin.com/company/…"
           error={e?.linkedinUrl?.message}
           {...register("startup.linkedinUrl", {
@@ -291,6 +298,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
           <Select
             id="intent"
             label="Intent"
+            required
             placeholder="Select your intent"
             options={INTENT_OPTIONS}
             value={field.value}
@@ -311,6 +319,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
             <FileUploadField
               id="incorporationCert"
               label="Incorporation Certificate"
+              required
               error={e?.incorporationCert?.message}
               onChange={(f) => field.onChange(f?.name ?? "")}
             />
@@ -324,6 +333,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
             <FileUploadField
               id="pitchDeck"
               label="Pitch Deck (PDF, max 20 MB)"
+              required
               hint="PDF only (max 20MB)"
               accept={PITCH_DECK_ACCEPT}
               maxSizeMB={PITCH_DECK_MAX_MB}
