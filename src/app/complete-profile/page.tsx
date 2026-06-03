@@ -20,6 +20,11 @@ import {
   defaultInvestorValues,
   type InvestorValues,
 } from "@/components/onboarding/InvestorProfileFields";
+import {
+  B2BProfileFields,
+  defaultB2BValues,
+  type B2BValues,
+} from "@/components/onboarding/B2BProfileFields";
 
 /** Human-readable labels for the role values captured at registration. */
 const ROLE_LABELS: Record<string, string> = {
@@ -49,6 +54,13 @@ export default function CompleteProfilePage() {
       continent: (data.continent as string) ?? "",
       startup: { ...defaultStartupValues, ...((data.startup as Partial<StartupValues>) ?? {}) },
       investor: { ...defaultInvestorValues, ...((data.investor as Partial<InvestorValues>) ?? {}) },
+      b2b: {
+        ...defaultB2BValues,
+        // Business Name comes from GST verification later; pre-fill from the
+        // company name captured at registration for now.
+        businessName: (data.legalName as string) ?? "",
+        ...((data.b2b as Partial<B2BValues>) ?? {}),
+      },
     },
   });
 
@@ -64,6 +76,7 @@ export default function CompleteProfilePage() {
       continent: values.continent,
       ...(role === "startup" ? { startup: values.startup } : {}),
       ...(role === "investor" ? { investor: values.investor } : {}),
+      ...(role === "b2b_enterprise" ? { b2b: values.b2b } : {}),
     });
     goNext("profile");
   };
@@ -151,6 +164,24 @@ export default function CompleteProfilePage() {
               adornment={<Icon name="lock" size={18} />}
               className="cursor-not-allowed text-on-surface-variant"
             />
+            {role === "b2b_enterprise" && (
+              <>
+                <Input
+                  label="GST Number"
+                  value={String(data.gstNumber ?? "")}
+                  readOnly
+                  adornment={<Icon name="lock" size={18} />}
+                  className="cursor-not-allowed text-on-surface-variant"
+                />
+                <Input
+                  label="Company CIN Number"
+                  value={String(data.cinNumber ?? "")}
+                  readOnly
+                  adornment={<Icon name="lock" size={18} />}
+                  className="cursor-not-allowed text-on-surface-variant"
+                />
+              </>
+            )}
           </div>
         </div>
 
@@ -199,6 +230,9 @@ export default function CompleteProfilePage() {
         )}
         {role === "investor" && (
           <InvestorProfileFields control={control} register={register} setValue={setValue} errors={errors} />
+        )}
+        {role === "b2b_enterprise" && (
+          <B2BProfileFields control={control} register={register} setValue={setValue} errors={errors} />
         )}
 
         <div className="flex flex-col gap-1">

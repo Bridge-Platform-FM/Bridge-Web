@@ -27,6 +27,7 @@ import {
   URL_REGEX,
 } from "@/lib/startup-profile-options";
 import type { InvestorValues } from "@/components/onboarding/InvestorProfileFields";
+import type { B2BValues } from "@/components/onboarding/B2BProfileFields";
 
 export interface Founder {
   name: string;
@@ -61,6 +62,7 @@ export interface CompleteProfileForm {
   continent: string;
   startup: StartupValues;
   investor: InvestorValues;
+  b2b: B2BValues;
 }
 
 export const defaultStartupValues: StartupValues = {
