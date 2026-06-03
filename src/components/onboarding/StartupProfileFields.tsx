@@ -60,6 +60,15 @@ export interface CompleteProfileForm {
   bio: string;
   country: string;
   continent: string;
+  /** Account fields captured at registration — shown locked/read-only here. */
+  legalName: string;
+  email: string;
+  contact: string;
+  role: string;
+  gstNumber: string;
+  cinNumber: string;
+  /** Profile photo file name (the object-URL preview is kept in component state). */
+  photo: string;
   startup: StartupValues;
   investor: InvestorValues;
   b2b: B2BValues;

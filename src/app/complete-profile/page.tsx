@@ -52,6 +52,14 @@ export default function CompleteProfilePage() {
       bio: (data.bio as string) ?? "",
       country: (data.country as string) ?? "",
       continent: (data.continent as string) ?? "",
+      // Locked account fields captured at registration.
+      legalName: (data.legalName as string) ?? "",
+      email: (data.email as string) ?? "",
+      contact: (data.contact as string) ?? "",
+      role: (data.role as string) ?? "",
+      gstNumber: (data.gstNumber as string) ?? "",
+      cinNumber: (data.cinNumber as string) ?? "",
+      photo: "",
       startup: { ...defaultStartupValues, ...((data.startup as Partial<StartupValues>) ?? {}) },
       investor: { ...defaultInvestorValues, ...((data.investor as Partial<InvestorValues>) ?? {}) },
       b2b: {
@@ -74,6 +82,7 @@ export default function CompleteProfilePage() {
       bio: values.bio,
       country: values.country,
       continent: values.continent,
+      photo: values.photo,
       ...(role === "startup" ? { startup: values.startup } : {}),
       ...(role === "investor" ? { investor: values.investor } : {}),
       ...(role === "b2b_enterprise" ? { b2b: values.b2b } : {}),
@@ -107,26 +116,40 @@ export default function CompleteProfilePage() {
                 <Icon name="person" size={40} className="text-surface-dim" />
               )}
             </div>
-            <div className="flex flex-col gap-2">
-              <div className="flex gap-3">
-                <label className="cursor-pointer rounded-lg bg-primary-container px-4 py-2 text-sm font-semibold text-on-primary-container transition-colors hover:bg-primary-fixed-dim">
-                  Upload photo
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      setPhoto(f ? URL.createObjectURL(f) : null);
-                    }}
-                  />
-                </label>
-                <button type="button" onClick={() => setPhoto(null)} className="rounded-lg px-4 py-2 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container">
-                  Remove
-                </button>
-              </div>
-              <p className="text-xs text-on-surface-variant">JPG, GIF or PNG. Max size of 800K</p>
-            </div>
+            <Controller
+              control={control}
+              name="photo"
+              render={({ field }) => (
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-3">
+                    <label className="cursor-pointer rounded-lg bg-primary-container px-4 py-2 text-sm font-semibold text-on-primary-container transition-colors hover:bg-primary-fixed-dim">
+                      Upload photo
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0] ?? null;
+                          setPhoto(f ? URL.createObjectURL(f) : null);
+                          field.onChange(f ? f.name : "");
+                        }}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPhoto(null);
+                        field.onChange("");
+                      }}
+                      className="rounded-lg px-4 py-2 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <p className="text-xs text-on-surface-variant">JPG, GIF or PNG. Max size of 800K</p>
+                </div>
+              )}
+            />
           </div>
         </div>
 
@@ -137,54 +160,60 @@ export default function CompleteProfilePage() {
             <Input
               label="Company Name"
               required
-              value={String(data.legalName ?? "")}
               readOnly
               adornment={<Icon name="lock" size={18} />}
               className="cursor-not-allowed text-on-surface-variant"
+              {...register("legalName")}
             />
-            <Input
-              label="Role"
-              required
-              value={ROLE_LABELS[role] ?? role}
-              readOnly
-              adornment={<Icon name="lock" size={18} />}
-              className="cursor-not-allowed text-on-surface-variant"
+            <Controller
+              control={control}
+              name="role"
+              render={({ field }) => (
+                <Input
+                  label="Role"
+                  required
+                  readOnly
+                  value={ROLE_LABELS[field.value] ?? field.value ?? ""}
+                  adornment={<Icon name="lock" size={18} />}
+                  className="cursor-not-allowed text-on-surface-variant"
+                />
+              )}
             />
             <Input
               label="Email"
               required
               type="email"
-              value={String(data.email ?? "")}
               readOnly
               adornment={<Icon name="lock" size={18} />}
               className="cursor-not-allowed text-on-surface-variant"
+              {...register("email")}
             />
             <Input
               label="Phone"
               required
               type="tel"
-              value={String(data.contact ?? "")}
               readOnly
               adornment={<Icon name="lock" size={18} />}
               className="cursor-not-allowed text-on-surface-variant"
+              {...register("contact")}
             />
             {role === "b2b_enterprise" && (
               <>
                 <Input
                   label="GST Number"
                   required
-                  value={String(data.gstNumber ?? "")}
                   readOnly
                   adornment={<Icon name="lock" size={18} />}
                   className="cursor-not-allowed text-on-surface-variant"
+                  {...register("gstNumber")}
                 />
                 <Input
                   label="Company CIN Number"
                   required
-                  value={String(data.cinNumber ?? "")}
                   readOnly
                   adornment={<Icon name="lock" size={18} />}
                   className="cursor-not-allowed text-on-surface-variant"
+                  {...register("cinNumber")}
                 />
               </>
             )}
