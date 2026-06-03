@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export function Navbar() {
     return (
-        <nav className="flex-none flex items-center justify-between px-8 py-6 w-full max-w-7xl mx-auto">
+        <nav className="flex-none flex items-center justify-between px-8 py-2 w-full max-w-7xl mx-auto">
             <div className="flex items-center gap-3">
                 <div className="size-8 text-blue-600">
                     <svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">

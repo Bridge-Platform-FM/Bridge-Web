@@ -108,9 +108,9 @@ export default function RegisterPage() {
   };
 
   return (
-    <main className=" mx-auto grid max-w-[1200px]  grid-cols-1 items-start gap-10 px-4 py-8 sm:px-6 lg:grid-cols-12 lg:gap-16 lg:py-12">
+    <main className=" mx-auto grid max-w-[1200px]  grid-cols-1 items-start gap-10 px-4 py-3 sm:px-6 lg:grid-cols-12 lg:gap-16 lg:py-4">
       {/* Left: editorial context */}
-      <div className="flex flex-col gap-6 pt-4 lg:col-span-5 lg:gap-8">
+      <div className="flex flex-col gap-6 lg:col-span-5 lg:gap-8">
         <div className="space-y-4">
           <span className="inline-flex rounded-full bg-secondary-container px-3 py-1 text-xs font-semibold uppercase tracking-wider text-on-secondary-container">
             Onboarding
@@ -144,13 +144,13 @@ export default function RegisterPage() {
 
       {/* Right: form card */}
       <div className="lg:col-span-7">
-        <Card padding="lg" className="flex flex-col gap-6 !p-6 sm:!p-8 lg:gap-8 lg:!p-10">
+        <Card padding="lg" className="flex flex-col gap-3 !p-6 sm:!p-7 lg:gap-4 lg:!p-7">
           <div className="flex flex-col gap-1">
             <h2 className="font-headline text-2xl font-bold text-on-surface">Company Registration</h2>
           </div>
           {/* <StepProgress stepKey="details" /> */}
 
-          <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-6">
+          <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-3">
             <Input
               id="legalName"
               type="text"
@@ -222,7 +222,7 @@ export default function RegisterPage() {
                 {ROLES.map((r) => (
                   <label
                     key={r.value}
-                    className={`flex h-14 cursor-pointer items-center gap-3 rounded-xl px-4 transition-colors ${
+                    className={`flex h-12 cursor-pointer items-center gap-3 rounded-xl px-4 transition-colors ${
                       role === r.value ? "bg-primary-container" : "bg-surface-container-highest hover:bg-surface-variant"
                     }`}
                   >
@@ -288,11 +288,11 @@ export default function RegisterPage() {
 
             {apiError && <ErrorText msg={apiError} />}
 
-            <div className="flex flex-col gap-4 pt-4">
+            <div className="flex flex-col gap-2">
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="cta-gradient flex h-14 w-full items-center justify-center gap-2 bg-primary rounded-xl font-headline text-lg font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
+                className="cta-gradient flex h-12 w-full items-center justify-center gap-2 bg-primary rounded-xl font-headline text-lg font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSubmitting ? "Submitting…" : "Continue"}
               </button>
