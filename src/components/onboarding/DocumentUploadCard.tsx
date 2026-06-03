@@ -87,20 +87,23 @@ export function DocumentUploadCard({
       return next;
     });
 
-    // Revoke the previous preview URL for this slot, if any.
+    // Previews: revoke the old URL and create the new one outside the updater
+    // so the state updater stays pure (no side effects during render).
+    const oldUrl = previews[key];
+    if (oldUrl) URL.revokeObjectURL(oldUrl);
+    const newUrl = file && isImage(file) ? URL.createObjectURL(file) : undefined;
     setPreviews((prev) => {
-      if (prev[key]) URL.revokeObjectURL(prev[key]);
       const next = { ...prev };
-      if (file && isImage(file)) next[key] = URL.createObjectURL(file);
+      if (newUrl) next[key] = newUrl;
       else delete next[key];
       return next;
     });
 
-    setFiles((prev) => {
-      const next = { ...prev, [key]: file };
-      onChange?.(next);
-      return next;
-    });
+    // Files + notify parent outside the updater (calling the parent's onChange
+    // inside a setState updater triggers a setState-in-render warning).
+    const nextFiles = { ...files, [key]: file };
+    setFiles(nextFiles);
+    onChange?.(nextFiles);
   };
 
   const allFilled = slots.every((s) => files[s.key]);
