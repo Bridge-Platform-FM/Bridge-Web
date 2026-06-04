@@ -124,7 +124,7 @@ export function InvestorProfileFields({ control, register, setValue, errors }: I
       {/* Ticket size: currency + min–max range */}
       <div className="flex flex-col gap-2">
         <span className="px-1 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant">
-          Ticket Size<span className="text-error"> *</span>
+          Ticket Size<span className="align-middle text-base leading-none text-error"> *</span>
         </span>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[8rem_1fr_1fr]">
           <Controller
@@ -158,7 +158,7 @@ export function InvestorProfileFields({ control, register, setValue, errors }: I
       {/* Geographic investment preference: countries + continents (at least one) */}
       <div className="flex flex-col gap-3">
         <span className="px-1 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant">
-          Geographic Investment Preference<span className="text-error"> *</span>
+          Geographic Investment Preference<span className="align-middle text-base leading-none text-error"> *</span>
         </span>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <Controller

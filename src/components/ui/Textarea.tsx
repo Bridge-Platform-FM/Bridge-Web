@@ -19,7 +19,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
             className="px-1 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant"
           >
             {label}
-            {required && <span className="text-error"> *</span>}
+            {required && <span className="align-middle text-base leading-none text-error"> *</span>}
             {optional && <span className="font-medium normal-case text-primary"> (Optional)</span>}
           </label>
         )}

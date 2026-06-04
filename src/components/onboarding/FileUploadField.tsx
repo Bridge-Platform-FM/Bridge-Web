@@ -66,7 +66,7 @@ export function FileUploadField({
     <div className="flex flex-col gap-2">
       <span className="px-1 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant">
         {label}
-        {required && <span className="text-error"> *</span>}
+        {required && <span className="align-middle text-base leading-none text-error"> *</span>}
         {optional && <span className="font-medium normal-case text-primary"> (Optional)</span>}
       </span>
 

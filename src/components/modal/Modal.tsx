@@ -72,7 +72,7 @@ export function Modal({ open, onClose, title, children, footer, maxWidthClass = 
             <button
               type="button"
               onClick={onClose}
-              className="flex h-11 items-center justify-center rounded-xl bg-surface-container-high px-6 font-bold text-on-surface transition-colors hover:bg-surface-container-highest"
+              className="flex h-11 items-center justify-center rounded-xl bg-primary px-6 font-bold text-on-primary transition-colors hover:bg-primary-dim"
             >
               Close
             </button>

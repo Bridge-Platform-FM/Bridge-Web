@@ -265,7 +265,7 @@ export function B2BProfileFields({ control, register, setValue, errors }: B2BPro
       {/* Geographies: countries + continents (at least one) */}
       <div className="flex flex-col gap-3">
         <span className="px-1 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant">
-          Geographies<span className="text-error"> *</span>
+          Geographies<span className="align-middle text-base leading-none text-error"> *</span>
         </span>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <Controller

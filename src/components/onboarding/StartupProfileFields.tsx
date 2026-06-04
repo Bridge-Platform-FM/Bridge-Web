@@ -170,7 +170,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
       {/* Funding ask: currency + min–max range */}
       <div className="flex flex-col gap-2">
         <span className="px-1 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant">
-          Funding Ask Amount<span className="text-error"> *</span>
+          Funding Ask Amount<span className="align-middle text-base leading-none text-error"> *</span>
         </span>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[8rem_1fr_1fr]">
           <Controller
@@ -213,7 +213,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
       {/* Founders + LinkedIn (repeatable) */}
       <div className="flex flex-col gap-3">
         <span className="px-1 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant">
-          Founders &amp; LinkedIn<span className="text-error"> *</span>
+          Founders &amp; LinkedIn<span className="align-middle text-base leading-none text-error"> *</span>
         </span>
         {fields.map((row, i) => (
           <div key={row.id} className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-start">

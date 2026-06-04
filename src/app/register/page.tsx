@@ -222,7 +222,7 @@ export default function RegisterPage() {
 
             <div className="flex flex-col gap-2">
               <label className={LABEL}>
-                SELECT YOUR ROLE<span className="text-error"> *</span>
+                SELECT YOUR ROLE<span className="align-middle text-base leading-none text-error"> *</span>
               </label>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 {ROLES.map((r) => (
@@ -288,7 +288,7 @@ export default function RegisterPage() {
                 />
                 <span className="text-sm leading-tight text-on-surface-variant">
                   I agree to the <Link href="#" className="font-bold text-primary hover:underline">Terms of Service</Link> and{" "}
-                  <Link href="#" className="font-bold text-primary hover:underline">Privacy Policy</Link> regarding corporate data handling.<span className="text-error"> *</span>
+                  <Link href="#" className="font-bold text-primary hover:underline">Privacy Policy</Link> regarding corporate data handling.<span className="align-middle text-base leading-none text-error"> *</span>
                 </span>
               </label>
               <ErrorText msg={errors.termsAccepted?.message} />
