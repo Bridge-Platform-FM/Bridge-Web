@@ -28,6 +28,9 @@ import {
   type B2BValues,
 } from "@/components/onboarding/B2BProfileFields";
 
+/** Hard character cap for the short bio. */
+const BIO_MAX_CHARS = 300;
+
 /** Human-readable labels for the role values captured at registration. */
 const ROLE_LABELS: Record<string, string> = {
   startup: "Startup",
@@ -285,12 +288,13 @@ export default function CompleteProfilePage() {
             optional
             placeholder="Tell us a little bit about what you do..."
             error={errors.bio?.message}
+            maxLength={BIO_MAX_CHARS}
             {...register("bio", {
-              maxLength: { value: 300, message: "Keep your bio under 300 characters." },
+              maxLength: { value: BIO_MAX_CHARS, message: `Keep your bio under ${BIO_MAX_CHARS} characters.` },
             })}
           />
-          <span className={`px-1 text-xs font-medium ${bioChars > 300 ? "text-error" : "text-on-surface-variant"}`}>
-            {bioChars} / 300 characters
+          <span className={`px-1 text-xs font-medium ${bioChars > BIO_MAX_CHARS ? "text-error" : "text-on-surface-variant"}`}>
+            {bioChars} / {BIO_MAX_CHARS} characters
           </span>
         </div>
 

@@ -97,6 +97,29 @@ export function wordCount(text: string): number {
   return t ? t.split(/\s+/).length : 0;
 }
 
+/** Truncate `text` to at most `max` whitespace-delimited words. */
+export function truncateToWords(text: string, max: number): string {
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length <= max) return text;
+  return words.slice(0, max).join(" ");
+}
+
+/**
+ * Builds a textarea `onChange` that hard-caps input at `max` words: it truncates
+ * the value in place (so the user cannot type/paste past the limit) and then
+ * forwards the event to react-hook-form's own onChange.
+ */
+export function limitWords(
+  max: number,
+  rhfOnChange: React.ChangeEventHandler<HTMLTextAreaElement>
+): React.ChangeEventHandler<HTMLTextAreaElement> {
+  return (e) => {
+    const capped = truncateToWords(e.target.value, max);
+    if (capped !== e.target.value) e.target.value = capped;
+    rhfOnChange(e);
+  };
+}
+
 interface StartupProfileFieldsProps {
   control: Control<CompleteProfileForm>;
   register: UseFormRegister<CompleteProfileForm>;
@@ -110,6 +133,12 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
   const { fields, append, remove } = useFieldArray({ control, name: "startup.founders" });
   const businessDescription = useWatch({ control, name: "startup.businessDescription" });
   const descWords = wordCount(businessDescription ?? "");
+  // Registered once so we can chain RHF's onChange with the hard word-cap below.
+  const descReg = register("startup.businessDescription", {
+    validate: (v) =>
+      wordCount(v) <= BUSINESS_DESCRIPTION_MAX_WORDS ||
+      `Keep the description under ${BUSINESS_DESCRIPTION_MAX_WORDS} words.`,
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -260,11 +289,8 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
           rows={5}
           placeholder="Describe your business, product and traction…"
           error={e?.businessDescription?.message}
-          {...register("startup.businessDescription", {
-            validate: (v) =>
-              wordCount(v) <= BUSINESS_DESCRIPTION_MAX_WORDS ||
-              `Keep the description under ${BUSINESS_DESCRIPTION_MAX_WORDS} words.`,
-          })}
+          {...descReg}
+          onChange={limitWords(BUSINESS_DESCRIPTION_MAX_WORDS, descReg.onChange)}
         />
         <span
           className={`px-1 text-xs font-medium ${

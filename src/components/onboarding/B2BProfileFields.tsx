@@ -365,6 +365,7 @@ export function B2BProfileFields({ control, register, setValue, errors }: B2BPro
           label="Products / Services Offered"
           required
           rows={4}
+          maxLength={PRODUCTS_MAX_CHARS}
           placeholder="List the products or services your business offers…"
           error={e?.productsServices?.message}
           {...register("b2b.productsServices", {
@@ -391,6 +392,7 @@ export function B2BProfileFields({ control, register, setValue, errors }: B2BPro
           label="Business Requirements"
           required
           rows={4}
+          maxLength={REQUIREMENTS_MAX_CHARS}
           placeholder="Describe what you are looking for from partners…"
           error={e?.businessRequirements?.message}
           {...register("b2b.businessRequirements", {

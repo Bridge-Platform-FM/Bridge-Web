@@ -25,7 +25,7 @@ import {
   PRIMARY_INTENT_OPTIONS,
   PORTFOLIO_MAX_WORDS,
 } from "@/lib/investor-profile-options";
-import { wordCount, type CompleteProfileForm } from "@/components/onboarding/StartupProfileFields";
+import { wordCount, limitWords, type CompleteProfileForm } from "@/components/onboarding/StartupProfileFields";
 
 /** All investor profile field values (everything here is JSON-serializable). */
 export interface InvestorValues {
@@ -78,6 +78,12 @@ export function InvestorProfileFields({ control, register, setValue, errors }: I
   const portfolioOverview = useWatch({ control, name: "investor.portfolioOverview" });
   const portfolioWords = wordCount(portfolioOverview ?? "");
   const geoContinents = useWatch({ control, name: "investor.geoContinents" });
+  // Registered once so we can chain RHF's onChange with the hard word-cap below.
+  const portfolioReg = register("investor.portfolioOverview", {
+    validate: (v) =>
+      wordCount(v) <= PORTFOLIO_MAX_WORDS ||
+      `Keep the overview under ${PORTFOLIO_MAX_WORDS} words.`,
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -276,11 +282,8 @@ export function InvestorProfileFields({ control, register, setValue, errors }: I
           rows={5}
           placeholder="Highlight notable investments, sectors and outcomes…"
           error={e?.portfolioOverview?.message}
-          {...register("investor.portfolioOverview", {
-            validate: (v) =>
-              wordCount(v) <= PORTFOLIO_MAX_WORDS ||
-              `Keep the overview under ${PORTFOLIO_MAX_WORDS} words.`,
-          })}
+          {...portfolioReg}
+          onChange={limitWords(PORTFOLIO_MAX_WORDS, portfolioReg.onChange)}
         />
         <span
           className={`px-1 text-xs font-medium ${
