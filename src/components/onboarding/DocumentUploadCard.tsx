@@ -38,7 +38,7 @@ export function DocumentUploadCard({
   title,
   subtitle,
   icon,
-  hint = "PNG, JPG or PDF (max 5MB)",
+  hint = "PNG, JPG or PDF (max 10MB)",
   slots,
   onChange,
   accept = DEFAULT_ACCEPT,
@@ -110,9 +110,9 @@ export function DocumentUploadCard({
 
   return (
     <section
-      className={`rounded-2xl p-5 ${allFilled ? "bg-surface-container-lowest ambient-shadow" : "bg-surface-container-low"}`}
+      className={`rounded-2xl p-4 ${allFilled ? "bg-surface-container-lowest ambient-shadow" : "bg-surface-container-low"}`}
     >
-      <div className="mb-4 flex items-center justify-between gap-3">
+      <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div
             className={`flex size-10 items-center justify-center rounded-xl ${
@@ -134,7 +134,7 @@ export function DocumentUploadCard({
         )}
       </div>
 
-      <div className={`grid gap-4 ${slots.length > 1 ? "md:grid-cols-2" : "grid-cols-1"}`}>
+      <div className={`grid gap-3 ${slots.length > 1 ? "md:grid-cols-2" : "grid-cols-1"}`}>
         {slots.map((slot) => {
           const file = files[slot.key];
           const previewUrl = previews[slot.key];
@@ -145,7 +145,7 @@ export function DocumentUploadCard({
               </span>
 
               {file ? (
-                <div className="relative h-44 overflow-hidden rounded-xl border-2 border-primary/20 bg-surface-container">
+                <div className="relative h-32 overflow-hidden rounded-xl border-2 border-primary/20 bg-surface-container">
                   {previewUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={previewUrl} alt={`${slot.label} preview`} className="h-full w-full object-cover" />
@@ -190,13 +190,13 @@ export function DocumentUploadCard({
                     const dropped = e.dataTransfer.files?.[0];
                     if (dropped) setSlot(slot.key, dropped);
                   }}
-                  className="group h-44 w-full cursor-pointer rounded-xl border-2 border-dashed border-outline-variant/30 bg-surface-container-lowest/50 transition-colors hover:bg-surface-container-lowest"
+                  className="group h-32 w-full cursor-pointer rounded-xl border-2 border-dashed border-outline-variant/30 bg-surface-container-lowest/50 transition-colors hover:bg-surface-container-lowest"
                 >
                   <div className="flex h-full flex-col items-center justify-center px-4">
-                    <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-primary/5 transition-transform group-hover:scale-110">
-                      <Icon name="upload_file" size={24} className="text-primary" />
+                    <div className="mb-2 flex size-10 items-center justify-center rounded-full bg-primary/5 transition-transform group-hover:scale-110">
+                      <Icon name="upload_file" size={22} className="text-primary" />
                     </div>
-                    <p className="mb-1 text-center text-sm font-bold text-on-surface">Click to upload or drag &amp; drop</p>
+                    <p className="mb-0.5 text-center text-sm font-bold text-on-surface">Click to upload or drag &amp; drop</p>
                     <p className="text-center text-xs text-on-surface-variant">{hint}</p>
                   </div>
                 </button>
