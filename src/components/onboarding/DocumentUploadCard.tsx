@@ -24,7 +24,7 @@ interface DocumentUploadCardProps {
   maxSizeMB?: number;
 }
 
-const DEFAULT_ACCEPT = "image/png,image/jpeg,application/pdf";
+const DEFAULT_ACCEPT = "image/png,image/jpeg";
 
 function isImage(file: File) {
   return file.type.startsWith("image/");
@@ -38,7 +38,7 @@ export function DocumentUploadCard({
   title,
   subtitle,
   icon,
-  hint = "PNG, JPG or PDF (max 10MB)",
+  hint = "PNG or JPG (max 10MB)",
   slots,
   onChange,
   accept = DEFAULT_ACCEPT,
