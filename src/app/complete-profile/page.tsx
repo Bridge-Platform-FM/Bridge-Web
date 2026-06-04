@@ -6,6 +6,8 @@ import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
+import { Modal } from "@/components/ui/Modal";
+import { ProfilePreview } from "@/components/onboarding/ProfilePreview";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { COUNTRIES, CONTINENTS, continentForCountry } from "@/lib/countries";
@@ -36,6 +38,9 @@ const ROLE_LABELS: Record<string, string> = {
 export default function CompleteProfilePage() {
   const { data, setData, goNext } = useOnboarding();
   const [photo, setPhoto] = useState<string | null>(null);
+  // Snapshot of the form taken when Preview is clicked. Captured at click time
+  // (not in render) so it reflects the latest values from the uncontrolled inputs.
+  const [previewData, setPreviewData] = useState<CompleteProfileForm | null>(null);
 
   const role = String(data.role ?? "");
 
@@ -44,6 +49,7 @@ export default function CompleteProfilePage() {
     control,
     handleSubmit,
     setValue,
+    getValues,
     formState: { errors },
   } = useForm<CompleteProfileForm>({
     defaultValues: {
@@ -288,14 +294,25 @@ export default function CompleteProfilePage() {
           </span>
         </div>
 
-        <div className="flex flex-col gap-4 border-t border-outline/10 pt-6">
-          <button type="submit" className="cta-gradient flex h-14 w-full items-center justify-center gap-2 rounded-xl font-bold text-lg text-on-primary shadow-lg shadow-primary/20 transition-all hover:scale-[1.01] active:scale-[0.98]">
+        <div className="flex items-center gap-3 border-t border-outline/10 pt-6">
+          <button
+            type="button"
+            onClick={() => setPreviewData(getValues())}
+            className="flex h-14 items-center justify-center gap-2 rounded-xl border border-outline-variant/40 bg-surface-container px-6 font-bold text-on-surface transition-colors hover:bg-surface-container-high"
+          >
+            <Icon name="visibility" size={20} />
+            Preview
+          </button>
+          <button type="submit" className="cta-gradient flex h-14 flex-1 items-center justify-center gap-2 rounded-xl font-bold text-lg text-on-primary shadow-lg shadow-primary/20 transition-all hover:scale-[1.01] active:scale-[0.98]">
             Save &amp; Continue
             <Icon name="chevron_right" size={20} />
           </button>
         </div>
       </form>
 
+      <Modal open={!!previewData} onClose={() => setPreviewData(null)} title="Profile Preview">
+        {previewData && <ProfilePreview values={previewData} photoUrl={photo} role={role} />}
+      </Modal>
     </div>
   );
 }
