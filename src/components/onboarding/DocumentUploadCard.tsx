@@ -122,7 +122,7 @@ export function DocumentUploadCard({
             <Icon name={icon} size={22} />
           </div>
           <div>
-            <h3 className="font-headline text-lg font-bold text-on-surface">{title}</h3>
+            <h3 className="font-headline text-sm font-bold text-on-surface">{title}</h3>
             <p className="text-sm text-on-surface-variant">{subtitle}</p>
           </div>
         </div>

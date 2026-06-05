@@ -144,13 +144,13 @@ export default function RegisterPage() {
 
       {/* Right: form card */}
       <div className="lg:col-span-7">
-        <Card padding="lg" className="flex flex-col gap-3 !p-6 sm:!p-7 lg:gap-4 lg:!p-7">
+        <Card padding="lg" className="flex flex-col gap-3 !p-5 sm:!p-6 lg:gap-3 lg:!p-6">
           <div className="flex flex-col gap-1">
             <h2 className="font-headline text-2xl font-bold text-on-surface">Company Registration</h2>
           </div>
           {/* <StepProgress stepKey="details" /> */}
 
-          <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-3">
+          <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-2.5">
             <Input
               id="legalName"
               type="text"
@@ -180,7 +180,7 @@ export default function RegisterPage() {
               })}
             />
 
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
@@ -247,7 +247,7 @@ export default function RegisterPage() {
 
             {/* B2B-only: GST + CIN, revealed after role selection */}
             {isB2B && (
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Input
                   id="gstNumber"
                   type="text"
@@ -300,7 +300,7 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="cta-gradient flex h-12 w-full items-center justify-center gap-2 bg-primary rounded-xl font-headline text-lg font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
+                className="cta-gradient flex h-12 w-full items-center justify-center gap-2 bg-primary rounded-xl font-headline text-base font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSubmitting ? "Submitting…" : "Continue"}
               </button>

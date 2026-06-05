@@ -302,14 +302,14 @@ export default function CompleteProfilePage() {
           <button
             type="button"
             onClick={() => setPreviewData(getValues())}
-            className="flex h-14 items-center justify-center gap-2 rounded-xl border border-outline-variant/40 bg-surface-container px-6 font-bold text-on-surface transition-colors hover:bg-surface-container-high"
+            className="flex h-12 items-center justify-center gap-2 rounded-xl border border-outline-variant/40 bg-surface-container px-6 font-bold text-base text-on-surface transition-colors hover:bg-surface-container-high"
           >
-            <Icon name="visibility" size={20} />
+            <Icon name="visibility" size={18} />
             Preview
           </button>
-          <button type="submit" className="cta-gradient flex h-14 flex-1 items-center justify-center gap-2 rounded-xl font-bold text-lg text-on-primary shadow-lg shadow-primary/20 transition-all hover:scale-[1.01] active:scale-[0.98]">
+          <button type="submit" className="cta-gradient flex h-12 flex-1 items-center justify-center gap-2 rounded-xl font-bold text-base text-on-primary shadow-lg shadow-primary/20 transition-all hover:scale-[1.01] active:scale-[0.98]">
             Save &amp; Continue
-            <Icon name="chevron_right" size={20} />
+            <Icon name="chevron_right" size={18} />
           </button>
         </div>
       </form>
