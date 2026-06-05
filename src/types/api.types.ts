@@ -2,6 +2,7 @@
 export interface RegisterPayload {
   companyName: string;
   email: string;
+  countryCode: string;
   phoneNumber: string;
   password: string;
   role: "INVESTOR" | "B2B" | "STARTUP";

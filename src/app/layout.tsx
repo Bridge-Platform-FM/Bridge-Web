@@ -16,7 +16,7 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "Veritas — Onboarding & KYC",
+  title: "Bridge oarding & KYC",
   description: "Corporate onboarding and KYC verification workflow.",
 };
 

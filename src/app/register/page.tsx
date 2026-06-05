@@ -2,10 +2,12 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm, useWatch, Controller } from "react-hook-form";
 import { Icon } from "@/components/ui/Icon";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/Select";
+import { DIAL_CODES } from "@/lib/countries";
 import { StepProgress } from "@/components/onboarding/StepProgress";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { toast } from "sonner";
@@ -42,6 +44,7 @@ interface RegisterForm {
   legalName: string;
   email: string;
   password: string;
+  countryCode: string;
   contact: string;
   role: string;
   gstNumber: string;
@@ -64,6 +67,7 @@ export default function RegisterPage() {
       legalName: (data.legalName as string) ?? "",
       email: (data.email as string) ?? "",
       password: "",
+      countryCode: (data.countryCode as string) ?? "+91",
       contact: (data.contact as string) ?? "",
       role: (data.role as string) ?? "",
       gstNumber: (data.gstNumber as string) ?? "",
@@ -80,6 +84,7 @@ export default function RegisterPage() {
     const payload = {
       companyName: values.legalName,
       email: values.email,
+      countryCode: values.countryCode,
       phoneNumber: values.contact,
       password: values.password,
       role: ROLE_MAP[values.role],
@@ -96,6 +101,7 @@ export default function RegisterPage() {
       setData({
         legalName: values.legalName,
         email: values.email,
+        countryCode: values.countryCode,
         contact: values.contact,
         role: values.role,
         gstNumber: values.gstNumber,
@@ -205,19 +211,38 @@ export default function RegisterPage() {
                   },
                 })}
               />
-              <Input
-                id="contact"
-                type="tel"
-                label="CONTACT NUMBER"
-                required
-                placeholder="9632585698"
-                error={errors.contact?.message}
-                adornment={<Icon name="smartphone" size={20} />}
-                {...field("contact", {
-                  required: "Contact number is required.",
-                  pattern: { value: PHONE_REGEX, message: "Enter a valid 10-digit mobile number." },
-                })}
-              />
+              <div className="flex flex-col gap-2">
+                <label className={LABEL}>
+                  CONTACT NUMBER<span className="align-middle text-base leading-none text-error"> *</span>
+                </label>
+                <div className="grid grid-cols-[7.5rem_1fr] gap-2">
+                  <Controller
+                    control={control}
+                    name="countryCode"
+                    render={({ field: cc }) => (
+                      <Select
+                        aria-label="Country code"
+                        searchable
+                        placeholder="Code"
+                        options={DIAL_CODES}
+                        value={cc.value}
+                        onChange={cc.onChange}
+                      />
+                    )}
+                  />
+                  <Input
+                    id="contact"
+                    type="tel"
+                    placeholder="9632585698"
+                    error={errors.contact?.message}
+                    adornment={<Icon name="smartphone" size={20} />}
+                    {...field("contact", {
+                      required: "Contact number is required.",
+                      pattern: { value: PHONE_REGEX, message: "Enter a valid 10-digit mobile number." },
+                    })}
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="flex flex-col gap-2">

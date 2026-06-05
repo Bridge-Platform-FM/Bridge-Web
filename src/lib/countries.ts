@@ -224,3 +224,56 @@ export const COUNTRIES: Country[] = [
 export function continentForCountry(value: string): string {
   return COUNTRIES.find((c) => c.value === value)?.continent ?? "";
 }
+
+/**
+ * International dialing codes for the phone-number country selector. `value` is
+ * the dial code (what we store/submit); `label` shows the code + country for
+ * easy scanning. Codes are unique so they're safe as Select option values.
+ */
+export const DIAL_CODES: Option[] = [
+  { value: "+91", label: "+91" },
+  { value: "+1", label: "+1" },
+  { value: "+44", label: "+44" },
+  { value: "+971", label: "+971" },
+  { value: "+65", label: "+65" },
+  { value: "+61", label: "+61" },
+  { value: "+49", label: "+49" },
+  { value: "+33", label: "+33" },
+  { value: "+39", label: "+39" },
+  { value: "+34", label: "+34" },
+  { value: "+31", label: "+31" },
+  { value: "+41", label: "+41" },
+  { value: "+46", label: "+46" },
+  { value: "+47", label: "+47" },
+  { value: "+353", label: "+353" },
+  { value: "+351", label: "+351" },
+  { value: "+7", label: "+7" },
+  { value: "+86", label: "+86" },
+  { value: "+81", label: "+81" },
+  { value: "+82", label: "+82" },
+  { value: "+852", label: "+852" },
+  { value: "+60", label: "+60" },
+  { value: "+62", label: "+62" },
+  { value: "+63", label: "+63" },
+  { value: "+66", label: "+66" },
+  { value: "+84", label: "+84" },
+  { value: "+92", label: "+92" },
+  { value: "+880", label: "+880" },
+  { value: "+94", label: "+94" },
+  { value: "+977", label: "+977" },
+  { value: "+966", label: "+966" },
+  { value: "+974", label: "+974" },
+  { value: "+965", label: "+965" },
+  { value: "+973", label: "+973" },
+  { value: "+968", label: "+968" },
+  { value: "+20", label: "+20" },
+  { value: "+27", label: "+27" },
+  { value: "+234", label: "+234" },
+  { value: "+254", label: "+254" },
+  { value: "+55", label: "+55" },
+  { value: "+52", label: "+52" },
+  { value: "+54", label: "+54" },
+  { value: "+64", label: "+64" },
+  { value: "+90", label: "+90" },
+  { value: "+972", label: "+972" },
+];

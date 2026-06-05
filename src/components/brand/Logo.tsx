@@ -2,7 +2,7 @@ import React from "react";
 import Link from "next/link";
 
 interface LogoProps {
-  /** Hide the "Veritas" wordmark, showing only the glyph. */
+  /** Hide the "Bridge mark, showing only the glyph. */
   iconOnly?: boolean;
   href?: string;
   className?: string;
@@ -10,7 +10,7 @@ interface LogoProps {
   textClassName?: string;
 }
 
-/** Veritas brand lockup used across all Stitch shells. */
+/** Bridged lockup used across all Stitch shells. */
 export function Logo({
   iconOnly = false,
   href = "/",
@@ -31,7 +31,7 @@ export function Logo({
       </span>
       {!iconOnly && (
         <span className={`font-display text-xl font-bold tracking-tight ${textClassName}`}>
-          Veritas
+          Bridge
         </span>
       )}
     </span>
