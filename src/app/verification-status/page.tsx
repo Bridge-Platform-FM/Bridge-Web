@@ -48,7 +48,7 @@ export default function VerificationStatusPage() {
 
   return (
     // <div className="mx-auto flex max-w-[960px] flex-col px-6 py-5">
-    <div className="mx-auto my-6 w-full max-w-[920px] rounded-2xl bg-surface-container-lowest ambient-shadow border border-white/40 flex flex-col gap-3 !p-6 sm:!p-8 lg:gap-6 lg:!p-8">
+    <div className="mx-auto my-4 w-full max-w-[760px] rounded-2xl bg-surface-container-lowest ambient-shadow border border-white/40 flex flex-col gap-3 !p-5 sm:!p-6 lg:gap-4 lg:!p-6">
       <FocusedHeader backLabel="Back to Overview" backHref="/document-upload" />
 
       {/* <div className="mb-8 mt-4 rounded-xl bg-surface-container-low p-6">
@@ -56,22 +56,22 @@ export default function VerificationStatusPage() {
       </div> */}
 
       {/* Status hero */}
-      <div className="mb-10 flex flex-col items-center px-4 text-center">
-        <div className="mb-6 flex size-20 items-center justify-center rounded-full bg-primary-container text-primary shadow-sm">
-          <Icon name="pending_actions" size={40} />
+      <div className="flex flex-col items-center px-4 text-center">
+        <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-primary-container text-primary shadow-sm">
+          <Icon name="pending_actions" size={24} />
         </div>
-        <h1 className="mb-4 font-headline text-3xl font-extrabold tracking-tight text-on-surface md:text-4xl">
+        <h1 className="mb-2 font-headline text-2xl font-extrabold tracking-tight text-on-surface md:text-3xl">
           Verification in Progress
         </h1>
-        <p className="max-w-[600px] text-lg leading-relaxed text-on-surface-variant">
+        <p className="max-w-[600px] text-base leading-relaxed text-on-surface-variant">
           We&apos;ve received your documents. Our compliance team is currently performing a secure audit to ensure your account&apos;s safety.
         </p>
       </div>
 
       {/* Timer + info */}
-      <div className="mb-10 grid grid-cols-1 gap-6 md:grid-cols-2">
-        <div className="flex flex-col items-center rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-8 shadow-sm">
-          <span className="mb-6 font-label text-sm uppercase tracking-wider text-on-surface-variant">Estimated Time Remaining</span>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="flex flex-col items-center justify-center rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-5 shadow-sm">
+          <span className="mb-4 font-label text-sm uppercase tracking-wider text-on-surface-variant">Estimated Time Remaining</span>
           <div className="flex items-center gap-4">
             <TimeBox value={pad(hours)} unit="Hours" />
             <span className="mb-6 text-2xl font-bold text-surface-dim">:</span>
@@ -81,9 +81,9 @@ export default function VerificationStatusPage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-outline-variant/10 bg-surface-container-high p-8">
-          <h3 className="mb-4 font-headline font-bold text-on-surface">What happens next?</h3>
-          <ul className="space-y-4">
+        <div className="rounded-xl border border-outline-variant/10 bg-surface-container-high p-5">
+          <h3 className="mb-3 font-headline font-bold text-on-surface">What happens next?</h3>
+          <ul className="space-y-3">
             {NEXT_STEPS.map((s) => (
               <li key={s.text} className="flex items-start gap-3">
                 <Icon name={s.icon} size={20} className="text-primary" />
@@ -95,12 +95,12 @@ export default function VerificationStatusPage() {
       </div>
 
       {/* Submitted documents */}
-      <div className="mb-10">
-        <h3 className="mb-6 font-headline text-xl font-bold text-on-surface">Submitted Documents</h3>
+      <div>
+        <h3 className="mb-3 font-headline text-lg font-bold text-on-surface">Submitted Documents</h3>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           {SUBMITTED.map((d) => (
-            <div key={d.label} className="relative flex aspect-[4/3] flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border border-outline-variant/20 bg-surface-container-highest">
-              <Icon name={d.icon} size={32} className="text-on-surface-variant" />
+            <div key={d.label} className="relative flex aspect-[16/9] flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border border-outline-variant/20 bg-surface-container-highest">
+              <Icon name={d.icon} size={28} className="text-on-surface-variant" />
               <span className="px-2 text-center text-xs font-semibold text-on-surface-variant">{d.label}</span>
               <div className="absolute right-2 top-2 rounded-full bg-primary p-1 text-white">
                 <Icon name="check" size={12} />
@@ -111,8 +111,8 @@ export default function VerificationStatusPage() {
       </div>
 
       {/* Actions */}
-      <div className="mb-20 flex flex-col items-center justify-center gap-4 sm:flex-row">
-        <button className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-surface-container-high px-8 font-bold text-on-surface transition-all hover:bg-surface-container-highest sm:w-auto">
+      <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+        <button className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-surface-container-high px-8 font-bold text-on-surface transition-all hover:bg-surface-container-highest sm:w-auto">
           <Icon name="contact_support" size={20} /> Contact Support
         </button>
       </div>

@@ -104,10 +104,10 @@ export default function CompleteProfilePage() {
       <FocusedHeader backLabel="Back to Overview" backHref="/verify-account" />
 
       <div className="flex flex-col gap-2">
-        <h1 className="text-4xl font-bold leading-tight tracking-tight text-on-surface font-headline">
+        <h1 className="text-2xl font-bold leading-tight tracking-tight text-on-surface font-headline md:text-3xl">
           Complete your profile
         </h1>
-        <p className="text-lg text-on-surface-variant">
+        <p className="text-base text-on-surface-variant">
           Help us personalize your experience by providing a few more details about yourself.
         </p>
       </div>

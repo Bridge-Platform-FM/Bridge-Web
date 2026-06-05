@@ -156,6 +156,7 @@ body.modal-open main {
   scrollbar-color: rgba(43, 52, 55, 0.25) transparent;
 }
 .thin-scrollbar::-webkit-scrollbar {
+  display: block;
   width: 6px;
   height: 6px;
 }

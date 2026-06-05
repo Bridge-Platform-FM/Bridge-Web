@@ -192,7 +192,7 @@ export default function VerifyAccountPage() {
       <FocusedHeader backHref="/register" />
 
       <div className="mb-3 text-center">
-        <h1 className="mb-3 font-headline text-[32px] font-extrabold leading-tight tracking-[-0.02em] text-on-surface">
+        <h1 className="mb-3 font-headline text-2xl font-extrabold leading-tight tracking-[-0.02em] text-on-surface md:text-[28px]">
           Secure your account
         </h1>
         <p className="mx-auto max-w-sm text-base leading-relaxed text-on-surface-variant">

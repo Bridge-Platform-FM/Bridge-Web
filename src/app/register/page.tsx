@@ -115,7 +115,7 @@ export default function RegisterPage() {
           <span className="inline-flex rounded-full bg-secondary-container px-3 py-1 text-xs font-semibold uppercase tracking-wider text-on-secondary-container">
             Onboarding
           </span>
-          <h1 className="font-headline text-4xl font-extrabold leading-[1.1] tracking-[-0.03em] text-on-surface sm:text-5xl lg:text-[3.5rem]">
+          <h1 className="font-headline text-3xl font-extrabold leading-[1.1] tracking-[-0.03em] text-on-surface sm:text-4xl lg:text-5xl">
             Unlock Your <br />
             <span className="text-primary">Enterprise</span> Future.
           </h1>

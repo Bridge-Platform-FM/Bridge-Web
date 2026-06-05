@@ -37,7 +37,7 @@ export default function RootLayout({
       </head>
       <body className="flex h-screen w-screen flex-col overflow-hidden bg-background text-on-surface">
         <Navbar />
-        <main className="flex-1 overflow-y-auto overflow-x-hidden">
+        <main className="thin-scrollbar flex-1 overflow-y-auto overflow-x-hidden">
           <OnboardingProvider>{children}</OnboardingProvider>
         </main>
         <Toaster position="top-right" richColors closeButton />
