@@ -8,6 +8,8 @@ export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElem
   required?: boolean;
   /** Show a blue "Optional" after the label (non-mandatory field). */
   optional?: boolean;
+  /** Show a "Recommended" hint after the label (encouraged, not mandatory). */
+  recommended?: boolean;
   /** Trailing adornment (icon/button), absolutely positioned at right-4. */
   adornment?: React.ReactNode;
   /** Classes for the adornment wrapper; overrides the default muted color. */
@@ -19,7 +21,7 @@ export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElem
  * borderless, rounded-xl, primary focus ring. Uppercase bold label above.
  */
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, required, optional, adornment, adornmentClassName, type = "text", className = "", id, ...props }, ref) => {
+  ({ label, error, required, optional, recommended, adornment, adornmentClassName, type = "text", className = "", id, ...props }, ref) => {
     return (
       <div className="flex w-full flex-col gap-2">
         {label && (
@@ -30,6 +32,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             {label}
             {required && <span className="align-middle text-base leading-none text-error"> *</span>}
             {optional && <span className="font-medium normal-case text-primary"> (Optional)</span>}
+            {recommended && <span className="font-medium normal-case text-primary"> (Recommended)</span>}
           </label>
         )}
         <div className="group relative">

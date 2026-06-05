@@ -15,6 +15,8 @@ interface BaseProps {
   required?: boolean;
   /** Show a blue "Optional" after the label (non-mandatory field). */
   optional?: boolean;
+  /** Show a "Recommended" hint after the label (encouraged, not mandatory). */
+  recommended?: boolean;
   /** Show a search box in the panel. Defaults to true when options.length > 6. */
   searchable?: boolean;
   "aria-label"?: string;
@@ -40,7 +42,7 @@ export type SelectProps = SingleProps | MultiProps;
  * and stays open while toggling. Closes on outside-click / Esc.
  */
 export function Select(props: SelectProps) {
-  const { label, error, placeholder = "Select…", options, id, disabled, required, optional, searchable } = props;
+  const { label, error, placeholder = "Select…", options, id, disabled, required, optional, recommended, searchable } = props;
   const ariaLabel = props["aria-label"];
   const multiple = props.multiple === true;
   const showSearch = searchable ?? options.length > 6;
@@ -100,6 +102,7 @@ export function Select(props: SelectProps) {
           {label}
           {required && <span className="align-middle text-base leading-none text-error"> *</span>}
           {optional && <span className="font-medium normal-case text-primary"> (Optional)</span>}
+          {recommended && <span className="font-medium normal-case text-primary"> (Recommended)</span>}
         </label>
       )}
 

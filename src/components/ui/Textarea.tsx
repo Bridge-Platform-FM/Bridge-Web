@@ -7,10 +7,12 @@ export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextArea
   required?: boolean;
   /** Show a blue "Optional" after the label (non-mandatory field). */
   optional?: boolean;
+  /** Show a "Recommended" hint after the label (encouraged, not mandatory). */
+  recommended?: boolean;
 }
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ label, error, required, optional, className = "", id, rows = 3, ...props }, ref) => {
+  ({ label, error, required, optional, recommended, className = "", id, rows = 3, ...props }, ref) => {
     return (
       <div className="flex w-full flex-col gap-2">
         {label && (
@@ -21,6 +23,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
             {label}
             {required && <span className="align-middle text-base leading-none text-error"> *</span>}
             {optional && <span className="font-medium normal-case text-primary"> (Optional)</span>}
+            {recommended && <span className="font-medium normal-case text-primary"> (Recommended)</span>}
           </label>
         )}
         <textarea
