@@ -37,7 +37,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={id}
             type={type}
-            className={`h-12 w-full rounded-xl border-none bg-surface-container-highest px-4 text-on-surface transition-all placeholder:text-outline-variant focus:ring-1 focus:ring-primary/40 ${
+            className={`h-12 w-full rounded-xl border-none bg-surface-container-highest px-4 text-sm text-on-surface transition-all placeholder:text-outline-variant focus:ring-1 focus:ring-primary/40 ${
               error ? "ring-2 ring-error/60" : ""
             } ${adornment ? "pr-12" : ""} ${className}`}
             {...props}

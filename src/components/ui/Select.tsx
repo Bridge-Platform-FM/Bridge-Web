@@ -110,8 +110,8 @@ export function Select(props: SelectProps) {
           aria-label={ariaLabel}
           disabled={disabled}
           onClick={toggle}
-          className={`flex w-full items-center justify-between gap-2 rounded-xl border-none bg-surface-container-highest px-4 text-left transition-all focus:ring-1 focus:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-60 ${
-            multiple ? "min-h-14 py-2" : "h-14"
+          className={`flex w-full items-center justify-between gap-2 rounded-xl border-none bg-surface-container-highest px-4 text-left text-sm transition-all focus:ring-1 focus:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-60 ${
+            multiple ? "min-h-12 py-2" : "h-12"
           } ${error ? "ring-2 ring-error/60" : ""}`}
         >
           {selectedValues.length === 0 ? (

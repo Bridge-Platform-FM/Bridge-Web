@@ -27,7 +27,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           ref={ref}
           id={id}
           rows={rows}
-          className={`w-full resize-none rounded-xl border-none bg-surface-container-highest p-4 text-on-surface transition-all placeholder:text-outline focus:ring-2 focus:ring-primary/40 ${className}`}
+          className={`w-full resize-none rounded-xl border-none bg-surface-container-highest p-4 text-sm text-on-surface transition-all placeholder:text-outline focus:ring-2 focus:ring-primary/40 ${className}`}
           {...props}
         />
         {error && <span className="px-1 text-xs font-medium text-error">{error}</span>}
