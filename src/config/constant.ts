@@ -3,7 +3,7 @@
 const AUTH = "/api/v1/auth";
 const FILE = "/api/v1/file";
 const USERS = "/api/v1/users";
-// e.g. later: const KYC = `${API_PREFIX}/kyc`;
+// const KYC = "/api/v1/kyc";
 /** API endpoint paths (relative to NEXT_PUBLIC_API_BASE_URL host). */
 export const API_ENDPOINTS = {
   // TODO: replace with the real register path from the curl.
@@ -19,4 +19,6 @@ export const API_ENDPOINTS = {
   FILE_PREVIEW: `${FILE}/file-preview`,
   // Create the user profile (complete-profile step). Requires a valid JWT.
   BUILD_PROFILE: `${USERS}/build-profile`,
+  // TODO: replace with the real save-kyc-info path from the curl.
+  SAVE_KYC_INFO: `${FILE}/save-kyc-info`,
 } as const;

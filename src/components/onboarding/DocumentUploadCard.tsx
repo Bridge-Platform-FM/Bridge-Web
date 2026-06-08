@@ -19,6 +19,10 @@ export interface UploadSlot {
 export interface ScannedDoc {
   file: File;
   s3Key: string;
+  /** File metadata forwarded to save-kyc-info (sourced from the uploaded File). */
+  mimetype: string;
+  fileName: string;
+  fileSize: number;
 }
 
 interface DocumentUploadCardProps {
@@ -150,7 +154,8 @@ export function DocumentUploadCard({
     for (const s of slots) {
       const f = filesMap[s.key];
       const k = keysMap[s.key];
-      if (f && k) out[s.key] = { file: f, s3Key: k };
+      if (f && k)
+        out[s.key] = { file: f, s3Key: k, mimetype: f.type, fileName: f.name, fileSize: f.size };
     }
     onChange?.(out);
   };

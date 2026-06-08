@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
+import { toast } from "sonner";
 import { Icon } from "@/components/ui/Icon";
 import { DocumentUploadCard, type ScannedDoc } from "@/components/onboarding/DocumentUploadCard";
 import { DOC_TYPE } from "@/config/docTypes";
@@ -8,6 +10,17 @@ import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/input";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
+import { saveKycInfo } from "@/services/kyc.service";
+import type { KycDocFile } from "@/types/api.types";
+import type { ApiError } from "@/lib/axios";
+
+/** Map a scanned slot to the save-kyc-info file shape (s3 key + file metadata). */
+const toKycFile = (doc: ScannedDoc): KycDocFile => ({
+  s3_key: doc.s3Key,
+  mimetype: doc.mimetype,
+  file_name: doc.fileName,
+  file_size: doc.fileSize,
+});
 
 const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/; // ABCDE1234F
 const AADHAAR_REGEX = /^[0-9]{12}$/; // 12 digits
@@ -27,6 +40,7 @@ function ErrorText({ msg }: { msg?: string }) {
 
 export default function DocumentUploadPage() {
   const { setData, goNext } = useOnboarding();
+  const [submitting, setSubmitting] = useState(false);
 
   const {
     control,
@@ -38,16 +52,36 @@ export default function DocumentUploadPage() {
     defaultValues: { aadhaar: {}, pan: {}, aadhaarNumber: "", panNumber: "" },
   });
 
-  const onSubmit = (values: DocumentUploadForm) => {
-    setData({
-      aadhaarNumber: values.aadhaarNumber,
-      panNumber: values.panNumber,
-      // S3 keys from the scan API — sent to the backend with the rest of the payload.
-      aadhaarFrontKey: values.aadhaar?.front?.s3Key,
-      aadhaarBackKey: values.aadhaar?.back?.s3Key,
-      panKey: values.pan?.pan?.s3Key,
-    });
-    goNext("kycdoc");
+  const onSubmit = async (values: DocumentUploadForm) => {
+    setSubmitting(true);
+    try {
+      // Shape matches the save-kyc-info API: per-document number + per-side file objects.
+      await saveKycInfo({
+        AADHAAR: {
+          number: values.aadhaarNumber,
+          front: toKycFile(values.aadhaar.front),
+          back: toKycFile(values.aadhaar.back),
+        },
+        PAN: {
+          number: values.panNumber.toUpperCase(),
+          front: toKycFile(values.pan.pan),
+        },
+      });
+
+      setData({
+        aadhaarNumber: values.aadhaarNumber,
+        panNumber: values.panNumber,
+        // S3 keys from the scan API — kept in onboarding state for reference.
+        aadhaarFrontKey: values.aadhaar?.front?.s3Key,
+        aadhaarBackKey: values.aadhaar?.back?.s3Key,
+        panKey: values.pan?.pan?.s3Key,
+      });
+      goNext("kycdoc");
+    } catch (err) {
+      toast.error((err as ApiError)?.message ?? "Couldn't submit your documents. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   // Live values to gate the submit button: all files + valid numbers required.
@@ -151,8 +185,8 @@ export default function DocumentUploadPage() {
         <ErrorText msg={errors.pan?.message as string | undefined} />
 
         <div className="flex flex-col gap-3">
-          <Button type="submit" variant="primary" disabled={!allProvided} className="h-12 text-base rounded-xl" trailingIcon="chevron_right">
-            Submit for Verification
+          <Button type="submit" variant="primary" disabled={!allProvided || submitting} className="h-12 text-base rounded-xl" trailingIcon="chevron_right">
+            {submitting ? "Submitting…" : "Submit for Verification"}
           </Button>
         </div>
       </form>

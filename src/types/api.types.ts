@@ -122,3 +122,40 @@ export interface BuildProfileResponse {
   message?: string;
   data?: unknown;
 }
+
+/**
+ * One uploaded file inside a KYC document. `s3_key` comes from the scan upload;
+ * `mimetype` / `file_name` / `file_size` describe the uploaded file (the same file
+ * the scan API received).
+ */
+export interface KycDocFile {
+  s3_key: string;
+  mimetype: string;
+  file_name: string;
+  file_size: number;
+}
+
+/**
+ * Payload for `/kyc/save-kyc-info` (document-upload step). Each document carries its
+ * typed `number` plus one file object per side. Aadhaar is two-sided (front + back);
+ * PAN is single-sided (front only). `number` is sent as a string to preserve PAN's
+ * alphanumeric format and Aadhaar's 12 digits / leading zeros.
+ */
+export interface SaveKycInfoPayload {
+  AADHAAR: {
+    number: string;
+    front: KycDocFile;
+    back: KycDocFile;
+  };
+  PAN: {
+    number: string;
+    front: KycDocFile;
+  };
+}
+
+/** Response from `/kyc/save-kyc-info`. */
+export interface SaveKycInfoResponse {
+  success?: boolean;
+  message?: string;
+  data?: unknown;
+}

@@ -95,7 +95,7 @@ export function FileUploadField({
       const res = await fn(f, { docType });
       if (fileRef.current !== f) return; // superseded
       setS3Key(res.s3Key);
-      onChange({ file: f, s3Key: res.s3Key });
+      onChange({ file: f, s3Key: res.s3Key, mimetype: f.type, fileName: f.name, fileSize: f.size });
     } catch (err) {
       if (fileRef.current !== f) return;
       // Drop the file on failure.
