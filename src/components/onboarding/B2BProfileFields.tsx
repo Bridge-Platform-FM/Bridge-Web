@@ -19,7 +19,6 @@ import {
   SECTOR_OPTIONS,
   subSectorOptions,
   verticalOptions,
-  PRIMARY_SECTORS,
   BUSINESS_TYPES,
   MOQ_REQUIRED_TYPES,
   REVENUE_BANDS,
@@ -36,7 +35,6 @@ export interface B2BValues {
   sector: string;
   subSector: string;
   industryVertical: string;
-  primarySectors: string[];
   businessType: string;
   moq: string;
   revenueBand: string;
@@ -57,7 +55,6 @@ export const defaultB2BValues: B2BValues = {
   sector: "",
   subSector: "",
   industryVertical: "",
-  primarySectors: [],
   businessType: "",
   moq: "",
   revenueBand: "",
@@ -174,25 +171,6 @@ export function B2BProfileFields({ control, register, setValue, errors }: B2BPro
           )}
         />
       </div>
-
-      <Controller
-        control={control}
-        name="b2b.primarySectors"
-        rules={{ validate: (v) => v.length > 0 || "Select at least one primary sector." }}
-        render={({ field }) => (
-          <Select
-            multiple
-            id="primarySectors"
-            label="Primary Sector"
-            required
-            placeholder="Select one or more sectors"
-            options={PRIMARY_SECTORS}
-            value={field.value}
-            onChange={field.onChange}
-            error={e?.primarySectors?.message}
-          />
-        )}
-      />
 
       {/* Business Type + MOQ (MOQ required only for product businesses) */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">

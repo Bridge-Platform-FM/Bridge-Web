@@ -2,7 +2,7 @@
 
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { Icon } from "@/components/ui/Icon";
-import { DocumentUploadCard } from "@/components/onboarding/DocumentUploadCard";
+import { DocumentUploadCard, type ScannedDoc } from "@/components/onboarding/DocumentUploadCard";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/input";
@@ -11,10 +11,10 @@ import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
 const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/; // ABCDE1234F
 const AADHAAR_REGEX = /^[0-9]{12}$/; // 12 digits
 
-/** react-hook-form shape: one record of slot→File per document card. */
+/** react-hook-form shape: one record of slot→scanned doc (file + s3Key) per card. */
 interface DocumentUploadForm {
-  aadhaar: Record<string, File | null>;
-  pan: Record<string, File | null>;
+  aadhaar: Record<string, ScannedDoc>;
+  pan: Record<string, ScannedDoc>;
   aadhaarNumber: string;
   panNumber: string;
 }
@@ -38,7 +38,14 @@ export default function DocumentUploadPage() {
   });
 
   const onSubmit = (values: DocumentUploadForm) => {
-    setData({ aadhaarNumber: values.aadhaarNumber, panNumber: values.panNumber });
+    setData({
+      aadhaarNumber: values.aadhaarNumber,
+      panNumber: values.panNumber,
+      // S3 keys from the scan API — sent to the backend with the rest of the payload.
+      aadhaarFrontKey: values.aadhaar?.front?.s3Key,
+      aadhaarBackKey: values.aadhaar?.back?.s3Key,
+      panKey: values.pan?.pan?.s3Key,
+    });
     goNext("kycdoc");
   };
 
@@ -109,6 +116,7 @@ export default function DocumentUploadPage() {
               title="Aadhaar Card"
               subtitle="Front and back view required"
               icon="badge"
+              scanType="image"
               slots={[
                 { key: "front", label: "Front Side" },
                 { key: "back", label: "Back Side" },
@@ -129,6 +137,7 @@ export default function DocumentUploadPage() {
               title="PAN Card"
               subtitle="Clear photo of the original card"
               icon="credit_card"
+              scanType="image"
               slots={[{ key: "pan", label: "PAN Card" }]}
               maxSizeMB={10}
               onChange={field.onChange}

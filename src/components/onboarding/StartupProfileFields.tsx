@@ -48,7 +48,7 @@ export interface StartupValues {
   websiteUrl: string;
   linkedinUrl: string;
   intent: string;
-  /** File names captured from the upload cards (actual File kept in the card). */
+  /** S3 keys returned by the scan API once each document is uploaded. */
   incorporationCert: string;
   pitchDeck: string;
 }
@@ -60,6 +60,8 @@ export interface CompleteProfileForm {
   bio: string;
   country: string;
   continent: string;
+  /** Primary Sector — base field shown for every role (multi-select). */
+  primarySectors: string[];
   /** Account fields captured at registration — shown locked/read-only here. */
   legalName: string;
   email: string;
@@ -342,9 +344,10 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
           />
         )}
       />
-
+      {/* document upload uncomment the this block  */}
+      
       {/* Mandatory documents */}
-      <div className="flex flex-col gap-4">
+      {/* <div className="flex flex-col gap-4">
         <p className={SECTION_TITLE}>Documents</p>
         <Controller
           control={control}
@@ -355,8 +358,9 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
               id="incorporationCert"
               label="Incorporation Certificate"
               required
+              scanType="document"
               error={e?.incorporationCert?.message}
-              onChange={(f) => field.onChange(f?.name ?? "")}
+              onChange={(res) => field.onChange(res?.s3Key ?? "")}
             />
           )}
         />
@@ -372,12 +376,13 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
               hint="PDF only (max 20MB)"
               accept={PITCH_DECK_ACCEPT}
               maxSizeMB={PITCH_DECK_MAX_MB}
+              scanType="document"
               error={e?.pitchDeck?.message}
-              onChange={(f) => field.onChange(f?.name ?? "")}
+              onChange={(res) => field.onChange(res?.s3Key ?? "")}
             />
           )}
         />
-      </div>
+      </div> */}
     </div>
   );
 }

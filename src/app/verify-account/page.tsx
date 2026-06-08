@@ -106,16 +106,22 @@ export default function VerifyAccountPage() {
   const [mobileMsg, setMobileMsg] = useState<string | null>(null);
   const [emailMsg, setEmailMsg] = useState<string | null>(null);
 
-  // Both channels verified → advance to complete-profile.
-  useEffect(() => {
-    if (mobileVerified && emailVerified) goNext("verification");
-  }, [mobileVerified, emailVerified, goNext]);
+  const bothVerified = mobileVerified && emailVerified;
+
+  // Both channels verified → user clicks Continue to advance to complete-profile.
+  const handleContinue = () => {
+    if (!bothVerified) {
+      toast.error("Please verify both your mobile and email OTP to continue.");
+      return;
+    }
+    goNext("verification");
+  };
 
   const verifyMobile = async (otp: string) => {
     setMobileError(null);
     setVerifyingMobile(true);
     try {
-      const res = await verifyMobileOtp({ channel: "MOBILE", phoneNumber: String(data.contact ?? ""), otp });
+      const res = await verifyMobileOtp({ channel: "PHONE", phoneNumber: String(data.contact ?? ""), otp });
       setMobileMsg(res.message ?? null);
       setMobileVerified(true);
     } catch (err) {
@@ -157,7 +163,7 @@ export default function VerifyAccountPage() {
 
   const handleResendMobileOtp = async () => {
     try {
-      const res = await resendOtp({ channel: "MOBILE", phoneNumber: String(data.contact ?? "") });
+      const res = await resendOtp({ channel: "PHONE", phoneNumber: String(data.contact ?? "") });
       toast.success(res.message ?? "OTP resent to your mobile.");
       setValue("mobileOtp", Array(OTP_LENGTH).fill(""));
       setMobileError(null);
@@ -280,6 +286,15 @@ export default function VerifyAccountPage() {
           </div>
         </div>
       </div>
+
+      <button
+        type="button"
+        onClick={handleContinue}
+        disabled={!bothVerified}
+        className="cta-gradient flex h-12 w-full items-center justify-center gap-2 bg-primary rounded-xl font-headline text-base font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        Continue
+      </button>
     </div>
   );
 }
