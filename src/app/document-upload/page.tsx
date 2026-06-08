@@ -3,6 +3,7 @@
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { Icon } from "@/components/ui/Icon";
 import { DocumentUploadCard, type ScannedDoc } from "@/components/onboarding/DocumentUploadCard";
+import { DOC_TYPE } from "@/config/docTypes";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/input";
@@ -117,9 +118,10 @@ export default function DocumentUploadPage() {
               subtitle="Front and back view required"
               icon="badge"
               scanType="image"
+              docType={DOC_TYPE.AADHAAR}
               slots={[
-                { key: "front", label: "Front Side" },
-                { key: "back", label: "Back Side" },
+                { key: "front", label: "Front Side", side: "front" },
+                { key: "back", label: "Back Side", side: "back" },
               ]}
               maxSizeMB={10}
               onChange={field.onChange}
@@ -138,6 +140,7 @@ export default function DocumentUploadPage() {
               subtitle="Clear photo of the original card"
               icon="credit_card"
               scanType="image"
+              docType={DOC_TYPE.PAN}
               slots={[{ key: "pan", label: "PAN Card" }]}
               maxSizeMB={10}
               onChange={field.onChange}

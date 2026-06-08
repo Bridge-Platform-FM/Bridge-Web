@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { scanImage, scanDocument, getFilePreview } from "@/services/file.service";
+import type { DocType, DocSide } from "@/config/docTypes";
 import type { ApiError } from "@/lib/axios";
 import { Modal } from "@/components/modal/Modal";
 import { Loader } from "@/components/common/loader";
@@ -10,6 +11,8 @@ import { Loader } from "@/components/common/loader";
 export interface UploadSlot {
   key: string;
   label: string;
+  /** Which face of a two-sided document (Aadhaar) this slot captures. */
+  side?: DocSide;
 }
 
 /** A slot that has been successfully scanned + uploaded. */
@@ -37,6 +40,8 @@ interface DocumentUploadCardProps {
   maxSizeMB?: number;
   /** Which scan endpoint to hit on select. */
   scanType: "image" | "document";
+  /** Document type sent to the scan API for every slot in this card. */
+  docType: DocType;
 }
 
 const DEFAULT_ACCEPT = "image/png,image/jpeg";
@@ -60,6 +65,7 @@ export function DocumentUploadCard({
   accept = DEFAULT_ACCEPT,
   maxSizeMB,
   scanType,
+  docType,
 }: DocumentUploadCardProps) {
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [files, setFiles] = useState<Record<string, File | null>>({});
@@ -199,7 +205,8 @@ export function DocumentUploadCard({
     setUploading((prev) => ({ ...prev, [key]: true }));
     try {
       const fn = scanType === "image" ? scanImage : scanDocument;
-      const { s3Key } = await fn(file);
+      const side = slots.find((s) => s.key === key)?.side;
+      const { s3Key } = await fn(file, { docType, side });
       // Bail if the slot's file changed/was removed while scanning.
       if (filesRef.current[key] !== file) return;
       const updatedKeys = { ...keysRef.current, [key]: s3Key };

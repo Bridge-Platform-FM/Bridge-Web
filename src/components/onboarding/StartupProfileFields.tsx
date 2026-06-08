@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
 import { FileUploadField } from "@/components/onboarding/FileUploadField";
+import { DOC_TYPE } from "@/config/docTypes";
 import {
   INDUSTRY_SECTORS,
   FUNDING_STAGES,
@@ -359,6 +360,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
               label="Incorporation Certificate"
               required
               scanType="document"
+              docType={DOC_TYPE.INCORPORATION_CERTIFICATE}
               error={e?.incorporationCert?.message}
               onChange={(res) => field.onChange(res?.s3Key ?? "")}
             />
@@ -377,6 +379,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
               accept={PITCH_DECK_ACCEPT}
               maxSizeMB={PITCH_DECK_MAX_MB}
               scanType="document"
+              docType={DOC_TYPE.PITCH_DECK}
               error={e?.pitchDeck?.message}
               onChange={(res) => field.onChange(res?.s3Key ?? "")}
             />

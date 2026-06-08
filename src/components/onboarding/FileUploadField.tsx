@@ -3,6 +3,7 @@
 import React, { useRef, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { scanImage, scanDocument } from "@/services/file.service";
+import type { DocType } from "@/config/docTypes";
 import type { ApiError } from "@/lib/axios";
 import type { ScannedDoc } from "@/components/onboarding/DocumentUploadCard";
 
@@ -28,6 +29,8 @@ interface FileUploadFieldProps {
   id?: string;
   /** Which scan endpoint to hit on select. */
   scanType: "image" | "document";
+  /** Document type sent to the scan API. */
+  docType: DocType;
 }
 
 /**
@@ -46,6 +49,7 @@ export function FileUploadField({
   required,
   id,
   scanType,
+  docType,
 }: FileUploadFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -88,7 +92,7 @@ export function FileUploadField({
     setUploading(true);
     try {
       const fn = scanType === "image" ? scanImage : scanDocument;
-      const res = await fn(f);
+      const res = await fn(f, { docType });
       if (fileRef.current !== f) return; // superseded
       setS3Key(res.s3Key);
       onChange({ file: f, s3Key: res.s3Key });
