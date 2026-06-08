@@ -1,34 +1,5 @@
 :root {
-  /* Brand */
-  --color-primary: #2563eb;
-  --color-primary-hover: #1d4ed8;
-
-  /* Secondary */
-  --color-secondary: #64748b;
-  --color-secondary-hover: #475569;
-
-  /* Backgrounds */
-  --color-background: #0f172a;
-  --color-card: #111827;
-  --color-surface: #1e293b;
-
-  /* Text */
-  --color-text-primary: #f8fafc;
-  --color-text-secondary: #94a3b8;
-
-  /* Border */
-  --color-border: #334155;
-
-  /* Status */
-  --color-success: #22c55e;
-  --color-error: #ef4444;
-  --color-warning: #f59e0b;
-
-  /* Radius */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-
+  
   /* Shadows */
   --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.15);
 
