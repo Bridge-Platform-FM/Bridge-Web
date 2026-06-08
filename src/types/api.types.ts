@@ -2,7 +2,8 @@
 export interface RegisterPayload {
   companyName: string;
   email: string;
-  countryCode: string;
+  // countryCode currently not sent — kept optional so it can be re-enabled later.
+  countryCode?: string;
   phoneNumber: string;
   password: string;
   role: "INVESTOR" | "B2B" | "STARTUP";
@@ -11,11 +12,11 @@ export interface RegisterPayload {
   cinNumber?: string;
 }
 
-/** Response from the register endpoint. Adjust fields once the real API is known. */
+/** Response from the register endpoint. Tokens are issued here now (OTP is sent in parallel). */
 export interface RegisterResponse {
   success?: boolean;
   message?: string;
-  data?: unknown;
+  data?: { accessToken: string; refreshToken: string };
 }
 
 /** Payload for verifying a one-time code. Field names/values match the backend schema. */
@@ -46,14 +47,12 @@ export interface ResendOtpResponse {
   data?: unknown;
 }
 
-/** Response from an OTP verify endpoint. Tokens arrive only on the call that verifies the final channel. */
+/** Response from an OTP verify endpoint. Tokens are now issued at registration, not here. */
 export interface VerifyOtpResponse {
   success?: boolean;
   message?: string;
   data?: {
     /** True once both channels are verified and registration completed. */
     isCompleted?: boolean;
-    /** Present only on the pair-completing verify response. */
-    company?: { accessToken: string; refreshToken: string };
   };
 }

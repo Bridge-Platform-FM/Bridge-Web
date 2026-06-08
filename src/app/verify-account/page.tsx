@@ -8,7 +8,6 @@ import { OtpInput } from "@/components/onboarding/OtpInput";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { toast } from "sonner";
 import { verifyMobileOtp, verifyEmailOtp, resendOtp } from "@/services/auth.service";
-import { setTokens } from "@/lib/auth-tokens";
 import type { ApiError } from "@/lib/axios";
 
 const OTP_LENGTH = 4;
@@ -117,8 +116,6 @@ export default function VerifyAccountPage() {
     setVerifyingMobile(true);
     try {
       const res = await verifyMobileOtp({ channel: "MOBILE", phoneNumber: String(data.contact ?? ""), otp });
-      // Tokens are only present on the call that verifies the final channel.
-      if (res.data?.company) setTokens(res.data.company);
       setMobileMsg(res.message ?? null);
       setMobileVerified(true);
     } catch (err) {
@@ -134,8 +131,6 @@ export default function VerifyAccountPage() {
     setVerifyingEmail(true);
     try {
       const res = await verifyEmailOtp({ channel: "EMAIL", email: String(data.email ?? ""), otp });
-      // Tokens are only present on the call that verifies the final channel.
-      if (res.data?.company) setTokens(res.data.company);
       setEmailMsg(res.message ?? null);
       setEmailVerified(true);
     } catch (err) {

@@ -12,6 +12,7 @@ import { StepProgress } from "@/components/onboarding/StepProgress";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { toast } from "sonner";
 import { registerCompany } from "@/services/auth.service";
+import { setTokens } from "@/lib/auth-tokens";
 import type { ApiError } from "@/lib/axios";
 
 const ROLES = [
@@ -84,7 +85,8 @@ export default function RegisterPage() {
     const payload = {
       companyName: values.legalName,
       email: values.email,
-      countryCode: values.countryCode,
+      // countryCode: values.countryCode,
+      // countryCode: values.countryCode, // commented: not sending country code for now
       phoneNumber: values.contact,
       password: values.password,
       role: ROLE_MAP[values.role],
@@ -96,6 +98,14 @@ export default function RegisterPage() {
     setApiError(null);
     try {
       const res = await registerCompany(payload);
+      // Tokens are issued here now — persist them so all subsequent APIs are authenticated.
+      if (res.data?.accessToken && res.data?.refreshToken) {
+        setTokens(res.data);
+      } else {
+        // Backend returned success without tokens — treat as a failure rather than
+        // advancing into an unauthenticated flow.
+        throw { message: "Registration succeeded but no session was returned. Please try again." } as ApiError;
+      }
       toast.success(res.message ?? "Registration successful.");
       // Persist UI-shaped fields so prefill keeps working on back-navigation.
       setData({

@@ -1,4 +1,5 @@
 import axios, { AxiosError } from "axios";
+import { getAccessToken } from "@/lib/auth-tokens";
 
 /**
  * Shared axios instance for all API calls.
@@ -8,6 +9,13 @@ export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL ?? "",
   headers: { "Content-Type": "application/json" },
   timeout: 30000,
+});
+
+// Attach the access token (issued at registration) so every later call is authenticated.
+api.interceptors.request.use((config) => {
+  const token = getAccessToken();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
 });
 
 /** A normalized error shape surfaced to callers/UI. */
