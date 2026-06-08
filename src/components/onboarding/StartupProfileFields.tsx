@@ -27,6 +27,7 @@ import {
   URL_REGEX,
 } from "@/lib/startup-profile-options";
 import type { InvestorValues } from "@/components/onboarding/InvestorProfileFields";
+import type { B2BValues } from "@/components/onboarding/B2BProfileFields";
 
 export interface Founder {
   name: string;
@@ -47,7 +48,7 @@ export interface StartupValues {
   websiteUrl: string;
   linkedinUrl: string;
   intent: string;
-  /** File names captured from the upload cards (actual File kept in the card). */
+  /** S3 keys returned by the scan API once each document is uploaded. */
   incorporationCert: string;
   pitchDeck: string;
 }
@@ -59,8 +60,20 @@ export interface CompleteProfileForm {
   bio: string;
   country: string;
   continent: string;
+  /** Primary Sector — base field shown for every role (multi-select). */
+  primarySectors: string[];
+  /** Account fields captured at registration — shown locked/read-only here. */
+  legalName: string;
+  email: string;
+  contact: string;
+  role: string;
+  gstNumber: string;
+  cinNumber: string;
+  /** Profile photo file name (the object-URL preview is kept in component state). */
+  photo: string;
   startup: StartupValues;
   investor: InvestorValues;
+  b2b: B2BValues;
 }
 
 export const defaultStartupValues: StartupValues = {
@@ -86,6 +99,29 @@ export function wordCount(text: string): number {
   return t ? t.split(/\s+/).length : 0;
 }
 
+/** Truncate `text` to at most `max` whitespace-delimited words. */
+export function truncateToWords(text: string, max: number): string {
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length <= max) return text;
+  return words.slice(0, max).join(" ");
+}
+
+/**
+ * Builds a textarea `onChange` that hard-caps input at `max` words: it truncates
+ * the value in place (so the user cannot type/paste past the limit) and then
+ * forwards the event to react-hook-form's own onChange.
+ */
+export function limitWords(
+  max: number,
+  rhfOnChange: React.ChangeEventHandler<HTMLTextAreaElement>
+): React.ChangeEventHandler<HTMLTextAreaElement> {
+  return (e) => {
+    const capped = truncateToWords(e.target.value, max);
+    if (capped !== e.target.value) e.target.value = capped;
+    rhfOnChange(e);
+  };
+}
+
 interface StartupProfileFieldsProps {
   control: Control<CompleteProfileForm>;
   register: UseFormRegister<CompleteProfileForm>;
@@ -99,6 +135,12 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
   const { fields, append, remove } = useFieldArray({ control, name: "startup.founders" });
   const businessDescription = useWatch({ control, name: "startup.businessDescription" });
   const descWords = wordCount(businessDescription ?? "");
+  // Registered once so we can chain RHF's onChange with the hard word-cap below.
+  const descReg = register("startup.businessDescription", {
+    validate: (v) =>
+      wordCount(v) <= BUSINESS_DESCRIPTION_MAX_WORDS ||
+      `Keep the description under ${BUSINESS_DESCRIPTION_MAX_WORDS} words.`,
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -113,6 +155,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
             multiple
             id="industrySectors"
             label="Industry Sector"
+            required
             placeholder="Select one or more sectors"
             options={INDUSTRY_SECTORS}
             value={field.value}
@@ -130,6 +173,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
             <Select
               id="fundingStage"
               label="Funding Stage"
+              optional
               placeholder="Select stage"
               options={FUNDING_STAGES}
               value={field.value}
@@ -144,6 +188,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
             <Select
               id="teamSize"
               label="Team Size"
+              optional
               placeholder="Select range"
               options={TEAM_SIZE_RANGES}
               value={field.value}
@@ -156,7 +201,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
       {/* Funding ask: currency + min–max range */}
       <div className="flex flex-col gap-2">
         <span className="px-1 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant">
-          Funding Ask Amount
+          Funding Ask Amount<span className="align-middle text-base leading-none text-error"> *</span>
         </span>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[8rem_1fr_1fr]">
           <Controller
@@ -190,6 +235,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
       <Textarea
         id="useOfFunds"
         label="Use of Funds"
+        required
         placeholder="How will the funds be used? (e.g. 40% product, 30% hiring, 30% marketing)"
         error={e?.useOfFunds?.message}
         {...register("startup.useOfFunds", { required: "Describe how the funds will be used." })}
@@ -198,7 +244,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
       {/* Founders + LinkedIn (repeatable) */}
       <div className="flex flex-col gap-3">
         <span className="px-1 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant">
-          Founders &amp; LinkedIn
+          Founders &amp; LinkedIn<span className="align-middle text-base leading-none text-error"> *</span>
         </span>
         {fields.map((row, i) => (
           <div key={row.id} className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-start">
@@ -241,14 +287,12 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
         <Textarea
           id="businessDescription"
           label="Business Description"
+          optional
           rows={5}
           placeholder="Describe your business, product and traction…"
           error={e?.businessDescription?.message}
-          {...register("startup.businessDescription", {
-            validate: (v) =>
-              wordCount(v) <= BUSINESS_DESCRIPTION_MAX_WORDS ||
-              `Keep the description under ${BUSINESS_DESCRIPTION_MAX_WORDS} words.`,
-          })}
+          {...descReg}
+          onChange={limitWords(BUSINESS_DESCRIPTION_MAX_WORDS, descReg.onChange)}
         />
         <span
           className={`px-1 text-xs font-medium ${
@@ -262,7 +306,8 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <Input
           type="url"
-          label="Company Website (optional)"
+          label="Company Website"
+          optional
           placeholder="https://yourcompany.com"
           error={e?.websiteUrl?.message}
           {...register("startup.websiteUrl", {
@@ -271,7 +316,8 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
         />
         <Input
           type="url"
-          label="Company LinkedIn (optional)"
+          label="Company LinkedIn"
+          optional
           placeholder="https://linkedin.com/company/…"
           error={e?.linkedinUrl?.message}
           {...register("startup.linkedinUrl", {
@@ -289,6 +335,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
           <Select
             id="intent"
             label="Intent"
+            required
             placeholder="Select your intent"
             options={INTENT_OPTIONS}
             value={field.value}
@@ -297,9 +344,10 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
           />
         )}
       />
-
+      {/* document upload uncomment the this block  */}
+      
       {/* Mandatory documents */}
-      <div className="flex flex-col gap-4">
+      {/* <div className="flex flex-col gap-4">
         <p className={SECTION_TITLE}>Documents</p>
         <Controller
           control={control}
@@ -309,8 +357,10 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
             <FileUploadField
               id="incorporationCert"
               label="Incorporation Certificate"
+              required
+              scanType="document"
               error={e?.incorporationCert?.message}
-              onChange={(f) => field.onChange(f?.name ?? "")}
+              onChange={(res) => field.onChange(res?.s3Key ?? "")}
             />
           )}
         />
@@ -322,15 +372,17 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
             <FileUploadField
               id="pitchDeck"
               label="Pitch Deck (PDF, max 20 MB)"
+              required
               hint="PDF only (max 20MB)"
               accept={PITCH_DECK_ACCEPT}
               maxSizeMB={PITCH_DECK_MAX_MB}
+              scanType="document"
               error={e?.pitchDeck?.message}
-              onChange={(f) => field.onChange(f?.name ?? "")}
+              onChange={(res) => field.onChange(res?.s3Key ?? "")}
             />
           )}
         />
-      </div>
+      </div> */}
     </div>
   );
 }

@@ -143,6 +143,34 @@ select:focus-visible {
   backdrop-filter: blur(20px);
 }
 
+/* Lock background scroll while a Modal is open. The app's scroll container is
+   <main> (see layout.tsx), so lock it as well as the body. */
+body.modal-open,
+body.modal-open main {
+  overflow: hidden !important;
+}
+
+/* Thin, subtle scrollbar — visible enough to signal scrollability without a bulky bar. */
+.thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(43, 52, 55, 0.25) transparent;
+}
+.thin-scrollbar::-webkit-scrollbar {
+  display: block;
+  width: 6px;
+  height: 6px;
+}
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(43, 52, 55, 0.25);
+  border-radius: 9999px;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(43, 52, 55, 0.4);
+}
+
 /* Material Symbols Outlined (font loaded via <link> in layout) */
 .material-symbols-outlined {
   font-family: "Material Symbols Outlined";

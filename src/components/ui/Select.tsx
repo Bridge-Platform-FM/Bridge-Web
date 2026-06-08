@@ -11,8 +11,12 @@ interface BaseProps {
   options: Option[];
   id?: string;
   disabled?: boolean;
-  /** Enforce a selection via native form validation. */
+  /** Enforce a selection via native form validation + show a red `*`. */
   required?: boolean;
+  /** Show a blue "Optional" after the label (non-mandatory field). */
+  optional?: boolean;
+  /** Show a "Recommended" hint after the label (encouraged, not mandatory). */
+  recommended?: boolean;
   /** Show a search box in the panel. Defaults to true when options.length > 6. */
   searchable?: boolean;
   "aria-label"?: string;
@@ -38,7 +42,7 @@ export type SelectProps = SingleProps | MultiProps;
  * and stays open while toggling. Closes on outside-click / Esc.
  */
 export function Select(props: SelectProps) {
-  const { label, error, placeholder = "Select…", options, id, disabled, required, searchable } = props;
+  const { label, error, placeholder = "Select…", options, id, disabled, required, optional, recommended, searchable } = props;
   const ariaLabel = props["aria-label"];
   const multiple = props.multiple === true;
   const showSearch = searchable ?? options.length > 6;
@@ -96,6 +100,9 @@ export function Select(props: SelectProps) {
           className="px-1 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant"
         >
           {label}
+          {required && <span className="align-middle text-base leading-none text-error"> *</span>}
+          {optional && <span className="font-medium normal-case text-primary"> (Optional)</span>}
+          {recommended && <span className="font-medium normal-case text-primary"> (Recommended)</span>}
         </label>
       )}
 
@@ -106,8 +113,8 @@ export function Select(props: SelectProps) {
           aria-label={ariaLabel}
           disabled={disabled}
           onClick={toggle}
-          className={`flex w-full items-center justify-between gap-2 rounded-xl border-none bg-surface-container-highest px-4 text-left transition-all focus:ring-1 focus:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-60 ${
-            multiple ? "min-h-14 py-2" : "h-14"
+          className={`flex w-full items-center justify-between gap-2 rounded-xl border-none bg-surface-container-highest px-4 text-left text-sm transition-all focus:ring-1 focus:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-60 ${
+            multiple ? "min-h-12 py-2" : "h-12"
           } ${error ? "ring-2 ring-error/60" : ""}`}
         >
           {selectedValues.length === 0 ? (

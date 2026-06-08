@@ -8,7 +8,6 @@ import { OtpInput } from "@/components/onboarding/OtpInput";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { toast } from "sonner";
 import { verifyMobileOtp, verifyEmailOtp, resendOtp } from "@/services/auth.service";
-import { setTokens } from "@/lib/auth-tokens";
 import type { ApiError } from "@/lib/axios";
 
 const OTP_LENGTH = 4;
@@ -107,18 +106,22 @@ export default function VerifyAccountPage() {
   const [mobileMsg, setMobileMsg] = useState<string | null>(null);
   const [emailMsg, setEmailMsg] = useState<string | null>(null);
 
-  // Both channels verified → advance to complete-profile.
-  useEffect(() => {
-    if (mobileVerified && emailVerified) goNext("verification");
-  }, [mobileVerified, emailVerified, goNext]);
+  const bothVerified = mobileVerified && emailVerified;
+
+  // Both channels verified → user clicks Continue to advance to complete-profile.
+  const handleContinue = () => {
+    if (!bothVerified) {
+      toast.error("Please verify both your mobile and email OTP to continue.");
+      return;
+    }
+    goNext("verification");
+  };
 
   const verifyMobile = async (otp: string) => {
     setMobileError(null);
     setVerifyingMobile(true);
     try {
-      const res = await verifyMobileOtp({ channel: "MOBILE", phoneNumber: String(data.contact ?? ""), otp });
-      // Tokens are only present on the call that verifies the final channel.
-      if (res.data?.company) setTokens(res.data.company);
+      const res = await verifyMobileOtp({ channel: "PHONE", phoneNumber: String(data.contact ?? ""), otp });
       setMobileMsg(res.message ?? null);
       setMobileVerified(true);
     } catch (err) {
@@ -134,8 +137,6 @@ export default function VerifyAccountPage() {
     setVerifyingEmail(true);
     try {
       const res = await verifyEmailOtp({ channel: "EMAIL", email: String(data.email ?? ""), otp });
-      // Tokens are only present on the call that verifies the final channel.
-      if (res.data?.company) setTokens(res.data.company);
       setEmailMsg(res.message ?? null);
       setEmailVerified(true);
     } catch (err) {
@@ -162,7 +163,7 @@ export default function VerifyAccountPage() {
 
   const handleResendMobileOtp = async () => {
     try {
-      const res = await resendOtp({ channel: "MOBILE", phoneNumber: String(data.contact ?? "") });
+      const res = await resendOtp({ channel: "PHONE", phoneNumber: String(data.contact ?? "") });
       toast.success(res.message ?? "OTP resent to your mobile.");
       setValue("mobileOtp", Array(OTP_LENGTH).fill(""));
       setMobileError(null);
@@ -192,7 +193,7 @@ export default function VerifyAccountPage() {
       <FocusedHeader backHref="/register" />
 
       <div className="mb-3 text-center">
-        <h1 className="mb-3 font-headline text-[32px] font-extrabold leading-tight tracking-[-0.02em] text-on-surface">
+        <h1 className="mb-3 font-headline text-2xl font-extrabold leading-tight tracking-[-0.02em] text-on-surface md:text-[28px]">
           Secure your account
         </h1>
         <p className="mx-auto max-w-sm text-base leading-relaxed text-on-surface-variant">
@@ -285,6 +286,15 @@ export default function VerifyAccountPage() {
           </div>
         </div>
       </div>
+
+      <button
+        type="button"
+        onClick={handleContinue}
+        disabled={!bothVerified}
+        className="cta-gradient flex h-12 w-full items-center justify-center gap-2 bg-primary rounded-xl font-headline text-base font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        Continue
+      </button>
     </div>
   );
 }

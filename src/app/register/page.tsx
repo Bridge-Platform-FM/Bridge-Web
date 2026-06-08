@@ -2,14 +2,17 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm, useWatch, Controller } from "react-hook-form";
 import { Icon } from "@/components/ui/Icon";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/Select";
+import { DIAL_CODES } from "@/lib/countries";
 import { StepProgress } from "@/components/onboarding/StepProgress";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { toast } from "sonner";
 import { registerCompany } from "@/services/auth.service";
+import { setTokens } from "@/lib/auth-tokens";
 import type { ApiError } from "@/lib/axios";
 
 const ROLES = [
@@ -42,6 +45,7 @@ interface RegisterForm {
   legalName: string;
   email: string;
   password: string;
+  countryCode: string;
   contact: string;
   role: string;
   gstNumber: string;
@@ -64,6 +68,7 @@ export default function RegisterPage() {
       legalName: (data.legalName as string) ?? "",
       email: (data.email as string) ?? "",
       password: "",
+      countryCode: (data.countryCode as string) ?? "+91",
       contact: (data.contact as string) ?? "",
       role: (data.role as string) ?? "",
       gstNumber: (data.gstNumber as string) ?? "",
@@ -80,6 +85,8 @@ export default function RegisterPage() {
     const payload = {
       companyName: values.legalName,
       email: values.email,
+      // countryCode: values.countryCode,
+      // countryCode: values.countryCode, // commented: not sending country code for now
       phoneNumber: values.contact,
       password: values.password,
       role: ROLE_MAP[values.role],
@@ -91,11 +98,20 @@ export default function RegisterPage() {
     setApiError(null);
     try {
       const res = await registerCompany(payload);
+      // Tokens are issued here now — persist them so all subsequent APIs are authenticated.
+      if (res.data?.accessToken && res.data?.refreshToken) {
+        setTokens(res.data);
+      } else {
+        // Backend returned success without tokens — treat as a failure rather than
+        // advancing into an unauthenticated flow.
+        throw { message: "Registration succeeded but no session was returned. Please try again." } as ApiError;
+      }
       toast.success(res.message ?? "Registration successful.");
       // Persist UI-shaped fields so prefill keeps working on back-navigation.
       setData({
         legalName: values.legalName,
         email: values.email,
+        countryCode: values.countryCode,
         contact: values.contact,
         role: values.role,
         gstNumber: values.gstNumber,
@@ -108,14 +124,14 @@ export default function RegisterPage() {
   };
 
   return (
-    <main className=" mx-auto grid max-w-[1200px]  grid-cols-1 items-start gap-10 px-4 py-8 sm:px-6 lg:grid-cols-12 lg:gap-16 lg:py-12">
+    <main className=" mx-auto grid max-w-[1200px]  grid-cols-1 items-start gap-10 px-4 py-3 sm:px-6 lg:grid-cols-12 lg:gap-16 lg:py-4">
       {/* Left: editorial context */}
-      <div className="flex flex-col gap-6 pt-4 lg:col-span-5 lg:gap-8">
+      <div className="flex flex-col gap-6 lg:col-span-5 lg:gap-8">
         <div className="space-y-4">
           <span className="inline-flex rounded-full bg-secondary-container px-3 py-1 text-xs font-semibold uppercase tracking-wider text-on-secondary-container">
             Onboarding
           </span>
-          <h1 className="font-headline text-4xl font-extrabold leading-[1.1] tracking-[-0.03em] text-on-surface sm:text-5xl lg:text-[3.5rem]">
+          <h1 className="font-headline text-3xl font-extrabold leading-[1.1] tracking-[-0.03em] text-on-surface sm:text-4xl lg:text-5xl">
             Unlock Your <br />
             <span className="text-primary">Enterprise</span> Future.
           </h1>
@@ -144,17 +160,18 @@ export default function RegisterPage() {
 
       {/* Right: form card */}
       <div className="lg:col-span-7">
-        <Card padding="lg" className="flex flex-col gap-6 !p-6 sm:!p-8 lg:gap-8 lg:!p-10">
+        <Card padding="lg" className="flex flex-col gap-3 !p-5 sm:!p-6 lg:gap-3 lg:!p-6">
           <div className="flex flex-col gap-1">
             <h2 className="font-headline text-2xl font-bold text-on-surface">Company Registration</h2>
           </div>
           {/* <StepProgress stepKey="details" /> */}
 
-          <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-6">
+          <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-2.5">
             <Input
               id="legalName"
               type="text"
               label="LEGAL COMPANY NAME"
+              required
               placeholder="Global Tech Corp"
               error={errors.legalName?.message}
               adornment={<Icon name="corporate_fare" size={20} />}
@@ -169,6 +186,7 @@ export default function RegisterPage() {
               id="email"
               type="email"
               label="OFFICIAL EMAIL ADDRESS"
+              required
               placeholder="admin@company.com"
               error={errors.email?.message}
               adornment={<Icon name="mail" size={20} />}
@@ -178,11 +196,12 @@ export default function RegisterPage() {
               })}
             />
 
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
                 label="ACCOUNT PASSWORD"
+                required
                 placeholder="••••••••••••"
                 error={errors.password?.message}
                 adornment={
@@ -202,27 +221,49 @@ export default function RegisterPage() {
                   },
                 })}
               />
-              <Input
-                id="contact"
-                type="tel"
-                label="CONTACT NUMBER"
-                placeholder="9632585698"
-                error={errors.contact?.message}
-                adornment={<Icon name="smartphone" size={20} />}
-                {...field("contact", {
-                  required: "Contact number is required.",
-                  pattern: { value: PHONE_REGEX, message: "Enter a valid 10-digit mobile number." },
-                })}
-              />
+              <div className="flex flex-col gap-2">
+                <label className={LABEL}>
+                  CONTACT NUMBER<span className="align-middle text-base leading-none text-error"> *</span>
+                </label>
+                <div className="grid grid-cols-[7.5rem_1fr] gap-2">
+                  <Controller
+                    control={control}
+                    name="countryCode"
+                    render={({ field: cc }) => (
+                      <Select
+                        aria-label="Country code"
+                        searchable
+                        placeholder="Code"
+                        options={DIAL_CODES}
+                        value={cc.value}
+                        onChange={cc.onChange}
+                      />
+                    )}
+                  />
+                  <Input
+                    id="contact"
+                    type="tel"
+                    placeholder="9632585698"
+                    error={errors.contact?.message}
+                    adornment={<Icon name="smartphone" size={20} />}
+                    {...field("contact", {
+                      required: "Contact number is required.",
+                      pattern: { value: PHONE_REGEX, message: "Enter a valid 10-digit mobile number." },
+                    })}
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className={LABEL}>SELECT YOUR ROLE</label>
+              <label className={LABEL}>
+                SELECT YOUR ROLE<span className="align-middle text-base leading-none text-error"> *</span>
+              </label>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 {ROLES.map((r) => (
                   <label
                     key={r.value}
-                    className={`flex h-14 cursor-pointer items-center gap-3 rounded-xl px-4 transition-colors ${
+                    className={`flex h-12 cursor-pointer items-center gap-3 rounded-xl px-4 transition-colors ${
                       role === r.value ? "bg-primary-container" : "bg-surface-container-highest hover:bg-surface-variant"
                     }`}
                   >
@@ -241,11 +282,12 @@ export default function RegisterPage() {
 
             {/* B2B-only: GST + CIN, revealed after role selection */}
             {isB2B && (
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Input
                   id="gstNumber"
                   type="text"
                   label="GST NUMBER"
+                  required
                   placeholder="22AAAAA0000A1Z5"
                   error={errors.gstNumber?.message}
                   adornment={<Icon name="pin" size={20} />}
@@ -258,6 +300,7 @@ export default function RegisterPage() {
                   id="cinNumber"
                   type="text"
                   label="CIN NUMBER"
+                  required
                   placeholder="U12345MH2024PTC123456"
                   error={errors.cinNumber?.message}
                   adornment={<Icon name="pin" size={20} />}
@@ -280,7 +323,7 @@ export default function RegisterPage() {
                 />
                 <span className="text-sm leading-tight text-on-surface-variant">
                   I agree to the <Link href="#" className="font-bold text-primary hover:underline">Terms of Service</Link> and{" "}
-                  <Link href="#" className="font-bold text-primary hover:underline">Privacy Policy</Link> regarding corporate data handling.
+                  <Link href="#" className="font-bold text-primary hover:underline">Privacy Policy</Link> regarding corporate data handling.<span className="align-middle text-base leading-none text-error"> *</span>
                 </span>
               </label>
               <ErrorText msg={errors.termsAccepted?.message} />
@@ -288,11 +331,11 @@ export default function RegisterPage() {
 
             {apiError && <ErrorText msg={apiError} />}
 
-            <div className="flex flex-col gap-4 pt-4">
+            <div className="flex flex-col gap-2">
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="cta-gradient flex h-14 w-full items-center justify-center gap-2 bg-primary rounded-xl font-headline text-lg font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
+                className="cta-gradient flex h-12 w-full items-center justify-center gap-2 bg-primary rounded-xl font-headline text-base font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSubmitting ? "Submitting…" : "Continue"}
               </button>

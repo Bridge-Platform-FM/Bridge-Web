@@ -27,7 +27,7 @@ const variantClasses: Record<Variant, string> = {
   ghost: "text-on-surface-variant hover:bg-surface-container",
 };
 
-/** h-14 rounded-xl action button. Renders an <a> when `href` is provided. */
+/** h-12 rounded-xl action button. Renders an <a> when `href` is provided. */
 export function Button(props: ButtonProps) {
   const {
     variant = "primary",
@@ -39,7 +39,7 @@ export function Button(props: ButtonProps) {
     ...rest
   } = props;
 
-  const classes = `inline-flex h-14 items-center justify-center gap-2 rounded-xl px-8 font-headline text-lg font-bold tracking-tight transition-all disabled:opacity-50 disabled:pointer-events-none ${variantClasses[variant]} ${fullWidth ? "w-full" : ""} ${className}`;
+  const classes = `inline-flex h-12 items-center justify-center gap-2 rounded-xl px-6 font-headline text-base font-bold tracking-tight transition-all disabled:opacity-50 disabled:pointer-events-none ${variantClasses[variant]} ${fullWidth ? "w-full" : ""} ${className}`;
 
   const inner = (
     <>
