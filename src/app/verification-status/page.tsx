@@ -99,8 +99,8 @@ export default function VerificationStatusPage() {
   const pad = (n: number) => String(n).padStart(2, "0");
 
   return (
-    // <div className="mx-auto flex max-w-[960px] flex-col px-6 py-5">
-    <div className="mx-auto my-4 w-full max-w-[760px] rounded-2xl bg-surface-container-lowest ambient-shadow border border-white/40 flex flex-col gap-3 !p-5 sm:!p-6 lg:gap-4 lg:!p-6">
+    <div className="flex min-h-[calc(100vh-4rem)] w-full items-center justify-center px-4 py-4">
+    <div className="mx-auto w-full max-w-[760px] rounded-2xl bg-surface-container-lowest ambient-shadow border border-white/40 flex flex-col gap-3 !p-5 sm:!p-6 lg:gap-4 lg:!p-6">
       <FocusedHeader backLabel="Back to Overview" backHref="/document-upload" />
 
       {/* <div className="mb-8 mt-4 rounded-xl bg-surface-container-low p-6">
@@ -169,6 +169,7 @@ export default function VerificationStatusPage() {
         </button>
       </div> */}
       <DocumentPreviewModal s3Key={previewKey} onClose={() => setPreviewKey(null)} />
+    </div>
     </div>
   );
 }

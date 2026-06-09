@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { Icon } from "@/components/ui/Icon";
@@ -55,10 +55,14 @@ interface RegisterForm {
 }
 
 export default function RegisterPage() {
-  const { data, setData, goNext } = useOnboarding();
+  const { data, setData, goNext, reset } = useOnboarding();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  // reset the local storage 
+  useEffect(() => {
+    reset();
+  }, [reset]);
 
   const {
     register: field,
