@@ -27,7 +27,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={id}
-            className="px-1 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant"
+            className="px-1 font-label text-xs font-bold tracking-wide text-on-surface-variant"
           >
             {label}
             {required && <span className="align-middle text-base leading-none text-error"> *</span>}
@@ -40,14 +40,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={id}
             type={type}
-            className={`h-12 w-full rounded-xl border-none bg-surface-container-highest px-4 text-sm text-on-surface transition-all placeholder:text-outline-variant focus:ring-1 focus:ring-primary/40 ${
-              error ? "ring-2 ring-error/60" : ""
-            } ${adornment ? "pr-12" : ""} ${className}`}
+            className={`h-10 w-full rounded-lg border border-outline-variant/30 bg-surface-container-low px-3.5 text-sm text-on-surface transition-all duration-200 placeholder:text-outline-variant hover:border-outline-variant/60 focus:border-primary focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/10 ${
+              error ? "border-error/80 ring-2 ring-error/10" : ""
+            } ${adornment ? "pr-10" : ""} ${className}`}
             {...props}
           />
           {adornment && (
             <div
-              className={`absolute right-4 top-1/2 -translate-y-1/2 ${
+              className={`absolute right-3 top-1/2 -translate-y-1/2 flex items-center ${
                 adornmentClassName ?? "text-on-surface-variant"
               }`}
             >
