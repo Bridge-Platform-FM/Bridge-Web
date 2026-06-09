@@ -1,0 +1,67 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { getFilePreview } from "@/services/file.service";
+import type { ApiError } from "@/lib/axios";
+
+export interface FilePreviewState {
+  /** Object URL for the fetched blob, or null while loading / on error. */
+  url: string | null;
+  /** True when the fetched file is a PDF (render in an iframe instead of <img>). */
+  isPdf: boolean;
+  loading: boolean;
+  error: string | null;
+}
+
+/** Resolved fetch result, tagged with the key it belongs to. */
+interface Resolved {
+  key: string;
+  url: string | null;
+  isPdf: boolean;
+  error: string | null;
+}
+
+/**
+ * Fetch the watermarked server copy for a stored file by its `s3Key` and expose it
+ * as an object URL. Pass `null` to fetch nothing. The object URL is revoked when the
+ * key changes or the component unmounts; in-flight requests are cancelled so a stale
+ * response never overwrites a newer one. `loading` is derived (true whenever a key is
+ * set but its result hasn't resolved yet), so the effect only sets state in callbacks.
+ */
+export function useFilePreview(s3Key: string | null): FilePreviewState {
+  const [resolved, setResolved] = useState<Resolved | null>(null);
+
+  useEffect(() => {
+    if (!s3Key) return;
+    let url: string | null = null;
+    let cancelled = false;
+    getFilePreview(s3Key)
+      .then((blob) => {
+        if (cancelled) return;
+        url = URL.createObjectURL(blob);
+        setResolved({ key: s3Key, url, isPdf: blob.type === "application/pdf", error: null });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setResolved({
+          key: s3Key,
+          url: null,
+          isPdf: false,
+          error: (err as ApiError)?.message || "Couldn't load the preview.",
+        });
+      });
+    return () => {
+      cancelled = true;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [s3Key]);
+
+  // Only trust `resolved` when it matches the current key; otherwise we're loading.
+  const current = resolved && resolved.key === s3Key ? resolved : null;
+  return {
+    url: current?.url ?? null,
+    isPdf: current?.isPdf ?? false,
+    loading: !!s3Key && !current,
+    error: current?.error ?? null,
+  };
+}

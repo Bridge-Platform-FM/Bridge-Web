@@ -2,14 +2,57 @@
 
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
-import { StepProgress } from "@/components/onboarding/StepProgress";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
+import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewModal";
+import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
+import { useFilePreview } from "@/lib/useFilePreview";
 
-const SUBMITTED = [
-  { label: "National ID (Front)", icon: "badge" },
-  { label: "National ID (Back)", icon: "badge" },
-  { label: "Live Selfie", icon: "face" },
-];
+/** A submitted document: label + the s3 key returned by the scan upload. */
+interface SubmittedDoc {
+  label: string;
+  icon: string;
+  s3Key: string;
+}
+
+/**
+ * One submitted-document tile: lazily loads the watermarked thumbnail for its s3 key
+ * and opens the full preview modal on click. Falls back to the document icon while
+ * loading or if the thumbnail can't be fetched.
+ */
+function SubmittedDocTile({ doc, onPreview }: { doc: SubmittedDoc; onPreview: () => void }) {
+  const { url, isPdf, loading } = useFilePreview(doc.s3Key);
+  const showThumb = url && !isPdf;
+  return (
+    <button
+      type="button"
+      onClick={onPreview}
+      className="group relative flex aspect-[16/9] flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border border-outline-variant/20 bg-surface-container-highest text-on-surface-variant transition-colors hover:border-primary/40"
+    >
+      {showThumb ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={url} alt={doc.label} className="absolute inset-0 h-full w-full object-cover" />
+      ) : (
+        <>
+          <Icon name={loading ? "progress_activity" : doc.icon} size={28} className={loading ? "animate-spin text-primary" : ""} />
+          <span className="px-2 text-center text-xs font-semibold">{doc.label}</span>
+        </>
+      )}
+
+      {/* Label + hover "Preview" hint over the thumbnail */}
+      {showThumb && (
+        <div className="absolute inset-0 flex items-end justify-center bg-gradient-to-t from-black/50 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
+          <span className="flex items-center gap-1 text-xs font-bold text-white">
+            <Icon name="zoom_in" size={14} /> {doc.label}
+          </span>
+        </div>
+      )}
+
+      <div className="absolute right-2 top-2 rounded-full bg-primary p-1 text-white">
+        <Icon name="check" size={12} />
+      </div>
+    </button>
+  );
+}
 
 const NEXT_STEPS = [
   { icon: "mark_email_unread", text: "You'll receive an email notification as soon as the review is complete." },
@@ -32,7 +75,16 @@ function TimeBox({ value, unit }: { value: string; unit: string }) {
 const INITIAL_SECONDS = 23 * 3600 + 59 * 60 + 42;
 
 export default function VerificationStatusPage() {
+  const { data } = useOnboarding();
   const [remaining, setRemaining] = useState(INITIAL_SECONDS);
+  const [previewKey, setPreviewKey] = useState<string | null>(null);
+
+  // Build the submitted-document list from the s3 keys saved on the upload step.
+  const submitted: SubmittedDoc[] = [
+    { label: "Aadhaar (Front)", icon: "badge", s3Key: data.aadhaarFrontKey as string },
+    { label: "Aadhaar (Back)", icon: "badge", s3Key: data.aadhaarBackKey as string },
+    { label: "PAN Card", icon: "credit_card", s3Key: data.panKey as string },
+  ].filter((d): d is SubmittedDoc => !!d.s3Key);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -97,25 +149,26 @@ export default function VerificationStatusPage() {
       {/* Submitted documents */}
       <div>
         <h3 className="mb-3 font-headline text-lg font-bold text-on-surface">Submitted Documents</h3>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-          {SUBMITTED.map((d) => (
-            <div key={d.label} className="relative flex aspect-[16/9] flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border border-outline-variant/20 bg-surface-container-highest">
-              <Icon name={d.icon} size={28} className="text-on-surface-variant" />
-              <span className="px-2 text-center text-xs font-semibold text-on-surface-variant">{d.label}</span>
-              <div className="absolute right-2 top-2 rounded-full bg-primary p-1 text-white">
-                <Icon name="check" size={12} />
-              </div>
-            </div>
-          ))}
-        </div>
+        {submitted.length > 0 ? (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            {submitted.map((d) => (
+              <SubmittedDocTile key={d.label} doc={d} onPreview={() => setPreviewKey(d.s3Key)} />
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-lg border border-outline-variant/20 bg-surface-container-highest px-4 py-6 text-center text-sm text-on-surface-variant">
+            No documents found for this session.
+          </p>
+        )}
       </div>
 
       {/* Actions */}
-      <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+      {/* <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
         <button className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-surface-container-high px-8 font-bold text-on-surface transition-all hover:bg-surface-container-highest sm:w-auto">
           <Icon name="contact_support" size={20} /> Contact Support
         </button>
-      </div>
+      </div> */}
+      <DocumentPreviewModal s3Key={previewKey} onClose={() => setPreviewKey(null)} />
     </div>
   );
 }

@@ -2,20 +2,26 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
-import { scanImage, scanDocument, getFilePreview } from "@/services/file.service";
+import { scanImage, scanDocument } from "@/services/file.service";
+import type { DocType, DocSide } from "@/config/docTypes";
 import type { ApiError } from "@/lib/axios";
-import { Modal } from "@/components/modal/Modal";
-import { Loader } from "@/components/common/loader";
+import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewModal";
 
 export interface UploadSlot {
   key: string;
   label: string;
+  /** Which face of a two-sided document (Aadhaar) this slot captures. */
+  side?: DocSide;
 }
 
 /** A slot that has been successfully scanned + uploaded. */
 export interface ScannedDoc {
   file: File;
   s3Key: string;
+  /** File metadata forwarded to save-kyc-info (sourced from the uploaded File). */
+  mimetype: string;
+  fileName: string;
+  fileSize: number;
 }
 
 interface DocumentUploadCardProps {
@@ -37,6 +43,8 @@ interface DocumentUploadCardProps {
   maxSizeMB?: number;
   /** Which scan endpoint to hit on select. */
   scanType: "image" | "document";
+  /** Document type sent to the scan API for every slot in this card. */
+  docType: DocType;
 }
 
 const DEFAULT_ACCEPT = "image/png,image/jpeg";
@@ -60,6 +68,7 @@ export function DocumentUploadCard({
   accept = DEFAULT_ACCEPT,
   maxSizeMB,
   scanType,
+  docType,
 }: DocumentUploadCardProps) {
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [files, setFiles] = useState<Record<string, File | null>>({});
@@ -72,12 +81,8 @@ export function DocumentUploadCard({
   // Per-slot rejection / scan-failure message.
   const [slotErrors, setSlotErrors] = useState<Record<string, string>>({});
 
-  // Click-to-preview modal: s3Key being previewed + the fetched object URL/state.
+  // Click-to-preview modal: which slot's s3Key is being previewed.
   const [previewKey, setPreviewKey] = useState<string | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [previewIsPdf, setPreviewIsPdf] = useState(false);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewError, setPreviewError] = useState<string | null>(null);
 
   // Refs mirror the latest files/keys so async scan callbacks read fresh values.
   const filesRef = useRef(files);
@@ -105,35 +110,6 @@ export function DocumentUploadCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch the watermarked preview whenever a slot's image is clicked. Builds an
-  // object URL from the returned blob and revokes it when the key changes/closes.
-  useEffect(() => {
-    if (!previewKey) return;
-    let url: string | null = null;
-    let cancelled = false;
-    setPreviewLoading(true);
-    setPreviewError(null);
-    setPreviewUrl(null);
-    getFilePreview(previewKey)
-      .then((blob) => {
-        if (cancelled) return;
-        url = URL.createObjectURL(blob);
-        setPreviewIsPdf(blob.type === "application/pdf");
-        setPreviewUrl(url);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setPreviewError((err as ApiError)?.message || "Couldn't load the preview.");
-      })
-      .finally(() => {
-        if (!cancelled) setPreviewLoading(false);
-      });
-    return () => {
-      cancelled = true;
-      if (url) URL.revokeObjectURL(url);
-    };
-  }, [previewKey]);
-
   // Build the parent payload from files + keys: a slot is reported only once it
   // has both a file and a successful s3Key.
   const emitScanned = (
@@ -144,7 +120,8 @@ export function DocumentUploadCard({
     for (const s of slots) {
       const f = filesMap[s.key];
       const k = keysMap[s.key];
-      if (f && k) out[s.key] = { file: f, s3Key: k };
+      if (f && k)
+        out[s.key] = { file: f, s3Key: k, mimetype: f.type, fileName: f.name, fileSize: f.size };
     }
     onChange?.(out);
   };
@@ -199,7 +176,8 @@ export function DocumentUploadCard({
     setUploading((prev) => ({ ...prev, [key]: true }));
     try {
       const fn = scanType === "image" ? scanImage : scanDocument;
-      const { s3Key } = await fn(file);
+      const side = slots.find((s) => s.key === key)?.side;
+      const { s3Key } = await fn(file, { docType, side });
       // Bail if the slot's file changed/was removed while scanning.
       if (filesRef.current[key] !== file) return;
       const updatedKeys = { ...keysRef.current, [key]: s3Key };
@@ -384,25 +362,7 @@ export function DocumentUploadCard({
       </div>
 
       {/* Click-to-preview modal (watermarked server copy fetched by s3Key) */}
-      <Modal open={!!previewKey} onClose={() => setPreviewKey(null)} title="Document Preview">
-        {previewLoading ? (
-          <div className="flex h-64 items-center justify-center">
-            <Loader size="large" className="text-primary" />
-          </div>
-        ) : previewError ? (
-          <div className="flex h-64 flex-col items-center justify-center gap-2 text-center">
-            <Icon name="error" size={32} className="text-error" />
-            <span className="text-sm font-medium text-error">{previewError}</span>
-          </div>
-        ) : previewUrl ? (
-          previewIsPdf ? (
-            <iframe src={previewUrl} title="Document preview" className="h-[70vh] w-full rounded-lg" />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={previewUrl} alt="Document preview" className="mx-auto max-h-[70vh] w-auto rounded-lg" />
-          )
-        ) : null}
-      </Modal>
+      <DocumentPreviewModal s3Key={previewKey} onClose={() => setPreviewKey(null)} />
     </section>
   );
 }
