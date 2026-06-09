@@ -128,7 +128,6 @@ export default function VerifyAccountPage() {
       setMobileError((err as ApiError).message ?? "Verification failed. Please try again.");
     } finally {
       setVerifyingMobile(false);
-      setValue("mobileOtp", Array(OTP_LENGTH).fill(""));
     }
   };
 
@@ -143,7 +142,6 @@ export default function VerifyAccountPage() {
       setEmailError((err as ApiError).message ?? "Verification failed. Please try again.");
     } finally {
       setVerifyingEmail(false);
-      setValue("emailOtp", Array(OTP_LENGTH).fill(""));
     }
   };
 

@@ -97,7 +97,8 @@ export default function DocumentUploadPage() {
     PAN_REGEX.test((panNumber ?? "").toUpperCase());
 
   return (
-      <div className="mx-auto w-full max-w-2xl rounded-2xl bg-surface-container-lowest ambient-shadow border border-white/40 flex flex-col gap-2 !p-5 sm:!p-6 lg:gap-3 lg:!p-6">
+    <main className="flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-8">
+      <div className="mx-auto w-full max-w-3xl rounded-2xl bg-surface-container-lowest ambient-shadow border border-white/40 flex flex-col gap-2 !p-5 sm:!p-6 lg:gap-3 lg:!p-8">
       <FocusedHeader backHref="/complete-profile" />
       <div>
         <h2 className="font-headline text-2xl font-extrabold tracking-tight text-on-surface">Document Upload</h2>
@@ -112,12 +113,14 @@ export default function DocumentUploadPage() {
           <Input
             id="aadhaarNumber"
             type="text"
-            label="AADHAAR NUMBER"
+            label="Aadhaar Number"
             required
             inputMode="numeric"
             maxLength={12}
             placeholder="1234 5678 9012"
             error={errors.aadhaarNumber?.message}
+            adornment={<Icon name="badge" size={20} />}
+            adornmentClassName="text-primary opacity-0 transition-opacity group-focus-within:opacity-100"
             {...register("aadhaarNumber", {
               required: "Aadhaar number is required.",
               pattern: { value: AADHAAR_REGEX, message: "Enter a valid 12-digit Aadhaar number." },
@@ -126,12 +129,14 @@ export default function DocumentUploadPage() {
           <Input
             id="panNumber"
             type="text"
-            label="PAN NUMBER"
+            label="PAN Number"
             required
             maxLength={10}
             placeholder="ABCDE1234F"
             className="uppercase"
             error={errors.panNumber?.message}
+            adornment={<Icon name="credit_card" size={20} />}
+            adornmentClassName="text-primary opacity-0 transition-opacity group-focus-within:opacity-100"
             {...register("panNumber", {
               required: "PAN number is required.",
               validate: (v) => PAN_REGEX.test(v.toUpperCase()) || "Enter a valid PAN (e.g. ABCDE1234F).",
@@ -191,5 +196,6 @@ export default function DocumentUploadPage() {
         </div>
       </form>
       </div>
+    </main>
   );
 }
