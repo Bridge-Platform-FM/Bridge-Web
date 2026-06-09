@@ -71,7 +71,7 @@ function ResendControl({ onResend }: { onResend: () => Promise<void> }) {
     <div className="flex min-w-[10px] items-center justify-center font-label text-sm font-semibold text-on-surface-variant">
       {seconds > 0 ? (
         <span>
-         <span className="font-bold text-on-surface">0:{String(seconds).padStart(2, "0")}</span>
+          <span className="font-bold text-on-surface">0:{String(seconds).padStart(2, "0")}</span>
         </span>
       ) : (
         <button
@@ -188,113 +188,114 @@ export default function VerifyAccountPage() {
   };
 
   return (
-    // <div className="mx-auto flex w-full max-w-[560px] flex-col px-6 py-8">
-      <div className="mx-auto my-6 w-full max-w-[560px] rounded-2xl bg-surface-container-lowest ambient-shadow border border-white/40 flex flex-col gap-3 !p-6 sm:!p-8 lg:gap-6 lg:!p-8">
-      <FocusedHeader backHref="/register" />
+    <main className="flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-8">
+      <div className="w-full max-w-[560px] rounded-2xl bg-surface-container-lowest ambient-shadow border border-white/40 flex flex-col gap-3 !p-6 sm:!p-8 lg:gap-6 lg:!p-8">
+        <FocusedHeader backHref="/register" />
 
-      <div className="mb-3 text-center">
-        <h1 className="mb-3 font-headline text-2xl font-extrabold leading-tight tracking-[-0.02em] text-on-surface md:text-[28px]">
-          Secure your account
-        </h1>
-        <p className="mx-auto max-w-sm text-base leading-relaxed text-on-surface-variant">
-          We&apos;ve sent a 4-digit code to your mobile phone ({maskPhone(String(data.contact ?? ""))})
-          {" "}and email ({maskEmail(String(data.email ?? ""))}).
-        </p>
-      </div>
+        <div className="mb-3 text-center">
+          <h1 className="mb-3 font-headline text-2xl font-extrabold leading-tight tracking-[-0.02em] text-on-surface md:text-[28px]">
+            Secure your account
+          </h1>
+          <p className="mx-auto max-w-sm text-base leading-relaxed text-on-surface-variant">
+            We&apos;ve sent a 4-digit code to your mobile phone {maskPhone(String(data.contact ?? ""))}
+            {" "}and email {maskEmail(String(data.email ?? ""))}.
+          </p>
+        </div>
 
-      <div className="space-y-6">
-        {/* <div className="flex flex-col gap-4">
+        <div className="space-y-6">
+          {/* <div className="flex flex-col gap-4">
           <label className="flex items-center gap-2 font-label text-sm font-semibold text-on-surface-variant">
             <Icon name="smartphone" size={16} /> Mobile OTP
           </label>
           <OtpInput value={mobileOtp} onChange={setMobileOtp} />
         </div> */}
 
-        <div className="flex flex-col items-center gap-4">
-          <div className="flex w-[240px] flex-col gap-3 md:w-[304px]">
-            <div className="flex items-center justify-between gap-4">
-              <label className="flex items-center gap-2 font-label text-sm font-semibold text-on-surface-variant">
-                <Icon name="smartphone" size={16} />
-                Mobile OTP
-              </label>
+          <div className="flex flex-col items-center gap-4">
+            <div className="flex w-[240px] flex-col gap-3 md:w-[304px]">
+              <div className="flex items-center justify-between gap-4">
+                <label className="flex items-center gap-2 font-label text-sm font-semibold text-on-surface-variant">
+                  <Icon name="smartphone" size={16} />
+                  Mobile OTP
+                </label>
 
-              {!mobileVerified && <ResendControl onResend={handleResendMobileOtp} />}
+                {!mobileVerified && <ResendControl onResend={handleResendMobileOtp} />}
+              </div>
+
+              <Controller
+                control={control}
+                name="mobileOtp"
+                render={({ field }) => (
+                  <OtpInput
+                    value={field.value}
+                    onChange={(next) => handleMobileChange(next, field.onChange)}
+                  />
+                )}
+              />
+
+              {mobileVerified ? (
+                <span className="flex items-center gap-1 px-1 text-xs font-medium text-primary">
+                  <Icon name="check_circle" size={16} />{mobileMsg ?? "Mobile Otp Verified"}
+                </span>
+              ) : verifyingMobile ? (
+                <span className="px-1 text-xs font-medium text-on-surface-variant">Verifying…</span>
+              ) : mobileError ? (
+                <span className="px-1 text-xs font-medium text-error">{mobileError}</span>
+              ) : null}
             </div>
-
-            <Controller
-              control={control}
-              name="mobileOtp"
-              render={({ field }) => (
-                <OtpInput
-                  value={field.value}
-                  onChange={(next) => handleMobileChange(next, field.onChange)}
-                />
-              )}
-            />
-
-            {mobileVerified ? (
-              <span className="flex items-center gap-1 px-1 text-xs font-medium text-primary">
-                <Icon name="check_circle" size={16} />{mobileMsg ?? "Mobile Otp Verified"}
-              </span>
-            ) : verifyingMobile ? (
-              <span className="px-1 text-xs font-medium text-on-surface-variant">Verifying…</span>
-            ) : mobileError ? (
-              <span className="px-1 text-xs font-medium text-error">{mobileError}</span>
-            ) : null}
           </div>
-        </div>
 
 
-        {/* <div className="flex flex-col gap-4">
+          {/* <div className="flex flex-col gap-4">
           <label className="flex items-center gap-2 font-label text-sm font-semibold text-on-surface-variant">
             <Icon name="mail" size={16} /> Email OTP
           </label>
           <OtpInput value={emailOtp} onChange={setEmailOtp} />
         </div> */}
 
-        <div className="flex flex-col items-center gap-4">
-          <div className="flex w-[240px] flex-col gap-3 md:w-[304px]">
-            <div className="flex items-center justify-between gap-4">
-              <label className="flex items-center gap-2 font-label text-sm font-semibold text-on-surface-variant">
-                <Icon name="mail" size={16} />
-                Email OTP
-              </label>
+          <div className="flex flex-col items-center gap-4">
+            <div className="flex w-[240px] flex-col gap-3 md:w-[304px]">
+              <div className="flex items-center justify-between gap-4">
+                <label className="flex items-center gap-2 font-label text-sm font-semibold text-on-surface-variant">
+                  <Icon name="mail" size={16} />
+                  Email OTP
+                </label>
 
-              {!emailVerified && <ResendControl onResend={handleResendEmailOtp} />}
+                {!emailVerified && <ResendControl onResend={handleResendEmailOtp} />}
+              </div>
+
+              <Controller
+                control={control}
+                name="emailOtp"
+                render={({ field }) => (
+                  <OtpInput
+                    value={field.value}
+                    onChange={(next) => handleEmailChange(next, field.onChange)}
+                  />
+                )}
+              />
+
+              {emailVerified ? (
+                <span className="flex items-center gap-1 px-1 text-xs font-medium text-primary">
+                  <Icon name="check_circle" size={16} />{emailMsg ?? "Email Otp Verified"}
+                </span>
+              ) : verifyingEmail ? (
+                <span className="px-1 text-xs font-medium text-on-surface-variant">Verifying…</span>
+              ) : emailError ? (
+                <span className="px-1 text-xs font-medium text-error">{emailError}</span>
+              ) : null}
             </div>
-
-            <Controller
-              control={control}
-              name="emailOtp"
-              render={({ field }) => (
-                <OtpInput
-                  value={field.value}
-                  onChange={(next) => handleEmailChange(next, field.onChange)}
-                />
-              )}
-            />
-
-            {emailVerified ? (
-              <span className="flex items-center gap-1 px-1 text-xs font-medium text-primary">
-                <Icon name="check_circle" size={16} />{emailMsg ?? "Email Otp Verified"}
-              </span>
-            ) : verifyingEmail ? (
-              <span className="px-1 text-xs font-medium text-on-surface-variant">Verifying…</span>
-            ) : emailError ? (
-              <span className="px-1 text-xs font-medium text-error">{emailError}</span>
-            ) : null}
           </div>
         </div>
-      </div>
 
-      <button
-        type="button"
-        onClick={handleContinue}
-        disabled={!bothVerified}
-        className="cta-gradient flex h-12 w-full items-center justify-center gap-2 bg-primary rounded-xl font-headline text-base font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        Continue
-      </button>
-    </div>
+        <button
+          type="button"
+          onClick={handleContinue}
+          disabled={!bothVerified}
+          className="cta-gradient flex h-12 w-full items-center justify-center gap-2 bg-primary rounded-xl font-headline text-base font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] disabled:cursor-default disabled:opacity-60 disabled:transform-none"
+        >
+          Continue
+        </button>
+      </div>
+    </main>
   );
 }

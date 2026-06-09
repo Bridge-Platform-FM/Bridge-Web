@@ -39,7 +39,7 @@ export function OtpInput({ length = 4, value, onChange }: OtpInputProps) {
           placeholder="•"
           onChange={(e) => setDigit(i, e.target.value)}
           onKeyDown={(e) => onKeyDown(i, e)}
-          className="h-14 w-12 rounded-xl border-none bg-surface-container-highest text-center text-xl font-bold text-on-surface transition-all placeholder:text-outline-variant focus:ring-2 focus:ring-primary/40 md:h-20 md:w-16"
+          className="h-14 w-12 rounded-lg border border-outline-variant/30 bg-surface-container-low text-center text-xl font-bold text-on-surface transition-all duration-200 placeholder:text-outline-variant hover:border-outline-variant/60 focus:border-primary focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/10 md:h-16 md:w-14"
         />
       ))}
     </div>

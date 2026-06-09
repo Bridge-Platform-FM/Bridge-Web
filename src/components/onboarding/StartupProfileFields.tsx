@@ -201,7 +201,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
 
       {/* Funding ask: currency + min–max range */}
       <div className="flex flex-col gap-2">
-        <span className="px-1 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant">
+        <span className="px-1 font-label text-xs font-bold tracking-wide text-on-surface-variant">
           Funding Ask Amount<span className="align-middle text-base leading-none text-error"> *</span>
         </span>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[8rem_1fr_1fr]">
@@ -244,11 +244,11 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
 
       {/* Founders + LinkedIn (repeatable) */}
       <div className="flex flex-col gap-3">
-        <span className="px-1 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant">
+        <span className="px-1 font-label text-xs font-bold tracking-wide text-on-surface-variant">
           Founders &amp; LinkedIn<span className="align-middle text-base leading-none text-error"> *</span>
         </span>
         {fields.map((row, i) => (
-          <div key={row.id} className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-start">
+          <div key={row.id} className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
             <Input
               placeholder="Founder name"
               error={e?.founders?.[i]?.name?.message}
@@ -268,7 +268,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
               onClick={() => remove(i)}
               disabled={fields.length === 1}
               aria-label="Remove founder"
-              className="flex h-14 w-14 items-center justify-center rounded-xl bg-surface-container-highest text-on-surface-variant transition-colors hover:text-error disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex h-10 w-10 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:text-error disabled:cursor-not-allowed disabled:opacity-40"
             >
               <Icon name="delete" size={20} />
             </button>
@@ -277,7 +277,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
         <button
           type="button"
           onClick={() => append({ name: "", url: "" })}
-          className="flex w-fit items-center gap-1 rounded-lg px-1 py-1 text-sm font-semibold text-primary transition-colors hover:underline"
+          className="-mt-1.5 flex w-fit items-center gap-1 rounded-lg px-1 py-1 text-sm font-semibold text-primary transition-colors hover:opacity-80"
         >
           <Icon name="add" size={18} /> Add founder
         </button>

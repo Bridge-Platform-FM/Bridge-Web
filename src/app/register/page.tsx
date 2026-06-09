@@ -45,6 +45,7 @@ interface RegisterForm {
   legalName: string;
   email: string;
   password: string;
+  confirmPassword: string;
   countryCode: string;
   contact: string;
   role: string;
@@ -56,18 +57,21 @@ interface RegisterForm {
 export default function RegisterPage() {
   const { data, setData, goNext } = useOnboarding();
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
   const {
     register: field,
     handleSubmit,
     control,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<RegisterForm>({
     defaultValues: {
       legalName: (data.legalName as string) ?? "",
       email: (data.email as string) ?? "",
       password: "",
+      confirmPassword: "",
       countryCode: (data.countryCode as string) ?? "+91",
       contact: (data.contact as string) ?? "",
       role: (data.role as string) ?? "",
@@ -76,6 +80,8 @@ export default function RegisterPage() {
       termsAccepted: false,
     },
   });
+
+  const passwordVal = watch("password");
 
   const role = useWatch({ control, name: "role" });
   const isB2B = role === "b2b_enterprise";
@@ -124,7 +130,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <main className=" mx-auto grid max-w-[1200px]  grid-cols-1 items-start gap-10 px-4 py-3 sm:px-6 lg:grid-cols-12 lg:gap-16 lg:py-4">
+    <main className="mx-auto grid max-w-[1200px] min-h-[calc(100vh-80px)] grid-cols-1 items-center gap-10 px-4 py-6 sm:px-6 lg:grid-cols-12 lg:gap-16 lg:py-8">
       {/* Left: editorial context */}
       <div className="flex flex-col gap-6 lg:col-span-5 lg:gap-8">
         <div className="space-y-4">
@@ -166,11 +172,11 @@ export default function RegisterPage() {
           </div>
           {/* <StepProgress stepKey="details" /> */}
 
-          <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-2.5">
+          <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
             <Input
               id="legalName"
               type="text"
-              label="LEGAL COMPANY NAME"
+              label="Legal Company Name"
               required
               placeholder="Global Tech Corp"
               error={errors.legalName?.message}
@@ -185,7 +191,7 @@ export default function RegisterPage() {
             <Input
               id="email"
               type="email"
-              label="OFFICIAL EMAIL ADDRESS"
+              label="Official Email Address"
               required
               placeholder="admin@company.com"
               error={errors.email?.message}
@@ -196,11 +202,56 @@ export default function RegisterPage() {
               })}
             />
 
+            <div className="flex flex-col gap-2">
+              <label className={LABEL}>
+                Contact Number<span className="align-middle text-base leading-none text-error"> *</span>
+              </label>
+              <div className={`relative flex h-10 w-full items-center rounded-lg border bg-surface-container-low transition-all duration-200 focus-within:border-primary focus-within:bg-surface-container-lowest focus-within:ring-2 focus-within:ring-primary/10 ${errors.contact?.message ? "border-error/80 ring-2 ring-error/10" : "border-outline-variant/30"
+                }`}>
+                <div className="w-[4.8rem] shrink-0">
+                  <Controller
+                    control={control}
+                    name="countryCode"
+                    render={({ field: cc }) => (
+                      <Select
+                        aria-label="Country code"
+                        searchable
+                        placeholder="Code"
+                        options={DIAL_CODES}
+                        value={cc.value}
+                        onChange={cc.onChange}
+                        className="flex h-10 w-full items-center justify-between gap-1 bg-transparent px-3 text-left text-sm text-on-surface outline-none cursor-pointer hover:opacity-85"
+                        panelClassName="w-72 md:w-80"
+                        displayValueOnly
+                      />
+                    )}
+                  />
+                </div>
+                <div className="h-5 w-px bg-outline-variant/30 shrink-0" />
+                 <input
+                  id="contact"
+                  type="tel"
+                  placeholder="9632585698"
+                  className="h-full flex-1 bg-transparent px-3 text-sm text-on-surface outline-none placeholder:text-outline-variant"
+                  {...field("contact", {
+                    required: "Contact number is required.",
+                    pattern: { value: PHONE_REGEX, message: "Enter a valid 10-digit mobile number." },
+                  })}
+                />
+                <div className="pr-3 text-on-surface-variant flex items-center shrink-0">
+                  <Icon name="smartphone" size={18} />
+                </div>
+              </div>
+              {errors.contact?.message && (
+                <span className="px-1 text-xs font-medium text-error">{errors.contact.message}</span>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
-                label="ACCOUNT PASSWORD"
+                label="Account Password"
                 required
                 placeholder="••••••••••••"
                 error={errors.password?.message}
@@ -208,7 +259,7 @@ export default function RegisterPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    className="text-on-surface-variant transition-colors hover:text-primary"
+                    className="flex items-center justify-center text-on-surface-variant transition-colors hover:text-primary h-full"
                   >
                     <Icon name={showPassword ? "visibility_off" : "visibility"} size={20} />
                   </button>
@@ -221,59 +272,46 @@ export default function RegisterPage() {
                   },
                 })}
               />
-              <div className="flex flex-col gap-2">
-                <label className={LABEL}>
-                  CONTACT NUMBER<span className="align-middle text-base leading-none text-error"> *</span>
-                </label>
-                <div className="grid grid-cols-[7.5rem_1fr] gap-2">
-                  <Controller
-                    control={control}
-                    name="countryCode"
-                    render={({ field: cc }) => (
-                      <Select
-                        aria-label="Country code"
-                        searchable
-                        placeholder="Code"
-                        options={DIAL_CODES}
-                        value={cc.value}
-                        onChange={cc.onChange}
-                      />
-                    )}
-                  />
-                  <Input
-                    id="contact"
-                    type="tel"
-                    placeholder="9632585698"
-                    error={errors.contact?.message}
-                    adornment={<Icon name="smartphone" size={20} />}
-                    {...field("contact", {
-                      required: "Contact number is required.",
-                      pattern: { value: PHONE_REGEX, message: "Enter a valid 10-digit mobile number." },
-                    })}
-                  />
-                </div>
-              </div>
+              <Input
+                id="confirmPassword"
+                type={showConfirmPassword ? "text" : "password"}
+                label="Confirm Password"
+                required
+                placeholder="••••••••••••"
+                error={errors.confirmPassword?.message}
+                adornment={
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((v) => !v)}
+                    className="flex items-center justify-center text-on-surface-variant transition-colors hover:text-primary h-full"
+                  >
+                    <Icon name={showConfirmPassword ? "visibility_off" : "visibility"} size={20} />
+                  </button>
+                }
+                {...field("confirmPassword", {
+                  required: "Please confirm your password.",
+                  validate: (val) => val === passwordVal || "Passwords do not match.",
+                })}
+              />
             </div>
 
             <div className="flex flex-col gap-2">
               <label className={LABEL}>
-                SELECT YOUR ROLE<span className="align-middle text-base leading-none text-error"> *</span>
+                Select Your Role<span className="align-middle text-base leading-none text-error"> *</span>
               </label>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 {ROLES.map((r) => (
                   <label
                     key={r.value}
-                    className={`flex h-12 cursor-pointer items-center gap-3 rounded-xl px-4 transition-colors ${
-                      role === r.value ? "bg-primary-container" : "bg-surface-container-highest hover:bg-surface-variant"
-                    }`}
+                    className="flex h-10 cursor-pointer items-center gap-2.5 px-1 transition-all hover:opacity-85"
                   >
                     <input
                       type="radio"
                       value={r.value}
-                      className="size-4 accent-primary border-outline-variant text-primary focus:ring-primary/20"
+                      className="size-4 cursor-pointer accent-primary border-outline-variant text-primary focus:ring-primary/20"
                       {...field("role", { required: "Please select a role." })}
                     />
-                    <span className="text-sm font-medium text-on-surface">{r.label}</span>
+                    <span className="text-sm font-medium text-on-surface cursor-pointer select-none">{r.label}</span>
                   </label>
                 ))}
               </div>
@@ -286,7 +324,7 @@ export default function RegisterPage() {
                 <Input
                   id="gstNumber"
                   type="text"
-                  label="GST NUMBER"
+                  label="GST Number"
                   required
                   placeholder="22AAAAA0000A1Z5"
                   error={errors.gstNumber?.message}
@@ -299,7 +337,7 @@ export default function RegisterPage() {
                 <Input
                   id="cinNumber"
                   type="text"
-                  label="CIN NUMBER"
+                  label="Cin Number"
                   required
                   placeholder="U12345MH2024PTC123456"
                   error={errors.cinNumber?.message}
