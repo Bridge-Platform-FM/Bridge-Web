@@ -326,10 +326,11 @@ export function InvestorProfileFields({ control, register, setValue, errors }: I
         />
       </div>
 
-      <Input
+      <Textarea
         id="address"
         label="Registered Office / Residential Address (as per government ID)"
         required
+        rows={3}
         placeholder="Address as per your government-issued ID"
         error={e?.address?.message}
         {...register("investor.address", { required: "Address is required." })}

@@ -17,7 +17,7 @@ interface OnboardingContextValue {
   reset: () => void;
 }
 
-const STORAGE_KEY = "corporate-portal.onboarding";
+const STORAGE_KEY = process.env.NEXT_PUBLIC_STORAGE_KEY ?? "bridge-platform.onboarding";
 
 const OnboardingContext = createContext<OnboardingContextValue | null>(null);
 
