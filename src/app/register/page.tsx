@@ -58,7 +58,6 @@ export default function RegisterPage() {
   const { data, setData, goNext, reset } = useOnboarding();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [apiError, setApiError] = useState<string | null>(null);
   // reset the local storage 
   useEffect(() => {
     reset();
@@ -105,7 +104,6 @@ export default function RegisterPage() {
       cinNumber: isB2B ? values.cinNumber : undefined,
     };
 
-    setApiError(null);
     try {
       const res = await registerCompany(payload);
       // Tokens are issued here now — persist them so all subsequent APIs are authenticated.
@@ -129,7 +127,7 @@ export default function RegisterPage() {
       });
       goNext("details");
     } catch (err) {
-      setApiError((err as ApiError).message ?? "Registration failed. Please try again.");
+      toast.error((err as ApiError).message ?? "Registration failed. Please try again.");
     }
   };
 
@@ -370,8 +368,6 @@ export default function RegisterPage() {
               </label>
               <ErrorText msg={errors.termsAccepted?.message} />
             </div>
-
-            {apiError && <ErrorText msg={apiError} />}
 
             <div className="flex flex-col gap-2">
               <button

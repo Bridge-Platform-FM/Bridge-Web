@@ -158,7 +158,6 @@ export default function CompleteProfilePage() {
   // Snapshot of the form taken when Preview is clicked. Captured at click time
   // (not in render) so it reflects the latest values from the uncontrolled inputs.
   const [previewData, setPreviewData] = useState<CompleteProfileForm | null>(null);
-  const [apiError, setApiError] = useState<string | null>(null);
 
   const role = String(data.role ?? "");
 
@@ -204,7 +203,6 @@ export default function CompleteProfilePage() {
     // Build the backend-shaped payload (snake_case keys matching the `user` table).
     const profilePayload = toUserProfilePayload(values, role);
 
-    setApiError(null);
     try {
       const res = await buildProfile(profilePayload);
       toast.success(res.message ?? "Profile saved.");
@@ -227,7 +225,7 @@ export default function CompleteProfilePage() {
       const e = err as ApiError;
       // Surface the first backend field-validation error if present, else the message.
       const fieldErrs = (e.data as { data?: { field: string; message: string }[] } | undefined)?.data;
-      setApiError(fieldErrs?.[0]?.message ?? e.message ?? "Couldn't save your profile. Please try again.");
+      toast.error(fieldErrs?.[0]?.message ?? e.message ?? "Couldn't save your profile. Please try again.");
     }
   };
 
@@ -483,8 +481,6 @@ export default function CompleteProfilePage() {
               {bioChars} / {BIO_MAX_CHARS} characters
             </span>
           </div>
-
-          {apiError && <span className="px-1 text-xs font-medium text-error">{apiError}</span>}
 
           {/* Actions */}
           <div className="flex items-center gap-3 border-t border-outline/10 pt-4">
