@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { Icon } from "@/components/ui/Icon";
+import { Loader } from "@/components/common/loader";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/Select";
@@ -375,7 +376,7 @@ export default function RegisterPage() {
                 disabled={isSubmitting}
                 className="cta-gradient flex h-12 w-full items-center justify-center gap-2 bg-primary rounded-xl font-headline text-base font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isSubmitting ? "Submitting…" : "Continue"}
+                {isSubmitting ? <Loader size={18} /> : "Continue"}
               </button>
               <p className="text-center text-sm text-on-surface-variant">
                 Already registered? <Link href="#" className="font-bold text-primary hover:underline">Sign in to portal</Link>

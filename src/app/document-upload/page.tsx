@@ -8,6 +8,7 @@ import { DocumentUploadCard, type ScannedDoc } from "@/components/onboarding/Doc
 import { DOC_TYPE } from "@/config/docTypes";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { Button } from "@/components/ui/Button";
+import { Loader } from "@/components/common/loader";
 import { Input } from "@/components/ui/input";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
 import { saveKycInfo } from "@/services/kyc.service";
@@ -46,7 +47,7 @@ export default function DocumentUploadPage() {
     control,
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitted },
   } = useForm<DocumentUploadForm>({
     mode: "onChange",
     defaultValues: { aadhaar: {}, pan: {}, aadhaarNumber: "", panNumber: "" },
@@ -56,7 +57,7 @@ export default function DocumentUploadPage() {
     setSubmitting(true);
     try {
       // Shape matches the save-kyc-info API: per-document number + per-side file objects.
-      await saveKycInfo({
+      const res = await saveKycInfo({
         AADHAAR: {
           number: values.aadhaarNumber,
           front: toKycFile(values.aadhaar.front),
@@ -67,6 +68,7 @@ export default function DocumentUploadPage() {
           front: toKycFile(values.pan.pan),
         },
       });
+      toast.success(res.message ?? "Documents submitted for verification.");
 
       setData({
         aadhaarNumber: values.aadhaarNumber,
@@ -167,7 +169,7 @@ export default function DocumentUploadPage() {
             />
           )}
         />
-        <ErrorText msg={errors.aadhaar?.message as string | undefined} />
+        {isSubmitted && <ErrorText msg={errors.aadhaar?.message as string | undefined} />}
 
         <Controller
           control={control}
@@ -187,11 +189,17 @@ export default function DocumentUploadPage() {
             />
           )}
         />
-        <ErrorText msg={errors.pan?.message as string | undefined} />
+        {isSubmitted && <ErrorText msg={errors.pan?.message as string | undefined} />}
 
         <div className="flex flex-col gap-3">
-          <Button type="submit" variant="primary" disabled={!allProvided || submitting} className="h-12 text-base rounded-xl" trailingIcon="chevron_right">
-            {submitting ? "Submitting…" : "Submit for Verification"}
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={!allProvided || submitting}
+            className="h-12 text-base rounded-xl"
+            trailingIcon={submitting ? undefined : "chevron_right"}
+          >
+            {submitting ? <Loader size={18} /> : "Submit for Verification"}
           </Button>
         </div>
       </form>

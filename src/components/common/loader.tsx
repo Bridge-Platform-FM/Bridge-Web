@@ -19,7 +19,7 @@ export function Loader({ size = "medium", className = "", color = "currentColor"
   return (
     <div className={`inline-flex items-center justify-center ${className}`} style={{ flexShrink: 0 }}>
       <svg
-        className="loader-spinner"
+        className="animate-spin"
         style={{ flexShrink: 0 }}
         xmlns="http://www.w3.org/2000/svg"
         fill="none"

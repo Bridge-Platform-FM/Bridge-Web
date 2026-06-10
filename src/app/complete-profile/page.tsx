@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { Icon } from "@/components/ui/Icon";
+import { Loader } from "@/components/common/loader";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
@@ -497,8 +498,14 @@ export default function CompleteProfilePage() {
               disabled={isSubmitting}
               className="cta-gradient flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-primary text-base font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] active:scale-[0.98] disabled:cursor-default disabled:opacity-60 disabled:transform-none"
             >
-              {isSubmitting ? "Saving…" : "Save & Continue"}
-              {!isSubmitting && <Icon name="chevron_right" size={18} />}
+              {isSubmitting ? (
+                <Loader size={18} />
+              ) : (
+                <>
+                  Save & Continue
+                  <Icon name="chevron_right" size={18} />
+                </>
+              )}
             </button>
           </div>
         </form>
