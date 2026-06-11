@@ -8,6 +8,12 @@ const USERS = "/api/v1/users";
 export const API_ENDPOINTS = {
   // TODO: replace with the real register path from the curl.
   REGISTER: `${AUTH}/company-registration`,
+  // TODO: replace with the real login path from the curl.
+  LOGIN: `${AUTH}/login`,
+  // Login MFA: client sends the chosen channel; backend triggers the OTP send.
+  MFA_SELECT_CHANNEL: `${AUTH}/mfa/trigger-otp`,
+  // Login MFA: verify the OTP the user entered for the chosen channel.
+  MFA_VERIFY_OTP: `${AUTH}/mfa/verify-otp`,
   // TODO: replace with the real OTP verify paths from the curls.
   VERIFY_MOBILE_OTP: `${AUTH}/verify-otp`,
   VERIFY_EMAIL_OTP: `${AUTH}/verify-otp`,
