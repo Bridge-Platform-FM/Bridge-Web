@@ -13,6 +13,8 @@ interface ModalProps {
   footer?: React.ReactNode;
   /** Tailwind max-width class for the panel. */
   maxWidthClass?: string;
+  /** Scroll handler for the internal scrollable body (e.g. to detect scroll-to-bottom). */
+  onBodyScroll?: React.UIEventHandler<HTMLDivElement>;
 }
 
 /**
@@ -21,7 +23,7 @@ interface ModalProps {
  * so it escapes any parent stacking/overflow context. Closes on ✕, the default
  * Close button, backdrop click and Escape; locks page scroll while open.
  */
-export function Modal({ open, onClose, title, children, footer, maxWidthClass = "max-w-2xl" }: ModalProps) {
+export function Modal({ open, onClose, title, children, footer, maxWidthClass = "max-w-2xl", onBodyScroll }: ModalProps) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -64,20 +66,23 @@ export function Modal({ open, onClose, title, children, footer, maxWidthClass = 
         </div>
 
         {/* Scrollable body */}
-        <div className="thin-scrollbar flex-1 overflow-y-auto overscroll-contain p-6">{children}</div>
+        <div className="thin-scrollbar flex-1 overflow-y-auto overscroll-contain p-6" onScroll={onBodyScroll}>{children}</div>
 
-        {/* Footer */}
-        <div className="flex shrink-0 items-center justify-end gap-3 border-t border-outline/10 p-4">
-          {footer ?? (
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex h-11 items-center justify-center rounded-xl bg-primary px-6 font-bold text-on-primary transition-colors hover:bg-primary-dim"
-            >
-              Close
-            </button>
-          )}
-        </div>
+        {/* Footer — pass footer={null} to hide it entirely (e.g. when the action
+            lives inside the scrollable body). */}
+        {footer !== null && (
+          <div className="flex shrink-0 items-center justify-end gap-3 border-t border-outline/10 p-4">
+            {footer ?? (
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex h-11 items-center justify-center rounded-xl bg-primary px-6 font-bold text-on-primary transition-colors hover:bg-primary-dim"
+              >
+                Close
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>,
     document.body,

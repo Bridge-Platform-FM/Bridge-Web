@@ -8,7 +8,7 @@ import { getAccessToken } from "@/lib/auth-tokens";
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL ?? "",
   headers: { "Content-Type": "application/json" },
-  timeout: 30000,
+  // timeout: 30000,
 });
 
 // Attach the access token (issued at registration) so every later call is authenticated.
