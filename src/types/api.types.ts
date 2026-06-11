@@ -159,3 +159,30 @@ export interface SaveKycInfoResponse {
   message?: string;
   data?: unknown;
 }
+/**
+ * One stored KYC document side returned by `/file/get-kyc-docs`. Carries the same
+ * fields the scan upload produced plus the review status the backend tracks.
+ */
+export interface KycDocEntry {
+  number: string;
+  front?: KycDocFile;
+  back?: KycDocFile;
+  status?: string;
+  rejection_reason?: string | null;
+  verified_at?: string | null;
+  verified_by?: string | null;
+}
+
+/**
+ * Stored KYC documents returned by `/file/get-kyc-docs`. The backend sends an array of
+ * single-key objects (one per document type), e.g. `[{ AADHAAR: … }, { PAN: … }]`.
+ */
+export type KycDocDetails = Array<Partial<Record<"AADHAAR" | "PAN", KycDocEntry>>>;
+
+export interface GetKycDocsResponse {
+  docDetails: KycDocDetails;
+  /** ISO 8601 timestamp of when the documents were submitted. */
+  submissionTime: string;
+  /** ISO 8601 timestamp of when the review window expires (drives the countdown). */
+  expiryTime: string;
+}

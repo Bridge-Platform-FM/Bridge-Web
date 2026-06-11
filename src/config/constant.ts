@@ -21,4 +21,6 @@ export const API_ENDPOINTS = {
   BUILD_PROFILE: `${USERS}/build-profile`,
   // TODO: replace with the real save-kyc-info path from the curl.
   SAVE_KYC_INFO: `${FILE}/save-kyc-info`,
+  // Fetch the submitted KYC docs + submission/expiry timestamps (verification-status step).
+  GET_KYC_DOCS: `${FILE}/get-kyc-docs`,
 } as const;
