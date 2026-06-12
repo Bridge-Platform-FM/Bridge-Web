@@ -4,11 +4,13 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { Icon } from "@/components/ui/Icon";
+import { Loader } from "@/components/common/loader";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/Select";
 import { DIAL_CODES } from "@/lib/countries";
 import { StepProgress } from "@/components/onboarding/StepProgress";
+import { TermsModal } from "@/components/onboarding/TermsModal";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { toast } from "sonner";
 import { registerCompany } from "@/services/auth.service";
@@ -58,17 +60,18 @@ export default function RegisterPage() {
   const { data, setData, goNext, reset } = useOnboarding();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [apiError, setApiError] = useState<string | null>(null);
   // reset the local storage 
   useEffect(() => {
     reset();
   }, [reset]);
+  const [termsOpen, setTermsOpen] = useState(false);
 
   const {
     register: field,
     handleSubmit,
     control,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<RegisterForm>({
     defaultValues: {
@@ -105,7 +108,6 @@ export default function RegisterPage() {
       cinNumber: isB2B ? values.cinNumber : undefined,
     };
 
-    setApiError(null);
     try {
       const res = await registerCompany(payload);
       // Tokens are issued here now — persist them so all subsequent APIs are authenticated.
@@ -129,7 +131,7 @@ export default function RegisterPage() {
       });
       goNext("details");
     } catch (err) {
-      setApiError((err as ApiError).message ?? "Registration failed. Please try again.");
+      toast.error((err as ApiError).message ?? "Registration failed. Please try again.");
     }
   };
 
@@ -355,23 +357,55 @@ export default function RegisterPage() {
             )}
 
             <div className="flex flex-col gap-2">
-              <label className="flex cursor-pointer items-start gap-3 px-1">
-                <input
-                  type="checkbox"
-                  className="mt-1 size-4 rounded accent-primary border-outline-variant text-primary focus:ring-primary/20"
-                  {...field("termsAccepted", {
-                    required: "Please accept the Terms of Service and Privacy Policy.",
-                  })}
+              <div className="flex items-start gap-3 px-1">
+                <Controller
+                  control={control}
+                  name="termsAccepted"
+                  rules={{ required: "Please accept the Terms of Service and Privacy Policy." }}
+                  render={({ field: termsField }) => (
+                    <input
+                      type="checkbox"
+                      readOnly
+                      checked={!!termsField.value}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setTermsOpen(true);
+                      }}
+                      className="mt-1 size-4 cursor-pointer rounded accent-primary border-outline-variant text-primary focus:ring-primary/20"
+                    />
+                  )}
                 />
                 <span className="text-sm leading-tight text-on-surface-variant">
-                  I agree to the <Link href="#" className="font-bold text-primary hover:underline">Terms of Service</Link> and{" "}
-                  <Link href="#" className="font-bold text-primary hover:underline">Privacy Policy</Link> regarding corporate data handling.<span className="align-middle text-base leading-none text-error"> *</span>
+                  I agree to the{" "}
+                  <button
+                    type="button"
+                    onClick={() => setTermsOpen(true)}
+                    className="font-bold text-primary hover:underline"
+                  >
+                    Terms of Service
+                  </button>{" "}
+                  and{" "}
+                  <button
+                    type="button"
+                    onClick={() => setTermsOpen(true)}
+                    className="font-bold text-primary hover:underline"
+                  >
+                    Privacy Policy
+                  </button>{" "}
+                  regarding corporate data handling.<span className="align-middle text-base leading-none text-error"> *</span>
                 </span>
-              </label>
+              </div>
               <ErrorText msg={errors.termsAccepted?.message} />
             </div>
 
-            {apiError && <ErrorText msg={apiError} />}
+            <TermsModal
+              open={termsOpen}
+              onClose={() => setTermsOpen(false)}
+              onAgree={() => {
+                setValue("termsAccepted", true, { shouldValidate: true });
+                setTermsOpen(false);
+              }}
+            />
 
             <div className="flex flex-col gap-2">
               <button
@@ -379,7 +413,7 @@ export default function RegisterPage() {
                 disabled={isSubmitting}
                 className="cta-gradient flex h-12 w-full items-center justify-center gap-2 bg-primary rounded-xl font-headline text-base font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isSubmitting ? "Submitting…" : "Continue"}
+                {isSubmitting ? <Loader size={18} /> : "Continue"}
               </button>
               <p className="text-center text-sm text-on-surface-variant">
                 Already registered? <Link href="#" className="font-bold text-primary hover:underline">Sign in to portal</Link>

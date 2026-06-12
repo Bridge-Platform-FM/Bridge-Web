@@ -103,8 +103,6 @@ export default function VerifyAccountPage() {
   const [verifyingEmail, setVerifyingEmail] = useState(false);
   const [mobileError, setMobileError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
-  const [mobileMsg, setMobileMsg] = useState<string | null>(null);
-  const [emailMsg, setEmailMsg] = useState<string | null>(null);
 
   const bothVerified = mobileVerified && emailVerified;
 
@@ -122,10 +120,11 @@ export default function VerifyAccountPage() {
     setVerifyingMobile(true);
     try {
       const res = await verifyMobileOtp({ channel: "PHONE", phoneNumber: String(data.contact ?? ""), otp });
-      setMobileMsg(res.message ?? null);
+      toast.success(res.message ?? "Mobile OTP verified.");
       setMobileVerified(true);
     } catch (err) {
-      setMobileError((err as ApiError).message ?? "Verification failed. Please try again.");
+      toast.error((err as ApiError).message ?? "Verification failed. Please try again.");
+      setMobileError("Verification failed");
     } finally {
       setVerifyingMobile(false);
     }
@@ -136,10 +135,11 @@ export default function VerifyAccountPage() {
     setVerifyingEmail(true);
     try {
       const res = await verifyEmailOtp({ channel: "EMAIL", email: String(data.email ?? ""), otp });
-      setEmailMsg(res.message ?? null);
+      toast.success(res.message ?? "Email OTP verified.");
       setEmailVerified(true);
     } catch (err) {
-      setEmailError((err as ApiError).message ?? "Verification failed. Please try again.");
+      toast.error((err as ApiError).message ?? "Verification failed. Please try again.");
+      setEmailError("Verification failed");
     } finally {
       setVerifyingEmail(false);
     }
@@ -232,7 +232,7 @@ export default function VerifyAccountPage() {
 
               {mobileVerified ? (
                 <span className="flex items-center gap-1 px-1 text-xs font-medium text-primary">
-                  <Icon name="check_circle" size={16} />{mobileMsg ?? "Mobile Otp Verified"}
+                  <Icon name="check_circle" size={16} />Mobile Otp Verified
                 </span>
               ) : verifyingMobile ? (
                 <span className="px-1 text-xs font-medium text-on-surface-variant">Verifying…</span>
@@ -274,7 +274,7 @@ export default function VerifyAccountPage() {
 
               {emailVerified ? (
                 <span className="flex items-center gap-1 px-1 text-xs font-medium text-primary">
-                  <Icon name="check_circle" size={16} />{emailMsg ?? "Email Otp Verified"}
+                  <Icon name="check_circle" size={16} />Email Otp Verified
                 </span>
               ) : verifyingEmail ? (
                 <span className="px-1 text-xs font-medium text-on-surface-variant">Verifying…</span>

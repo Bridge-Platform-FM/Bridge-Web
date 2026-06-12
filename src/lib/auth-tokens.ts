@@ -3,8 +3,10 @@
  * Tokens are issued once both OTP channels are verified (registration completes).
  */
 
-const ACCESS_TOKEN_KEY = "corporate-portal.accessToken";
-const REFRESH_TOKEN_KEY = "corporate-portal.refreshToken";
+const ACCESS_TOKEN_KEY =
+  process.env.NEXT_PUBLIC_ACCESS_TOKEN_KEY ?? "bridge-platform.accessToken";
+const REFRESH_TOKEN_KEY =
+  process.env.NEXT_PUBLIC_REFRESH_TOKEN_KEY ?? "bridge-platform.refreshToken";
 
 export interface AuthTokens {
   accessToken: string;

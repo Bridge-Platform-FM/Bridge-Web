@@ -414,10 +414,11 @@ export function B2BProfileFields({ control, register, setValue, errors }: B2BPro
         />
       </div>
 
-      <Input
+      <Textarea
         id="address"
         label="Registered Office / Residential Address"
         required
+        rows={3}
         placeholder="Address as per your registration / government ID"
         error={e?.address?.message}
         {...register("b2b.address", { required: "Address is required." })}

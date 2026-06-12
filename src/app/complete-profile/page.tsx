@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { Icon } from "@/components/ui/Icon";
+import { Loader } from "@/components/common/loader";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
@@ -158,7 +159,6 @@ export default function CompleteProfilePage() {
   // Snapshot of the form taken when Preview is clicked. Captured at click time
   // (not in render) so it reflects the latest values from the uncontrolled inputs.
   const [previewData, setPreviewData] = useState<CompleteProfileForm | null>(null);
-  const [apiError, setApiError] = useState<string | null>(null);
 
   const role = String(data.role ?? "");
 
@@ -204,7 +204,6 @@ export default function CompleteProfilePage() {
     // Build the backend-shaped payload (snake_case keys matching the `user` table).
     const profilePayload = toUserProfilePayload(values, role);
 
-    setApiError(null);
     try {
       const res = await buildProfile(profilePayload);
       toast.success(res.message ?? "Profile saved.");
@@ -227,7 +226,7 @@ export default function CompleteProfilePage() {
       const e = err as ApiError;
       // Surface the first backend field-validation error if present, else the message.
       const fieldErrs = (e.data as { data?: { field: string; message: string }[] } | undefined)?.data;
-      setApiError(fieldErrs?.[0]?.message ?? e.message ?? "Couldn't save your profile. Please try again.");
+      toast.error(fieldErrs?.[0]?.message ?? e.message ?? "Couldn't save your profile. Please try again.");
     }
   };
 
@@ -484,8 +483,6 @@ export default function CompleteProfilePage() {
             </span>
           </div>
 
-          {apiError && <span className="px-1 text-xs font-medium text-error">{apiError}</span>}
-
           {/* Actions */}
           <div className="flex items-center gap-3 border-t border-outline/10 pt-4">
             <button
@@ -501,8 +498,14 @@ export default function CompleteProfilePage() {
               disabled={isSubmitting}
               className="cta-gradient flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-primary text-base font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] active:scale-[0.98] disabled:cursor-default disabled:opacity-60 disabled:transform-none"
             >
-              {isSubmitting ? "Saving…" : "Save & Continue"}
-              {!isSubmitting && <Icon name="chevron_right" size={18} />}
+              {isSubmitting ? (
+                <Loader size={18} />
+              ) : (
+                <>
+                  Save & Continue
+                  <Icon name="chevron_right" size={18} />
+                </>
+              )}
             </button>
           </div>
         </form>
