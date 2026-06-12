@@ -13,7 +13,7 @@ import { type OtpChannel } from "@/lib/validation";
 import type { ApiError } from "@/lib/axios";
 
 // After the channel is chosen + OTP triggered, the user enters the code here.
-const OTP_ENTRY_ROUTE = "/verify-otp";
+const OTP_ENTRY_ROUTE = "/login/verify-otp";
 
 interface ChannelOptionProps {
   icon: string;

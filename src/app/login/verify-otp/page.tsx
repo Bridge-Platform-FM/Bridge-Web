@@ -7,7 +7,7 @@ import { Icon } from "@/components/ui/Icon";
 import { Card } from "@/components/ui/Card";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
 import { OtpInput } from "@/components/onboarding/OtpInput";
-import { ResendControl } from "@/app/verify-account/page";
+import { ResendControl } from "@/app/registration/verify-account/page";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { verifyMfaOtp, selectMfaChannel } from "@/services/auth.service";
 import { maskPhone, maskEmail } from "@/lib/mask";
@@ -81,7 +81,7 @@ export default function VerifyOtpPage() {
   return (
     <main className="flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-8">
       <Card padding="lg" className="flex w-full max-w-[480px] flex-col gap-6 !p-6 sm:!p-8">
-        <FocusedHeader backLabel="Back" backHref="/select-channel" />
+        <FocusedHeader backLabel="Back" backHref="/login/select-channel" />
 
         <div className="text-center">
           <h1 className="mb-3 font-headline text-2xl font-extrabold leading-tight tracking-[-0.02em] text-on-surface md:text-[28px]">

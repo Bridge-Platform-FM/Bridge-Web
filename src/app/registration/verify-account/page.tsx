@@ -179,7 +179,7 @@ export default function VerifyAccountPage() {
   return (
     <main className="flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-8">
       <div className="w-full max-w-[560px] rounded-2xl bg-surface-container-lowest ambient-shadow border border-white/40 flex flex-col gap-3 !p-6 sm:!p-8 lg:gap-6 lg:!p-8">
-        <FocusedHeader backHref="/register" />
+        <FocusedHeader backHref="/registration" />
 
         <div className="mb-3 text-center">
           <h1 className="mb-3 font-headline text-2xl font-extrabold leading-tight tracking-[-0.02em] text-on-surface md:text-[28px]">

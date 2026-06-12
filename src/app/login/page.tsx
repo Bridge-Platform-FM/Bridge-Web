@@ -16,7 +16,7 @@ import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "@/lib/messages";
 import type { ApiError } from "@/lib/axios";
 
 // After a successful sign-in the user picks how to receive their OTP.
-const VERIFY_CHANNEL_ROUTE = "/select-channel";
+const VERIFY_CHANNEL_ROUTE = "/login/select-channel";
 
 /** "Built for every stage" — who BRIDGE serves. */
 const STAGES = [
@@ -223,7 +223,7 @@ export default function LoginPage() {
             />
 
             <div className="flex justify-end">
-              <Link href="#" className="text-sm font-bold text-primary hover:underline">
+              <Link href="/login/forgot-password" className="text-sm font-bold text-primary hover:underline">
                 Forgot password?
               </Link>
             </div>
@@ -238,7 +238,7 @@ export default function LoginPage() {
               </button>
               <p className="text-center text-sm text-on-surface-variant">
                 New to the portal?{" "}
-                <Link href="/register" className="font-bold text-primary hover:underline">
+                <Link href="/registration" className="font-bold text-primary hover:underline">
                   Create an account
                 </Link>
               </p>
