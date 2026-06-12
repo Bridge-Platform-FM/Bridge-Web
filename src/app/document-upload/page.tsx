@@ -12,6 +12,7 @@ import { Loader } from "@/components/common/loader";
 import { Input } from "@/components/ui/input";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
 import { saveKycInfo } from "@/services/kyc.service";
+import { PAN_REGEX, AADHAAR_REGEX } from "@/lib/validation";
 import type { KycDocFile } from "@/types/api.types";
 import type { ApiError } from "@/lib/axios";
 
@@ -22,9 +23,6 @@ const toKycFile = (doc: ScannedDoc): KycDocFile => ({
   file_name: doc.fileName,
   file_size: doc.fileSize,
 });
-
-const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/; // ABCDE1234F
-const AADHAAR_REGEX = /^[0-9]{12}$/; // 12 digits
 
 /** react-hook-form shape: one record of slot→scanned doc (file + s3Key) per card. */
 interface DocumentUploadForm {

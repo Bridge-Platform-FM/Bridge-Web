@@ -15,6 +15,8 @@ import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { toast } from "sonner";
 import { registerCompany } from "@/services/auth.service";
 import { setTokens } from "@/lib/auth-tokens";
+import { GST_REGEX, CIN_REGEX, PHONE_REGEX, PASSWORD_REGEX, EMAIL_REGEX } from "@/lib/validation";
+import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "@/lib/messages";
 import type { ApiError } from "@/lib/axios";
 
 const ROLES = [
@@ -29,12 +31,6 @@ const ROLE_MAP: Record<string, "INVESTOR" | "B2B" | "STARTUP"> = {
   investor: "INVESTOR",
   b2b_enterprise: "B2B",
 };
-
-const GST_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[A-Z0-9]{1}Z[A-Z0-9]{1}$/;
-const CIN_REGEX = /^[A-Z]{1}[0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/;
-const PHONE_REGEX = /^[6-9]\d{9}$/;
-const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const LABEL = "text-xs font-bold text-on-surface-variant tracking-wide px-1 font-label";
 
@@ -116,9 +112,9 @@ export default function RegisterPage() {
       } else {
         // Backend returned success without tokens — treat as a failure rather than
         // advancing into an unauthenticated flow.
-        throw { message: "Registration succeeded but no session was returned. Please try again." } as ApiError;
+        throw { message: ERROR_MESSAGES.NO_SESSION } as ApiError;
       }
-      toast.success(res.message ?? "Registration successful.");
+      toast.success(res.message ?? SUCCESS_MESSAGES.REGISTRATION);
       // Persist UI-shaped fields so prefill keeps working on back-navigation.
       setData({
         legalName: values.legalName,
@@ -416,7 +412,7 @@ export default function RegisterPage() {
                 {isSubmitting ? <Loader size={18} /> : "Continue"}
               </button>
               <p className="text-center text-sm text-on-surface-variant">
-                Already registered? <Link href="#" className="font-bold text-primary hover:underline">Sign in to portal</Link>
+                Already registered? <Link href="/login" className="font-bold text-primary hover:underline">Sign in to portal</Link>
               </p>
             </div>
           </form>

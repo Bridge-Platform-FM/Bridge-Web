@@ -10,6 +10,8 @@ export type OnboardingData = Record<string, unknown>;
 interface OnboardingContextValue {
   data: OnboardingData;
   completed: Record<string, boolean>;
+  /** True once the persisted data has been loaded from localStorage. */
+  hydrated: boolean;
   setData: (patch: OnboardingData) => void;
   markComplete: (key: string) => void;
   goNext: (currentKey: string) => void;
@@ -25,6 +27,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const router = useRouter();
   const [data, setDataState] = useState<OnboardingData>({});
   const [completed, setCompleted] = useState<Record<string, boolean>>({});
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     try {
@@ -37,6 +40,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       }
     } catch {
       /* ignore corrupt storage */
+    } finally {
+      // Mark hydration complete so guards can safely read persisted values.
+      setHydrated(true);
     }
   }, []);
 
@@ -101,8 +107,8 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   const value = useMemo(
-    () => ({ data, completed, setData, markComplete, goNext, goBack, reset }),
-    [data, completed, setData, markComplete, goNext, goBack, reset]
+    () => ({ data, completed, hydrated, setData, markComplete, goNext, goBack, reset }),
+    [data, completed, hydrated, setData, markComplete, goNext, goBack, reset]
   );
 
   return <OnboardingContext.Provider value={value}>{children}</OnboardingContext.Provider>;
