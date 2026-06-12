@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
 import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewModal";
-import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { useFilePreview } from "@/lib/useFilePreview";
+import { getKycDocs } from "@/services/file.service";
+import type { GetKycDocsResponse, KycDocEntry } from "@/types/api.types";
+import type { ApiError } from "@/lib/axios";
 
 /** A submitted document: label + the s3 key returned by the scan upload. */
 interface SubmittedDoc {
@@ -71,28 +73,92 @@ function TimeBox({ value, unit }: { value: string; unit: string }) {
   );
 }
 
-// Initial estimate shown in the countdown (23h 59m 42s).
-const INITIAL_SECONDS = 23 * 3600 + 59 * 60 + 42;
+type DocType = "AADHAAR" | "PAN";
+type DocsByType = Partial<Record<DocType, KycDocEntry>>;
+
+/** Human label per document type, used in the rejection list. */
+const DOC_TYPE_LABEL: Record<DocType, string> = { AADHAAR: "Aadhaar Card", PAN: "PAN Card" };
+
+/**
+ * Merge the API's `docDetails` (an array of single-key objects like `[{AADHAAR:…},{PAN:…}]`)
+ * into one lookup keyed by document type, so order/labels stay fixed regardless of how the
+ * backend orders the array.
+ */
+function mergeDocDetails(docDetails: GetKycDocsResponse["docDetails"]): DocsByType {
+  return Object.assign({}, ...(docDetails ?? [])) as DocsByType;
+}
+
+/** Ordered tile list from the merged lookup. */
+function buildSubmittedDocs(byType: DocsByType): SubmittedDoc[] {
+  return [
+    { label: "Aadhaar (Front)", icon: "badge", s3Key: byType.AADHAAR?.front?.s3_key },
+    { label: "Aadhaar (Back)", icon: "badge", s3Key: byType.AADHAAR?.back?.s3_key },
+    { label: "PAN Card", icon: "credit_card", s3Key: byType.PAN?.front?.s3_key },
+  ].filter((d): d is SubmittedDoc => !!d.s3Key);
+}
+
+/** A rejected document: which doc + why the reviewer rejected it. */
+interface Rejection {
+  label: string;
+  reason: string;
+}
+
+/** Collect the rejected documents (status `rejected`) with their rejection reasons. */
+function collectRejections(byType: DocsByType): Rejection[] {
+  return (Object.keys(byType) as DocType[])
+    .filter((t) => byType[t]?.status?.toLowerCase() === "rejected")
+    .map((t) => ({
+      label: DOC_TYPE_LABEL[t],
+      reason: byType[t]?.rejection_reason || "No reason provided.",
+    }));
+}
 
 export default function VerificationStatusPage() {
-  const { data } = useOnboarding();
-  const [remaining, setRemaining] = useState(INITIAL_SECONDS);
+  const [kyc, setKyc] = useState<GetKycDocsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [previewKey, setPreviewKey] = useState<string | null>(null);
 
-  // Build the submitted-document list from the s3 keys saved on the upload step.
-  const submitted: SubmittedDoc[] = [
-    { label: "Aadhaar (Front)", icon: "badge", s3Key: data.aadhaarFrontKey as string },
-    { label: "Aadhaar (Back)", icon: "badge", s3Key: data.aadhaarBackKey as string },
-    { label: "PAN Card", icon: "credit_card", s3Key: data.panKey as string },
-  ].filter((d): d is SubmittedDoc => !!d.s3Key);
-
+  // Fetch the submitted documents + submission/expiry timestamps on mount.
   useEffect(() => {
-    const id = setInterval(() => {
-      setRemaining((s) => (s <= 0 ? 0 : s - 1));
-    }, 1000);
-    return () => clearInterval(id);
+    let cancelled = false;
+    getKycDocs()
+      .then((res) => {
+        if (cancelled) return;
+        setKyc(res);
+        setLoadError(null);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setLoadError((err as ApiError)?.message || "Couldn't load your verification status.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
+  // Expiry as epoch ms; the countdown is recomputed from this each tick (no drift).
+  const expiryMs = useMemo(() => {
+    const t = kyc?.expiryTime ? Date.parse(kyc.expiryTime) : NaN;
+    return Number.isNaN(t) ? null : t;
+  }, [kyc?.expiryTime]);
+
+  const [remaining, setRemaining] = useState(0);
+  useEffect(() => {
+    if (expiryMs == null) return;
+    const tick = () => setRemaining(Math.max(0, Math.floor((expiryMs - Date.now()) / 1000)));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [expiryMs]);
+
+  const byType = useMemo(() => (kyc ? mergeDocDetails(kyc.docDetails) : {}), [kyc]);
+  const submitted = buildSubmittedDocs(byType);
+  const rejections = collectRejections(byType);
+  const isRejected = rejections.length > 0;
   const hours = Math.floor(remaining / 3600);
   const mins = Math.floor((remaining % 3600) / 60);
   const secs = remaining % 60;
@@ -125,11 +191,11 @@ export default function VerificationStatusPage() {
         <div className="flex flex-col items-center justify-center rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-5 shadow-sm">
           <span className="mb-4 font-label text-sm uppercase tracking-wider text-on-surface-variant">Estimated Time Remaining</span>
           <div className="flex items-center gap-4">
-            <TimeBox value={pad(hours)} unit="Hours" />
+            <TimeBox value={loading || expiryMs == null ? "--" : pad(hours)} unit="Hours" />
             <span className="mb-6 text-2xl font-bold text-surface-dim">:</span>
-            <TimeBox value={pad(mins)} unit="Mins" />
+            <TimeBox value={loading || expiryMs == null ? "--" : pad(mins)} unit="Mins" />
             <span className="mb-6 text-2xl font-bold text-surface-dim">:</span>
-            <TimeBox value={pad(secs)} unit="Secs" />
+            <TimeBox value={loading || expiryMs == null ? "--" : pad(secs)} unit="Secs" />
           </div>
         </div>
 
@@ -149,7 +215,15 @@ export default function VerificationStatusPage() {
       {/* Submitted documents */}
       <div>
         <h3 className="mb-3 font-headline text-lg font-bold text-on-surface">Submitted Documents</h3>
-        {submitted.length > 0 ? (
+        {loading ? (
+          <p className="flex items-center justify-center gap-2 rounded-lg border border-outline-variant/20 bg-surface-container-highest px-4 py-6 text-center text-sm text-on-surface-variant">
+            <Icon name="progress_activity" size={18} className="animate-spin text-primary" /> Loading your documents…
+          </p>
+        ) : loadError ? (
+          <p className="flex items-center justify-center gap-2 rounded-lg border border-error/30 bg-error-container/30 px-4 py-6 text-center text-sm text-on-error-container">
+            <Icon name="error" size={18} className="text-error" /> {loadError}
+          </p>
+        ) : submitted.length > 0 ? (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             {submitted.map((d) => (
               <SubmittedDocTile key={d.label} doc={d} onPreview={() => setPreviewKey(d.s3Key)} />

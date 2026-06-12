@@ -1,7 +1,7 @@
 import { api } from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/constant";
 import type { DocType, DocSide } from "@/config/docTypes";
-import type { ScanResult } from "@/types/api.types";
+import type { ScanResult, GetKycDocsResponse } from "@/types/api.types";
 
 /** Extra context sent with a scan so the backend knows which document this is. */
 export interface ScanMeta {
@@ -53,3 +53,14 @@ export const getFilePreview = (key: string): Promise<Blob> =>
   api
     .get(API_ENDPOINTS.FILE_PREVIEW, { params: { key: key }, responseType: "blob" })
     .then((res) => res.data);
+/**
+ * Fetch the submitted KYC documents for the authenticated company along with the
+ * submission/expiry timestamps (verification-status step). The access token is
+ * attached automatically by the axios interceptor. Some backends wrap the payload in
+ * `{ data: … }`; we unwrap that case so callers always get the flat response body.
+ */
+export const getKycDocs = (): Promise<GetKycDocsResponse> =>
+  api.get<GetKycDocsResponse | { data: GetKycDocsResponse }>(API_ENDPOINTS.GET_KYC_DOCS).then((res) => {
+    const body = res.data as GetKycDocsResponse & { data?: GetKycDocsResponse };
+    return body.data ?? body;
+  });

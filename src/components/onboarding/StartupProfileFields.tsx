@@ -348,7 +348,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
       {/* document upload uncomment the this block  */}
       
       {/* Mandatory documents */}
-      {/* <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4">
         <p className={SECTION_TITLE}>Documents</p>
         <Controller
           control={control}
@@ -385,7 +385,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
             />
           )}
         />
-      </div> */}
+      </div>
     </div>
   );
 }
