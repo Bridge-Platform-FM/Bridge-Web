@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { Icon } from "@/components/ui/Icon";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
@@ -8,9 +8,9 @@ import { OtpInput } from "@/components/onboarding/OtpInput";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { toast } from "sonner";
 import { verifyMobileOtp, verifyEmailOtp, resendOtp } from "@/services/auth.service";
+import { maskPhone, maskEmail } from "@/lib/mask";
+import { OTP_LENGTH } from "@/lib/validation";
 import type { ApiError } from "@/lib/axios";
-
-const OTP_LENGTH = 4;
 
 const RESEND_SECONDS = 60;
 
@@ -20,30 +20,21 @@ interface VerifyForm {
   emailOtp: string[];
 }
 
-/** Mask a phone number, keeping only the last 4 digits visible. */
-function maskPhone(phone: string): string {
-  const digits = phone.replace(/\D/g, "");
-  if (digits.length < 4) return "(+91 ••• ••• 4492)";
-  return `••• ••• ${digits.slice(-4)}`;
-}
-
-/** Mask an email: first char + dots for the hidden middle + last 4 chars, domain shown. */
-function maskEmail(email: string): string {
-  const [local, domain] = email.split("@");
-  if (!local || !domain) return "(j•••@company.com)";
-  if (local.length <= 5) return `${local}@${domain}`;
-  const hidden = local.length - 5; // 1 first char + 4 last chars revealed
-  return `${local[0]}${".".repeat(hidden)}${local.slice(-4)}@${domain}`;
-}
-
 /**
- * Self-contained resend control: starts a 60s countdown on mount, shows the
- * timer while active, swaps to a Resend button at 0, and restarts on resend.
- * Each instance owns its timer, so mobile/email are independent. Occupies a
- * fixed-width slot so the timer→button swap doesn't shift layout.
+ * Self-contained resend control: starts a countdown on mount, shows the timer
+ * while active, swaps to a Resend button at 0, and restarts on a successful
+ * resend. Each instance owns its timer, so multiple channels stay independent.
+ * Occupies a fixed-width slot so the timer→button swap doesn't shift layout.
+ * Exported so the login MFA verify-otp screen can reuse the same control.
  */
-function ResendControl({ onResend }: { onResend: () => Promise<void> }) {
-  const [seconds, setSeconds] = useState(RESEND_SECONDS);
+export function ResendControl({
+  onResend,
+  seconds: initialSeconds = RESEND_SECONDS,
+}: {
+  onResend: () => Promise<void>;
+  seconds?: number;
+}) {
+  const [seconds, setSeconds] = useState(initialSeconds);
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
@@ -59,7 +50,7 @@ function ResendControl({ onResend }: { onResend: () => Promise<void> }) {
     try {
       await onResend();
       // Only restart the cooldown when the resend actually succeeded.
-      setSeconds(RESEND_SECONDS);
+      setSeconds(initialSeconds);
     } catch {
       // Leave the button active so the user can retry.
     } finally {
@@ -188,7 +179,7 @@ export default function VerifyAccountPage() {
   return (
     <main className="flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-8">
       <div className="w-full max-w-[560px] rounded-2xl bg-surface-container-lowest ambient-shadow border border-white/40 flex flex-col gap-3 !p-6 sm:!p-8 lg:gap-6 lg:!p-8">
-        <FocusedHeader backHref="/register" />
+        <FocusedHeader backHref="/registration" />
 
         <div className="mb-3 text-center">
           <h1 className="mb-3 font-headline text-2xl font-extrabold leading-tight tracking-[-0.02em] text-on-surface md:text-[28px]">

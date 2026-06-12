@@ -171,6 +171,14 @@ body.modal-open main {
   background-color: rgba(43, 52, 55, 0.4);
 }
 
+/* Scrollable but with no visible scrollbar (Firefox + webkit). */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Material Symbols Outlined (font loaded via <link> in layout) */
 .material-symbols-outlined {
   font-family: "Material Symbols Outlined";

@@ -3,6 +3,12 @@ import { API_ENDPOINTS } from "@/config/constant";
 import type {
   RegisterPayload,
   RegisterResponse,
+  LoginPayload,
+  LoginResponse,
+  SelectChannelPayload,
+  SelectChannelResponse,
+  VerifyMfaOtpPayload,
+  VerifyMfaOtpResponse,
   VerifyOtpPayload,
   VerifyOtpResponse,
   ResendOtpPayload,
@@ -17,6 +23,34 @@ import type {
  */
 export async function registerCompany(payload: RegisterPayload): Promise<RegisterResponse> {
   const { data } = await api.post<RegisterResponse>(API_ENDPOINTS.REGISTER, payload);
+  return data;
+}
+
+/**
+ * Log in an existing user with email + password.
+ * NOTE: swap the method/URL/body/headers here when the real curl is provided.
+ */
+export async function loginUser(payload: LoginPayload): Promise<LoginResponse> {
+  const { data } = await api.post<LoginResponse>(API_ENDPOINTS.LOGIN, payload);
+  return data;
+}
+
+/**
+ * Login MFA: send the chosen channel (EMAIL | PHONE) to the backend, which then
+ * triggers the OTP send over that channel.
+ * NOTE: swap the method/URL/body/headers here when the real curl is provided.
+ */
+export async function selectMfaChannel(payload: SelectChannelPayload): Promise<SelectChannelResponse> {
+  const { data } = await api.post<SelectChannelResponse>(API_ENDPOINTS.MFA_SELECT_CHANNEL, payload);
+  return data;
+}
+
+/**
+ * Login MFA: verify the OTP the user entered for the chosen channel.
+ * NOTE: swap the method/URL/body/headers here when the real curl is provided.
+ */
+export async function verifyMfaOtp(payload: VerifyMfaOtpPayload): Promise<VerifyMfaOtpResponse> {
+  const { data } = await api.post<VerifyMfaOtpResponse>(API_ENDPOINTS.MFA_VERIFY_OTP, payload);
   return data;
 }
 

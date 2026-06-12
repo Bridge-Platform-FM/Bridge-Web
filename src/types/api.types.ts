@@ -19,6 +19,61 @@ export interface RegisterResponse {
   data?: { accessToken: string; refreshToken: string };
 }
 
+/** Payload sent when logging in. Field names/values match the backend schema. */
+export interface LoginPayload {
+  email: string;
+  password: string;
+}
+
+/**
+ * Response from the login endpoint. Tokens authenticate subsequent requests;
+ * `redirectTo` is the route the backend wants the client to land on (e.g. the
+ * next pending onboarding step or the home dashboard).
+ */
+export interface LoginResponse {
+  success?: boolean;
+  message?: string;
+  data?: {
+    accessToken: string;
+    refreshToken: string;
+    redirectTo?: string;
+    /** Contact info echoed back so the verification-channel screen can mask it. */
+    phoneNumber?: string;
+    email?: string;
+  };
+}
+
+/**
+ * Login MFA channel selection. The client only sends the chosen channel; the
+ * backend then triggers the OTP send over that channel.
+ */
+export interface SelectChannelPayload {
+  channel: "EMAIL" | "PHONE";
+}
+
+/** Response from the MFA select-channel endpoint. */
+export interface SelectChannelResponse {
+  success?: boolean;
+  message?: string;
+  data?: unknown;
+}
+
+/**
+ * Login MFA OTP verification. `channel` uses the same enum as registration; the
+ * user is already authenticated (token), so only the channel + code are sent.
+ */
+export interface VerifyMfaOtpPayload {
+  channel: "EMAIL" | "PHONE";
+  otp: string;
+}
+
+/** Response from the MFA verify-otp endpoint. */
+export interface VerifyMfaOtpResponse {
+  success?: boolean;
+  message?: string;
+  data?: unknown;
+}
+
 /** Payload for verifying a one-time code. Field names/values match the backend schema. */
 export interface VerifyOtpPayload {
   /** Which channel the code was sent over. */

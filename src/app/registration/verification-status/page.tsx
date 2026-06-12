@@ -167,7 +167,7 @@ export default function VerificationStatusPage() {
   return (
     <div className="flex min-h-[calc(100vh-4rem)] w-full items-center justify-center px-4 py-4">
     <div className="mx-auto w-full max-w-[760px] rounded-2xl bg-surface-container-lowest ambient-shadow border border-white/40 flex flex-col gap-3 !p-5 sm:!p-6 lg:gap-4 lg:!p-6">
-      <FocusedHeader backLabel="Back to Overview" backHref="/document-upload" />
+      <FocusedHeader backLabel="Back to Overview" backHref="/registration/document-upload" />
 
       {/* <div className="mb-8 mt-4 rounded-xl bg-surface-container-low p-6">
          <StepProgress stepKey="status" showLabels={false} /> 
