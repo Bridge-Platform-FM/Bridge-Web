@@ -14,6 +14,9 @@ export const API_ENDPOINTS = {
   MFA_SELECT_CHANNEL: `${AUTH}/mfa/trigger-otp`,
   // Login MFA: verify the OTP the user entered for the chosen channel.
   MFA_VERIFY_OTP: `${AUTH}/mfa/verify-otp`,
+  // Switch the active user role — backend re-issues a new access token for the
+  // chosen role. TODO: confirm the real path/shape from the curl.
+  SWITCH_ROLE: `${AUTH}/switch-role`,
   // TODO: replace with the real OTP verify paths from the curls.
   VERIFY_MOBILE_OTP: `${AUTH}/verify-otp`,
   VERIFY_EMAIL_OTP: `${AUTH}/verify-otp`,

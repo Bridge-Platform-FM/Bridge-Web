@@ -5,56 +5,15 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Icon } from "@/components/ui/Icon";
 import { Card } from "@/components/ui/Card";
+import { SelectableOptionRow } from "@/components/ui/SelectableOptionRow";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { selectMfaChannel } from "@/services/auth.service";
-import { maskPhone, maskEmail } from "@/lib/mask";
 import { type OtpChannel } from "@/lib/validation";
 import type { ApiError } from "@/lib/axios";
 
 // After the channel is chosen + OTP triggered, the user enters the code here.
 const OTP_ENTRY_ROUTE = "/login/verify-otp";
-
-interface ChannelOptionProps {
-  icon: string;
-  title: string;
-  value: string;
-  selected: boolean;
-  onSelect: () => void;
-}
-
-/** One selectable verification channel row (mobile / email). */
-function ChannelOption({ icon, title, value, selected, onSelect }: ChannelOptionProps) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-pressed={selected}
-      className={`flex items-center gap-4 rounded-xl border p-4 text-left transition-all ${
-        selected
-          ? "border-primary bg-primary-container/40 ring-2 ring-primary/15"
-          : "border-outline-variant/30 bg-surface-container-low hover:border-outline-variant/60"
-      }`}
-    >
-      <div
-        className={`flex size-11 shrink-0 items-center justify-center rounded-lg ${
-          selected ? "bg-primary text-on-primary" : "bg-surface-container-highest text-primary"
-        }`}
-      >
-        <Icon name={icon} size={22} />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="font-bold text-on-surface">{title}</p>
-        <p className="truncate text-sm text-on-surface-variant">{value}</p>
-      </div>
-      <Icon
-        name={selected ? "check_circle" : "radio_button_unchecked"}
-        size={22}
-        className={selected ? "text-primary" : "text-outline-variant"}
-      />
-    </button>
-  );
-}
 
 export default function SelectChannelPage() {
   const router = useRouter();
@@ -62,8 +21,9 @@ export default function SelectChannelPage() {
   const [channel, setChannel] = useState<OtpChannel>("PHONE");
   const [sending, setSending] = useState(false);
 
-  const phone = String(data.contact ?? "");
-  const email = String(data.email ?? "");
+  // Both values arrive already masked from the login API; show them as-is.
+  const maskedMobile = String(data.maskedMobile ?? "");
+  const maskedEmail = String(data.maskedEmail ?? "");
 
   const handleContinue = async () => {
     if (sending) return;
@@ -97,17 +57,17 @@ export default function SelectChannelPage() {
         </div>
 
         <div className="flex flex-col gap-3">
-          <ChannelOption
+          <SelectableOptionRow
             icon="smartphone"
             title="Send OTP to Mobile"
-            value={maskPhone(phone)}
+            subtitle={maskedMobile}
             selected={channel === "PHONE"}
             onSelect={() => setChannel("PHONE")}
           />
-          <ChannelOption
+          <SelectableOptionRow
             icon="mail"
             title="Send OTP to Email"
-            value={maskEmail(email)}
+            subtitle={maskedEmail}
             selected={channel === "EMAIL"}
             onSelect={() => setChannel("EMAIL")}
           />

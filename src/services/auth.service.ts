@@ -13,6 +13,8 @@ import type {
   VerifyOtpResponse,
   ResendOtpPayload,
   ResendOtpResponse,
+  SwitchRolePayload,
+  SwitchRoleResponse,
 } from "@/types/api.types";
 
 /**
@@ -51,6 +53,16 @@ export async function selectMfaChannel(payload: SelectChannelPayload): Promise<S
  */
 export async function verifyMfaOtp(payload: VerifyMfaOtpPayload): Promise<VerifyMfaOtpResponse> {
   const { data } = await api.post<VerifyMfaOtpResponse>(API_ENDPOINTS.MFA_VERIFY_OTP, payload);
+  return data;
+}
+
+/**
+ * Switch the active user role. The backend re-issues a fresh access token scoped
+ * to the chosen role; the caller persists the new tokens + role.
+ * NOTE: swap the method/URL/body/headers here when the real curl is provided.
+ */
+export async function switchRole(payload: SwitchRolePayload): Promise<SwitchRoleResponse> {
+  const { data } = await api.post<SwitchRoleResponse>(API_ENDPOINTS.SWITCH_ROLE, payload);
   return data;
 }
 

@@ -19,6 +19,8 @@ export interface RegisterResponse {
   data?: { accessToken: string; refreshToken: string };
 }
 
+import type { Role } from "@/lib/roles";
+
 /** Payload sent when logging in. Field names/values match the backend schema. */
 export interface LoginPayload {
   email: string;
@@ -37,9 +39,28 @@ export interface LoginResponse {
     accessToken: string;
     refreshToken: string;
     redirectTo?: string;
-    /** Contact info echoed back so the verification-channel screen can mask it. */
-    phoneNumber?: string;
-    email?: string;
+    /** Raw role string from the backend (e.g. "INVESTOR"); normalize via normalizeRole. */
+    role?: string;
+    /** Already-masked contact info for display on the verification-channel screen. */
+    maskedMobile?: string;
+    maskedEmail?: string;
+  };
+}
+
+/** Payload for switching the active user role (re-issues a token for that role). */
+export interface SwitchRolePayload {
+  role: Role;
+}
+
+/** Response from the switch-role endpoint — new tokens + the now-active role. */
+export interface SwitchRoleResponse {
+  success?: boolean;
+  message?: string;
+  data?: {
+    accessToken: string;
+    refreshToken: string;
+    /** Raw role string from the backend; normalize via normalizeRole. */
+    role?: string;
   };
 }
 
@@ -71,7 +92,10 @@ export interface VerifyMfaOtpPayload {
 export interface VerifyMfaOtpResponse {
   success?: boolean;
   message?: string;
-  data?: unknown;
+  data?: {
+    /** Route the backend wants the client to land on after verification. */
+    redirectRoute?: string;
+  };
 }
 
 /** Payload for verifying a one-time code. Field names/values match the backend schema. */

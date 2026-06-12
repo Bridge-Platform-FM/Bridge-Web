@@ -10,6 +10,8 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/input";
 import { loginUser } from "@/services/auth.service";
 import { setTokens } from "@/lib/auth-tokens";
+import { setSession } from "@/lib/auth-session";
+import { normalizeRole } from "@/lib/roles";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { EMAIL_REGEX } from "@/lib/validation";
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "@/lib/messages";
@@ -100,11 +102,18 @@ export default function LoginPage() {
       } else {
         throw { message: ERROR_MESSAGES.NO_SESSION } as ApiError;
       }
-      // Persist the contact info so the verification-channel screen can mask it
-      // (phone comes from the backend; email falls back to what was typed).
+      // Persist the role from the login response so the dashboard can render the
+      // role-specific view once MFA completes (we never decode the JWT). The
+      // backend sends an uppercase enum, so normalize it to our frontend Role.
+      const role = normalizeRole(res.data.role);
+      if (role) {
+        setSession({ role, user: { email: values.email } });
+      }
+      // Persist the masked contact info for the verification-channel screen. Both
+      // values arrive already masked from the backend — no client-side masking.
       setData({
-        email: res.data.email ?? values.email,
-        contact: res.data.phoneNumber ?? "",
+        maskedEmail: res.data.maskedEmail ?? "",
+        maskedMobile: res.data.maskedMobile ?? "",
       });
       toast.success(res.message ?? SUCCESS_MESSAGES.LOGIN);
       router.push(VERIFY_CHANNEL_ROUTE);
