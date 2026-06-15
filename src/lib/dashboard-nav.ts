@@ -27,20 +27,22 @@ const CONNECTIONS: NavItem = { key: "connections", label: "Connections", icon: "
 const DEAL_ROOM: NavItem = { key: "deal-room", label: "Deal Room", icon: "handshake", route: "/dashboard/deal-room" };
 const PROFILE: NavItem = { key: "profile", label: "Profile", icon: "account_circle", route: "/dashboard/profile" };
 
+// Shared staff (admin / super_admin) menu — declared once, reused for both roles.
+const STAFF_NAV: NavItem[] = [
+  DASHBOARD,
+  { key: "matching-engine", label: "Matching Engine", icon: "join_inner", route: "/dashboard/matching-engine" },
+  { key: "user-management", label: "User Management", icon: "manage_accounts", route: "/dashboard/user-management" },
+  { key: "kyc-review", label: "KYC Review", icon: "verified_user", route: "/dashboard/kyc-review" },
+  { key: "subscription", label: "Subscription", icon: "card_membership", route: "/dashboard/subscription" },
+  PROFILE,
+];
+
+/** Support entry pinned above Logout for staff roles (see DashboardSidebar). */
+export const SUPPORT_NAV: NavItem = { key: "support", label: "Support", icon: "support_agent", route: "/dashboard/support" };
+
 export const DASHBOARD_NAV: Record<Role, NavItem[]> = {
-  super_admin: [
-    DASHBOARD,
-    { key: "users", label: "Users", icon: "group", route: "/dashboard/users" },
-    { key: "organizations", label: "Organizations", icon: "corporate_fare", route: "/dashboard/organizations" },
-    { key: "kyc-approvals", label: "KYC Approvals", icon: "verified_user", route: "/dashboard/kyc-approvals" },
-    { key: "settings", label: "Settings", icon: "settings", route: "/dashboard/settings" },
-  ],
-  admin: [
-    DASHBOARD,
-    { key: "kyc-approvals", label: "KYC Approvals", icon: "verified_user", route: "/dashboard/kyc-approvals" },
-    { key: "support", label: "Support", icon: "support_agent", route: "/dashboard/support" },
-    { key: "settings", label: "Settings", icon: "settings", route: "/dashboard/settings" },
-  ],
+  super_admin: STAFF_NAV,
+  admin: STAFF_NAV,
   startup: [
     DASHBOARD,
     { key: "find-investors", label: "Find Investors", icon: "savings", route: "/dashboard/find-investors" },

@@ -7,8 +7,8 @@ import { Icon } from "@/components/ui/Icon";
 import { BrandLockup } from "@/components/layout/navbar";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { SwitchUserModal } from "@/components/dashboard/SwitchUserModal";
-import { getNavForRole } from "@/lib/dashboard-nav";
-import { ROLE_META, isUserRole } from "@/lib/roles";
+import { getNavForRole, SUPPORT_NAV } from "@/lib/dashboard-nav";
+import { ROLE_META, isUserRole, isStaffRole } from "@/lib/roles";
 
 /**
  * Dynamic dashboard sidebar. Reads the current role from `useAuth()` and renders
@@ -86,6 +86,21 @@ export function DashboardSidebar() {
             <p className="truncate text-xs text-on-surface-variant">{meta.label}</p>
           </div>
         </div>
+
+        {isStaffRole(role) && (
+          <Link
+            href={SUPPORT_NAV.route}
+            aria-current={isActive(SUPPORT_NAV.route) ? "page" : undefined}
+            className={`mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
+              isActive(SUPPORT_NAV.route)
+                ? "bg-primary-container/50 text-primary"
+                : "text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface"
+            }`}
+          >
+            <Icon name={SUPPORT_NAV.icon} size={20} filled={isActive(SUPPORT_NAV.route)} />
+            {SUPPORT_NAV.label}
+          </Link>
+        )}
 
         <button
           type="button"
