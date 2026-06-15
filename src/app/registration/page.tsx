@@ -14,7 +14,8 @@ import { TermsModal } from "@/components/onboarding/TermsModal";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { toast } from "sonner";
 import { registerCompany } from "@/services/auth.service";
-import { setTokens } from "@/lib/auth-tokens";
+import { setTokens, clearTokens } from "@/lib/auth-tokens";
+import { clearSession } from "@/lib/auth-session";
 import { GST_REGEX, CIN_REGEX, PHONE_REGEX, PASSWORD_REGEX, EMAIL_REGEX } from "@/lib/validation";
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "@/lib/messages";
 import type { ApiError } from "@/lib/axios";
@@ -56,9 +57,12 @@ export default function RegisterPage() {
   const { data, setData, goNext, reset } = useOnboarding();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  // reset the local storage 
+  // Landing on registration starts a fresh signup: wipe the onboarding blob, the
+  // auth tokens, and any stored session so no stale auth/role carries over.
   useEffect(() => {
     reset();
+    clearTokens();
+    clearSession();
   }, [reset]);
   const [termsOpen, setTermsOpen] = useState(false);
 

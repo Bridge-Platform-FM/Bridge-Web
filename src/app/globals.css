@@ -127,6 +127,15 @@ select:focus-visible {
   outline: none;
 }
 
+/* The App Router moves focus to the main scroll container (or a tabindex=-1
+   wrapper) after a client-side navigation/redirect, which makes the browser draw
+   its default outline around the whole page. These aren't keyboard-tabbable, so
+   suppressing their outline doesn't affect keyboard accessibility. */
+main:focus,
+[tabindex="-1"]:focus {
+  outline: none;
+}
+
 /* Signature surfaces from the Stitch <style> blocks */
 .cta-gradient,
 .primary-gradient {

@@ -10,12 +10,11 @@ import { OtpInput } from "@/components/onboarding/OtpInput";
 import { ResendControl } from "@/app/registration/verify-account/page";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { verifyMfaOtp, selectMfaChannel } from "@/services/auth.service";
-import { maskPhone, maskEmail } from "@/lib/mask";
 import { OTP_LENGTH, type OtpChannel } from "@/lib/validation";
 import type { ApiError } from "@/lib/axios";
 
-// Where to land once the OTP is verified (session already authenticated).
-const SUCCESS_ROUTE = "/home";
+// Fallback landing route if the verify response doesn't supply a redirectRoute.
+const SUCCESS_ROUTE = "/dashboard";
 
 export default function VerifyOtpPage() {
   const router = useRouter();
@@ -23,17 +22,20 @@ export default function VerifyOtpPage() {
 
   // Which channel the user picked on the previous screen.
   const channel = (data.mfaChannel as OtpChannel) ?? "PHONE";
-  const phone = String(data.contact ?? "");
-  const email = String(data.email ?? "");
+  // Both values arrive already masked from the login API; show them as-is.
+  const maskedMobile = String(data.maskedMobile ?? "");
+  const maskedEmail = String(data.maskedEmail ?? "");
 
   const isPhone = channel === "PHONE";
-  const maskedTarget = isPhone ? maskPhone(phone) : maskEmail(email);
+  const maskedTarget = isPhone ? maskedMobile : maskedEmail;
 
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
   const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  // Route the backend hands back on successful verification (falls back below).
+  const [redirectRoute, setRedirectRoute] = useState<string | null>(null);
 
   const verify = async (code: string) => {
     setError(null);
@@ -41,6 +43,7 @@ export default function VerifyOtpPage() {
     try {
       const res = await verifyMfaOtp({ channel, otp: code });
       setMessage(res.message ?? null);
+      setRedirectRoute(res.data?.redirectRoute ?? null);
       setVerified(true);
     } catch (err) {
       setError((err as ApiError).message ?? "Verification failed. Please try again.");
@@ -75,7 +78,8 @@ export default function VerifyOtpPage() {
       toast.error("Please verify the OTP to continue.");
       return;
     }
-    router.push(SUCCESS_ROUTE);
+    // Honor the backend's redirectRoute; fall back to the dashboard.
+    router.push(redirectRoute || SUCCESS_ROUTE);
   };
 
   return (
