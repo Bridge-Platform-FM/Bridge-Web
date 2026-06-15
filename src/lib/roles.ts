@@ -86,3 +86,8 @@ export function normalizeRole(raw: unknown): Role | null {
 export function isUserRole(role: Role | null | undefined): boolean {
   return !!role && USER_ROLES.includes(role);
 }
+
+/** Whether the given role is a staff role (super_admin / admin). */
+export function isStaffRole(role: Role | null | undefined): boolean {
+  return role === "super_admin" || role === "admin";
+}
