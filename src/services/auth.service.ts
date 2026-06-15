@@ -17,6 +17,32 @@ import type {
   SwitchRoleResponse,
 } from "@/types/api.types";
 
+/** Which login portal a request targets — selects the endpoint group below. */
+export type Portal = "user" | "admin" | "superadmin";
+
+/**
+ * Resolve the login + MFA endpoints for a portal from API_ENDPOINTS (the single
+ * source of the path strings). All three portals share identical request/response
+ * shapes and differ only by path.
+ */
+const AUTH_BY_PORTAL: Record<Portal, { LOGIN: string; MFA_SELECT_CHANNEL: string; MFA_VERIFY_OTP: string }> = {
+  user: {
+    LOGIN: API_ENDPOINTS.LOGIN,
+    MFA_SELECT_CHANNEL: API_ENDPOINTS.MFA_SELECT_CHANNEL,
+    MFA_VERIFY_OTP: API_ENDPOINTS.MFA_VERIFY_OTP,
+  },
+  admin: {
+    LOGIN: API_ENDPOINTS.ADMIN_LOGIN,
+    MFA_SELECT_CHANNEL: API_ENDPOINTS.ADMIN_MFA_SELECT_CHANNEL,
+    MFA_VERIFY_OTP: API_ENDPOINTS.ADMIN_MFA_VERIFY_OTP,
+  },
+  superadmin: {
+    LOGIN: API_ENDPOINTS.SUPERADMIN_LOGIN,
+    MFA_SELECT_CHANNEL: API_ENDPOINTS.SUPERADMIN_MFA_SELECT_CHANNEL,
+    MFA_VERIFY_OTP: API_ENDPOINTS.SUPERADMIN_MFA_VERIFY_OTP,
+  },
+};
+
 /**
  * Register the company (step 1).
  *
@@ -30,29 +56,39 @@ export async function registerCompany(payload: RegisterPayload): Promise<Registe
 
 /**
  * Log in an existing user with email + password.
+ *
+ * The `portal` selects which backend endpoint group to hit (user / admin /
+ * superadmin) — all three share this identical payload + response shape.
  * NOTE: swap the method/URL/body/headers here when the real curl is provided.
  */
-export async function loginUser(payload: LoginPayload): Promise<LoginResponse> {
-  const { data } = await api.post<LoginResponse>(API_ENDPOINTS.LOGIN, payload);
+export async function loginUser(payload: LoginPayload, portal: Portal = "user"): Promise<LoginResponse> {
+  const { data } = await api.post<LoginResponse>(AUTH_BY_PORTAL[portal].LOGIN, payload);
   return data;
 }
 
 /**
  * Login MFA: send the chosen channel (EMAIL | PHONE) to the backend, which then
- * triggers the OTP send over that channel.
+ * triggers the OTP send over that channel. `portal` selects the endpoint group.
  * NOTE: swap the method/URL/body/headers here when the real curl is provided.
  */
-export async function selectMfaChannel(payload: SelectChannelPayload): Promise<SelectChannelResponse> {
-  const { data } = await api.post<SelectChannelResponse>(API_ENDPOINTS.MFA_SELECT_CHANNEL, payload);
+export async function selectMfaChannel(
+  payload: SelectChannelPayload,
+  portal: Portal = "user",
+): Promise<SelectChannelResponse> {
+  const { data } = await api.post<SelectChannelResponse>(AUTH_BY_PORTAL[portal].MFA_SELECT_CHANNEL, payload);
   return data;
 }
 
 /**
- * Login MFA: verify the OTP the user entered for the chosen channel.
+ * Login MFA: verify the OTP the user entered for the chosen channel. `portal`
+ * selects the endpoint group.
  * NOTE: swap the method/URL/body/headers here when the real curl is provided.
  */
-export async function verifyMfaOtp(payload: VerifyMfaOtpPayload): Promise<VerifyMfaOtpResponse> {
-  const { data } = await api.post<VerifyMfaOtpResponse>(API_ENDPOINTS.MFA_VERIFY_OTP, payload);
+export async function verifyMfaOtp(
+  payload: VerifyMfaOtpPayload,
+  portal: Portal = "user",
+): Promise<VerifyMfaOtpResponse> {
+  const { data } = await api.post<VerifyMfaOtpResponse>(AUTH_BY_PORTAL[portal].MFA_VERIFY_OTP, payload);
   return data;
 }
 

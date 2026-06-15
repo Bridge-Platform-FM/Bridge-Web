@@ -76,7 +76,9 @@ export function normalizeRole(raw: unknown): Role | null {
     b2b: "b2b_enterprise",
     b2b_enterprise: "b2b_enterprise",
     admin: "admin",
-    super_admin: "super_admin",
+    // Backend staff role enums → our staff views.
+    sys_admin: "admin",
+    sys_super_admin: "super_admin",
     superadmin: "super_admin",
   };
   return ALIASES[key] ?? (isRole(key) ? key : null);
