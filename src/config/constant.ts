@@ -1,6 +1,8 @@
 
 /** Path prefix per API group — change/add groups here. */
 const AUTH = "/api/v1/auth";
+const ADMIN_AUTH = "/api/v1/admin/auth";
+const SUPERADMIN_AUTH = "/api/v1/superadmin/auth";
 const FILE = "/api/v1/file";
 const USERS = "/api/v1/users";
 // const KYC = "/api/v1/kyc";
@@ -14,6 +16,14 @@ export const API_ENDPOINTS = {
   MFA_SELECT_CHANNEL: `${AUTH}/mfa/trigger-otp`,
   // Login MFA: verify the OTP the user entered for the chosen channel.
   MFA_VERIFY_OTP: `${AUTH}/mfa/verify-otp`,
+  // Admin auth — same login + MFA flow, admin-prefixed paths.
+  ADMIN_LOGIN: `${ADMIN_AUTH}/login`,
+  ADMIN_MFA_SELECT_CHANNEL: `${ADMIN_AUTH}/mfa/trigger-otp`,
+  ADMIN_MFA_VERIFY_OTP: `${ADMIN_AUTH}/mfa/verify-otp`,
+  // Super-admin auth — same login + MFA flow, superadmin-prefixed paths.
+  SUPERADMIN_LOGIN: `${SUPERADMIN_AUTH}/login`,
+  SUPERADMIN_MFA_SELECT_CHANNEL: `${SUPERADMIN_AUTH}/mfa/trigger-otp`,
+  SUPERADMIN_MFA_VERIFY_OTP: `${SUPERADMIN_AUTH}/mfa/verify-otp`,
   // Switch the active user role — backend re-issues a new access token for the
   // chosen role. TODO: confirm the real path/shape from the curl.
   SWITCH_ROLE: `${AUTH}/switch-role`,
