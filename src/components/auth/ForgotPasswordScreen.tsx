@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Icon } from "@/components/ui/Icon";
 import { Card } from "@/components/ui/Card";
+import { Loader } from "@/components/common/loader";
 import { Input } from "@/components/ui/input";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
 import { EMAIL_REGEX } from "@/lib/validation";
@@ -85,7 +86,7 @@ export function ForgotPasswordScreen({ basePath = "/login" }: { basePath?: strin
                 disabled={isSubmitting}
                 className="cta-gradient flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary font-headline text-base font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isSubmitting ? "Sending…" : "Send reset link"}
+                {isSubmitting ? <Loader size={18} /> : "Send reset link"}
               </button>
 
               <p className="text-center text-sm text-on-surface-variant">

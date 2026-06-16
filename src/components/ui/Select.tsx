@@ -120,7 +120,7 @@ export function Select(props: SelectProps) {
           aria-label={ariaLabel}
           disabled={disabled}
           onClick={toggle}
-          className={className || `flex w-full items-center justify-between gap-2 rounded-lg border border-outline-variant/30 bg-surface-container-low px-3.5 text-left text-sm text-on-surface transition-all duration-200 hover:border-outline-variant/60 focus:border-primary focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/10 disabled:cursor-default disabled:opacity-60 ${multiple ? "min-h-10 py-2" : "h-10"} ${error ? "border-error/80 ring-2 ring-error/10" : ""}`}
+          className={className || `flex w-full items-center justify-between gap-2 rounded-lg border border-outline-variant/30 bg-surface-container-low px-3.5 text-left text-sm text-on-surface transition-all duration-200 hover:border-outline-variant/60 focus:border-primary focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-60 ${multiple ? "min-h-10 py-2" : "h-10"} ${error ? "border-error/80 ring-2 ring-error/10" : ""}`}
         >
           {selectedValues.length === 0 ? (
             <span className="text-on-surface-variant">{placeholder}</span>

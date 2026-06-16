@@ -112,8 +112,16 @@ a {
   text-decoration: none;
 }
 
-button {  
+button {
   cursor: pointer;
+}
+
+/* Disabled controls must not look clickable — show the "blocked" cursor instead
+   of the default pointer/hand on hover. Applies project-wide. */
+button:disabled,
+button[disabled],
+a[aria-disabled="true"] {
+  cursor: not-allowed;
 }
 
 /* Use the primary focus ring (set per-field) instead of the browser's
