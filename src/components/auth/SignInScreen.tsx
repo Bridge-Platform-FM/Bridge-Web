@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Icon } from "@/components/ui/Icon";
 import { Card } from "@/components/ui/Card";
+import { Loader } from "@/components/common/loader";
 import { Input } from "@/components/ui/input";
 import { loginUser, type Portal } from "@/services/auth.service";
 import { setTokens } from "@/lib/auth-tokens";
@@ -279,9 +280,9 @@ export function SignInScreen({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="cta-gradient flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary font-headline text-base font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
+                className="cta-gradient flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary font-headline text-base font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
               >
-                {isSubmitting ? "Signing in…" : "Sign In"}
+                {isSubmitting ? <Loader size={18} /> : "Sign In"}
               </button>
               {showRegister && (
                 <p className="text-center text-sm text-on-surface-variant">

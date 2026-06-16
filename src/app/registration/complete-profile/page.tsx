@@ -496,7 +496,7 @@ export default function CompleteProfilePage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="cta-gradient flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-primary text-base font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] active:scale-[0.98] disabled:cursor-default disabled:opacity-60 disabled:transform-none"
+              className="cta-gradient flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-primary text-base font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:transform-none"
             >
               {isSubmitting ? (
                 <Loader size={18} />

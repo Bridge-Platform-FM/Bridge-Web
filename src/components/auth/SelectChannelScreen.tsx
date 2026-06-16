@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Icon } from "@/components/ui/Icon";
 import { Card } from "@/components/ui/Card";
+import { Loader } from "@/components/common/loader";
 import { SelectableOptionRow } from "@/components/ui/SelectableOptionRow";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
@@ -87,8 +88,14 @@ export function SelectChannelScreen({
           disabled={sending}
           className="cta-gradient flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary font-headline text-base font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {sending ? "Sending…" : "Continue"}
-          {!sending && <Icon name="arrow_forward" size={20} />}
+          {sending ? (
+            <Loader size={18} />
+          ) : (
+            <>
+              Continue
+              <Icon name="arrow_forward" size={20} />
+            </>
+          )}
         </button>
       </Card>
     </main>

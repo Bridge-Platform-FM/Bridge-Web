@@ -24,7 +24,7 @@ export default function NotFound() {
                 </div>
 
                 <div className="w-full pt-2">
-                    <Button variant="secondary" href="/" className="w-full" leadingIcon="arrow_back">
+                    <Button variant="secondary" href="/dashboard" className="w-full" leadingIcon="arrow_back">
                         Back to Dashboard
                     </Button>
                 </div>

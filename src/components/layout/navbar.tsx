@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
-import { useAuth } from "@/components/auth/AuthProvider";
-import { ROLE_META } from "@/lib/roles";
 
 /** The Bridge Platform glyph (no wordmark). The color is inherited (currentColor). */
 export function BridgeMark({ className = "size-8 text-blue-600" }: { className?: string }) {
@@ -41,13 +39,10 @@ export function BrandLockup({ className = "" }: { className?: string }) {
 /**
  * Dashboard variant of the navbar. Rendered inside the dashboard content column
  * (to the right of the sidebar), so it starts where the sidebar ends. It omits the
- * brand lockup (the sidebar already shows it) and surfaces the notifications +
- * user/role chip. Uses useAuth, so it must be rendered within the AuthProvider.
+ * brand lockup (the sidebar already shows it) and surfaces only the notifications
+ * control (the user/role identity lives in the sidebar).
  */
 export function DashboardNavbar() {
-    const { role, user } = useAuth();
-    const meta = role ? ROLE_META[role] : null;
-
     return (
         <header className="flex h-16 shrink-0 items-center justify-end gap-2 border-b border-outline-variant/30 bg-surface-container-lowest px-6">
             <button
@@ -57,18 +52,6 @@ export function DashboardNavbar() {
             >
                 <Icon name="notifications" size={22} />
             </button>
-
-            {meta && (
-                <div className="ml-1 flex items-center gap-3 rounded-full bg-surface-container-low py-1 pl-1 pr-3">
-                    <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-container text-on-primary-container">
-                        <Icon name={meta.icon} size={18} />
-                    </div>
-                    <div className="hidden min-w-0 leading-tight sm:block">
-                        <p className="truncate text-sm font-bold text-on-surface">{user?.name ?? meta.label}</p>
-                        <p className="truncate text-xs text-on-surface-variant">{meta.label}</p>
-                    </div>
-                </div>
-            )}
         </header>
     );
 }

@@ -39,7 +39,7 @@ export function Button(props: ButtonProps) {
     ...rest
   } = props;
 
-  const classes = `inline-flex h-12 items-center justify-center gap-2 rounded-xl px-6 font-headline text-base font-bold tracking-tight transition-all disabled:opacity-50 disabled:pointer-events-none ${variantClasses[variant]} ${fullWidth ? "w-full" : ""} ${className}`;
+  const classes = `inline-flex h-12 items-center justify-center gap-2 rounded-xl px-6 font-headline text-base font-bold tracking-tight transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:active:scale-100 ${variantClasses[variant]} ${fullWidth ? "w-full" : ""} ${className}`;
 
   const inner = (
     <>
