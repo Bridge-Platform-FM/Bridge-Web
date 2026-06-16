@@ -6,6 +6,8 @@ const SUPERADMIN_AUTH = "/api/v1/superadmin/auth";
 const FILE = "/api/v1/file";
 const USERS = "/api/v1/users";
 // const KYC = "/api/v1/kyc";
+// Admin/super-admin back-office (User Management + KYC Review).
+const ADMIN = "/api/v1/admin";
 /** API endpoint paths (relative to NEXT_PUBLIC_API_BASE_URL host). */
 export const API_ENDPOINTS = {
   // TODO: replace with the real register path from the curl.
@@ -42,4 +44,16 @@ export const API_ENDPOINTS = {
   SAVE_KYC_INFO: `${FILE}/save-kyc-info`,
   // Fetch the submitted KYC docs + submission/expiry timestamps (verification-status step).
   GET_KYC_DOCS: `${FILE}/get-kyc-docs`,
+
+  // ----- Admin / Super-Admin back-office -----
+  // User Management list + detail. TODO: replace with the real paths from the curl.
+  ADMIN_USERS: `${ADMIN}/get-user-list`,
+  ADMIN_USER_DETAIL: (id: string) => `${ADMIN}/users/${id}`,
+  // KYC Review list — returns every user with their `kyc_documents` inline, so the
+  // review drawer reuses the list row (no separate detail endpoint).
+  ADMIN_KYC: `${ADMIN}/get-user-kyc_docs`,
+  // Approve / reject / request-info for a whole submission. Placeholder — backend TBD.
+  ADMIN_KYC_REVIEW: (id: string) => `${ADMIN}/kyc/${id}/review`,
+  // Approve / reject a single document (by kyc_id). Placeholder — backend TBD.
+  ADMIN_KYC_DOC_REVIEW: (kycId: number | string) => `${ADMIN}/kyc/doc/${kycId}/review`,
 } as const;

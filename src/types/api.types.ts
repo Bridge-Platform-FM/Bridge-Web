@@ -265,3 +265,114 @@ export interface GetKycDocsResponse {
   /** ISO 8601 timestamp of when the review window expires (drives the countdown). */
   expiryTime: string;
 }
+
+/* ===========================================================================
+ * Admin / Super-Admin back-office (User Management + KYC Review).
+ * Fields are optional/tolerant like the rest of this file — the service layer
+ * normalizes the raw backend shape into these before the UI consumes them.
+ * ======================================================================== */
+
+/** KYC verification state used across User Management + KYC Review. */
+export type KycStatus = "VERIFIED" | "PENDING" | "REJECTED";
+
+/**
+ * One row in the User Management table, normalized from the `get-user-list`
+ * response. The backend has no per-user id yet, so we key rows by `company_email`.
+ */
+export interface AdminUserListItem {
+  /** Stable identifier — `company_email` for now (no backend id field). */
+  id: string;
+  /** `first_name + last_name`, falling back to company name / email. */
+  name: string;
+  /** `company_email`. */
+  email: string;
+  companyName?: string;
+  countryCode?: string | null;
+  mobileNumber?: string;
+  emailVerified: boolean;
+  mobileVerified: boolean;
+  /** Derived from `is_kyc_verified` (VERIFIED when true, else PENDING). */
+  kycStatus: KycStatus;
+}
+
+/** The full `get-user-list` list (no pagination metadata from the backend yet). */
+export interface AdminUserListResponse {
+  data: AdminUserListItem[];
+  total: number;
+}
+
+/** Detail shown in the User Management drawer (currently the same list record). */
+export type AdminUserDetail = AdminUserListItem;
+
+/** KYC review state used by the tabs/list + per-document status. */
+export type KycReviewStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+/** One uploaded side of a document (front/back), viewed via the file-preview flow. */
+export interface KycDocumentSide {
+  /** Display label, e.g. "Front" / "Back". */
+  label: string;
+  s3Key: string;
+  fileName?: string;
+}
+
+/** One KYC document (AADHAAR / PAN) with its file(s) + per-document review state. */
+export interface KycDocument {
+  kycId: number;
+  /** Document type, e.g. AADHAAR / PAN. */
+  type: string;
+  /** The typed document number (Aadhaar / PAN), from `document_number`. */
+  documentNumber?: string;
+  status: KycReviewStatus;
+  rejectionReason?: string | null;
+  uploadedAt?: string;
+  verifiedAt?: string | null;
+  /** Front (and, for AADHAAR, back) files. */
+  sides: KycDocumentSide[];
+}
+
+/**
+ * One KYC submission row, normalized from `get-user-kyc_docs`. That response
+ * already carries the full document set, so the review drawer reuses this record
+ * directly (no separate detail fetch).
+ */
+export interface KycSubmissionListItem {
+  /** Stable identifier — backend `uid`. */
+  id: string;
+  applicantName: string;
+  email?: string;
+  countryCode?: string | null;
+  phone?: string;
+  organizationName?: string;
+  emailVerified: boolean;
+  mobileVerified: boolean;
+  /** Submission-level status derived from the documents / `is_kyc_verified`. */
+  status: KycReviewStatus;
+  /** Earliest document upload time (ISO 8601). */
+  submittedAt?: string;
+  documents: KycDocument[];
+}
+
+/** The full `get-user-kyc_docs` list (no pagination metadata from the backend yet). */
+export interface KycSubmissionListResponse {
+  data: KycSubmissionListItem[];
+  total: number;
+}
+
+/** Tabs/search filter for the KYC Review list (applied client-side). */
+export interface KycSubmissionListParams {
+  status?: "all" | "pending" | "approved" | "rejected";
+  search?: string;
+}
+
+/** Payload for the approve / reject / request-info review action (API is TBD). */
+export interface ReviewKycPayload {
+  action: "APPROVE" | "REJECT" | "REQUEST_INFO";
+  note?: string;
+}
+
+/** Response from the KYC review action. */
+export interface ReviewKycResponse {
+  success?: boolean;
+  message?: string;
+  data?: unknown;
+}
