@@ -81,7 +81,7 @@ export function DashboardSidebar() {
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold text-on-surface">
-              {user?.name ?? meta.label}
+              {user?.name || user?.email || meta.label}
             </p>
             <p className="truncate text-xs text-on-surface-variant">{meta.label}</p>
           </div>

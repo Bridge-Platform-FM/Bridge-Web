@@ -95,6 +95,11 @@ export interface VerifyMfaOtpResponse {
   data?: {
     /** Route the backend wants the client to land on after verification. */
     redirectRoute?: string;
+    /** Authenticated user's profile, echoed back on successful verification. */
+    first_name?: string | null;
+    last_name?: string | null;
+    /** Raw role string (e.g. "STARTUP"); normalize via normalizeRole. */
+    role?: string | null;
   };
 }
 
