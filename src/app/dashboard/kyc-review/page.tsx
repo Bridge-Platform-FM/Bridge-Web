@@ -69,9 +69,9 @@ export default function KycReviewPage() {
   if (!isLoaded || !isStaffRole(role)) return null;
 
   return (
-    <div className="mx-auto max-w-5xl p-6 md:p-8">
+    <div className="mx-auto max-w-6xl p-6 md:p-8">
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-5">
         <h1 className="font-headline text-2xl font-extrabold tracking-[-0.02em] text-on-surface md:text-3xl">
           KYC Review
         </h1>
@@ -122,16 +122,17 @@ export default function KycReviewPage() {
                 <button
                   type="button"
                   onClick={() => setSelected(item)}
-                  className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-surface-container-low"
+                  className="flex w-full items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-surface-container-low"
                 >
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-container text-sm font-bold text-on-primary-container">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-container text-sm font-bold text-on-primary-container">
                     {initials(item.applicantName)}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-bold text-on-surface">{item.applicantName}</p>
-                    <p className="truncate text-xs text-on-surface-variant">
-                      {item.organizationName ?? item.email}
-                    </p>
+                    <p className="truncate text-xs text-on-surface-variant">{item.email}</p>
+                  </div>
+                  <div className="hidden min-w-0 flex-1 text-sm text-on-surface md:block">
+                    <p className="truncate">{item.organizationName ?? "—"}</p>
                   </div>
                   <div className="hidden shrink-0 text-xs text-on-surface-variant sm:block">
                     {item.submittedAt ? `Submitted ${formatDate(item.submittedAt)}` : ""}
