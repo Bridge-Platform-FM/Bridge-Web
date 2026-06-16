@@ -289,9 +289,12 @@ export interface AdminUserListItem {
   companyName?: string;
   countryCode?: string | null;
   mobileNumber?: string;
+  /** Normalized from the backend `role` (e.g. "STARTUP" → "startup"); null if unknown. */
+  role: Role | null;
   emailVerified: boolean;
   mobileVerified: boolean;
-  /** Derived from `is_kyc_verified` (VERIFIED when true, else PENDING). */
+  /** Derived from the backend `kyc_status` column: Approved → VERIFIED, Rejected →
+   *  REJECTED, otherwise PENDING. */
   kycStatus: KycStatus;
 }
 
@@ -338,6 +341,8 @@ export interface KycDocument {
 export interface KycSubmissionListItem {
   /** Stable identifier — backend `uid`. */
   id: string;
+  /** Backend `company_id` — the key the overall review-action endpoint expects. */
+  companyId?: number;
   applicantName: string;
   email?: string;
   countryCode?: string | null;

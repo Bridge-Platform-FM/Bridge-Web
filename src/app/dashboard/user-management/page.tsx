@@ -9,10 +9,10 @@ import { Select } from "@/components/ui/Select";
 import { AsyncState } from "@/components/ui/AsyncState";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { UserDetailDrawer } from "@/components/dashboard/UserDetailDrawer";
-import { KYC_STATUS_META, StatusPill, VERIFY_META } from "@/components/dashboard/kyc-status";
+import { KYC_STATUS_META, StatusPill } from "@/components/dashboard/kyc-status";
 import { fetchUsers } from "@/services/admin.service";
 import { initials } from "@/lib/admin-format";
-import { isStaffRole } from "@/lib/roles";
+import { isStaffRole, ROLE_META } from "@/lib/roles";
 import type { AdminUserListItem } from "@/types/api.types";
 import type { ApiError } from "@/lib/axios";
 
@@ -145,7 +145,9 @@ export default function UserManagementPage() {
                         </div>
                         <div className="min-w-0">
                           <p className="truncate text-sm font-bold text-on-surface">{u.name}</p>
-                          <p className="truncate text-xs text-on-surface-variant">{u.email}</p>
+                          <p className="truncate text-xs text-on-surface-variant">
+                            {u.role ? ROLE_META[u.role].label : "—"}
+                          </p>
                         </div>
                       </div>
                     </td>
@@ -153,9 +155,7 @@ export default function UserManagementPage() {
                     <td className="px-5 py-4 text-sm text-on-surface-variant">
                       {u.mobileNumber ? `${u.countryCode ? `${u.countryCode} ` : ""}${u.mobileNumber}` : "—"}
                     </td>
-                    <td className="px-5 py-4">
-                      <StatusPill {...(u.emailVerified ? VERIFY_META.VERIFIED : VERIFY_META.UNVERIFIED)} />
-                    </td>
+                    <td className="px-5 py-4 text-sm text-on-surface-variant">{u.email}</td>
                     <td className="px-5 py-4">
                       <StatusPill {...KYC_STATUS_META[u.kycStatus]} />
                     </td>

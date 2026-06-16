@@ -87,15 +87,12 @@ export function KycReviewDrawer({
     setDocStatus({});
   }, [submission?.id]);
 
-  // Approve / reject a single document (placeholder endpoint; optimistic UI).
+  // Approve / reject a single document (document-action endpoint; optimistic UI).
+  // The document-level API takes only kyc_id + action — no reason — so no note check.
   const reviewDocument = async (doc: KycDocument, action: "APPROVE" | "REJECT") => {
-    if (action === "REJECT" && !note.trim()) {
-      toast.error("Add a note in Admin Notes before rejecting a document.");
-      return;
-    }
     setDocSubmitting(doc.kycId);
     try {
-      const res = await reviewKycDocument(doc.kycId, { action, note: note.trim() || undefined });
+      const res = await reviewKycDocument(doc.kycId, action);
       const next: KycReviewStatus = action === "APPROVE" ? "APPROVED" : "REJECTED";
       setDocStatus((m) => ({ ...m, [doc.kycId]: next }));
       toast.success(res.message ?? `Document ${action === "APPROVE" ? "approved" : "rejected"}.`);
@@ -112,9 +109,13 @@ export function KycReviewDrawer({
       toast.error("Please add a note explaining the decision.");
       return;
     }
+    if (submission.companyId == null) {
+      toast.error("This submission is missing its company reference.");
+      return;
+    }
     setSubmitting(action);
     try {
-      const res = await reviewKyc(submission.id, { action, note: note.trim() || undefined });
+      const res = await reviewKyc(submission.companyId, { action, note: note.trim() || undefined });
       toast.success(res.message ?? "Review submitted.");
       onReviewed();
       onClose();

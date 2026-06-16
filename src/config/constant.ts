@@ -52,8 +52,8 @@ export const API_ENDPOINTS = {
   // KYC Review list — returns every user with their `kyc_documents` inline, so the
   // review drawer reuses the list row (no separate detail endpoint).
   ADMIN_KYC: `${ADMIN}/get-user-kyc_docs`,
-  // Approve / reject / request-info for a whole submission. Placeholder — backend TBD.
-  ADMIN_KYC_REVIEW: (id: string) => `${ADMIN}/kyc/${id}/review`,
-  // Approve / reject a single document (by kyc_id). Placeholder — backend TBD.
-  ADMIN_KYC_DOC_REVIEW: (kycId: number | string) => `${ADMIN}/kyc/doc/${kycId}/review`,
+  // Approve / reject one document (PUT, body: { kyc_id, action: "approve"|"reject" }).
+  ADMIN_KYC_DOC_ACTION: `${ADMIN}/kyc/document-action`,
+  // Approve / reject a whole submission (PUT, body: { company_id, action, rejection_reason? }).
+  ADMIN_KYC_REVIEW_ACTION: `${ADMIN}/kyc/review-action`,
 } as const;

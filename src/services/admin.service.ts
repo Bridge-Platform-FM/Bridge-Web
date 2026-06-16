@@ -1,11 +1,13 @@
 import { api } from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/constant";
+import { normalizeRole } from "@/lib/roles";
 import type {
   AdminUserListItem,
   AdminUserListResponse,
   KycDocument,
   KycDocumentSide,
   KycReviewStatus,
+  KycStatus,
   KycSubmissionListItem,
   KycSubmissionListResponse,
   ReviewKycPayload,
@@ -24,6 +26,18 @@ import type {
 
 /* ----- User Management ----- */
 
+/**
+ * Map the backend `kyc_status` column (title-case, e.g. "Approved"/"Rejected"/
+ * "Pending"/null) to the user-list enum. Driven entirely by `kyc_status`:
+ * approved/verified → VERIFIED, rejected → REJECTED, everything else → PENDING.
+ */
+function toUserKycStatus(status: unknown): KycStatus {
+  const s = String(status ?? "").toUpperCase();
+  if (s === "APPROVED" || s === "VERIFIED") return "VERIFIED";
+  if (s === "REJECTED") return "REJECTED";
+  return "PENDING";
+}
+
 /** Map one raw `get-user-list` row to our AdminUserListItem. */
 function toUserListItem(raw: Record<string, unknown>): AdminUserListItem {
   const first = (raw.first_name as string | null) ?? "";
@@ -37,9 +51,10 @@ function toUserListItem(raw: Record<string, unknown>): AdminUserListItem {
     companyName: (raw.company_name as string | undefined) ?? undefined,
     countryCode: (raw.country_code as string | null) ?? null,
     mobileNumber: (raw.mobile_number as string | undefined) ?? undefined,
+    role: normalizeRole(raw.role),
     emailVerified: Boolean(raw.is_email_verified),
     mobileVerified: Boolean(raw.is_mobile_number_verified),
-    kycStatus: raw.is_kyc_verified ? "VERIFIED" : "PENDING",
+    kycStatus: toUserKycStatus(raw.kyc_status),
   };
 }
 
@@ -96,15 +111,13 @@ function toKycSubmission(raw: Record<string, unknown>): KycSubmissionListItem {
   const docsRaw = (raw.kyc_documents as Record<string, unknown>[] | null) ?? [];
   const documents = Array.isArray(docsRaw) ? docsRaw.map(toKycDocument) : [];
 
-  // Submission-level status reflects only the main review decision, NOT the
-  // per-document states. A rejected document must not auto-flip the submission to
-  // REJECTED while it's still awaiting the admin's main action — it stays PENDING
-  // until the backend marks it verified (→ APPROVED) or explicitly rejected.
-  const status: KycReviewStatus = raw.is_kyc_verified
-    ? "APPROVED"
-    : raw.kyc_status === "REJECTED"
-      ? "REJECTED"
-      : "PENDING";
+  // Submission-level status comes from the COMPANY-level `kyc_status` (the row's own
+  // field, e.g. "Pending"/"Approved"/"Rejected"), NOT the per-document `kyc_status`
+  // inside each `kyc_documents` entry. `is_kyc_verified` is the authoritative
+  // "approved" flag; otherwise we normalize the row's kyc_status (title-case from the
+  // backend) via toReviewStatus. A rejected document never flips this — only the main
+  // review action does.
+  const status: KycReviewStatus = raw.is_kyc_verified ? "APPROVED" : toReviewStatus(raw.kyc_status);
   // Earliest upload time across the documents drives the "Submitted" label.
   const submittedAt = documents
     .map((d) => d.uploadedAt)
@@ -113,6 +126,7 @@ function toKycSubmission(raw: Record<string, unknown>): KycSubmissionListItem {
 
   return {
     id: String(raw.uid ?? email),
+    companyId: raw.company_id != null ? Number(raw.company_id) : undefined,
     applicantName: name,
     email,
     countryCode: (raw.country_code as string | null) ?? null,
@@ -141,20 +155,27 @@ export async function fetchKycSubmissions(): Promise<KycSubmissionListResponse> 
 }
 
 /**
- * Approve / reject / request-info on a whole KYC submission. NOTE: the backend
- * endpoint is not built yet — this targets a placeholder path and will 404 until
- * it exists.
+ * Approve / reject a whole KYC submission via `review-action` (PUT). The backend
+ * keys on `company_id`; a reject must carry a `rejection_reason` (the admin note).
  */
-export async function reviewKyc(id: string, payload: ReviewKycPayload): Promise<ReviewKycResponse> {
-  const { data } = await api.post<ReviewKycResponse>(API_ENDPOINTS.ADMIN_KYC_REVIEW(id), payload);
+export async function reviewKyc(companyId: number, payload: ReviewKycPayload): Promise<ReviewKycResponse> {
+  const body: Record<string, unknown> = {
+    company_id: companyId,
+    action: payload.action.toLowerCase(),
+  };
+  if (payload.action === "REJECT") body.rejection_reason = payload.note;
+  const { data } = await api.put<ReviewKycResponse>(API_ENDPOINTS.ADMIN_KYC_REVIEW_ACTION, body);
   return data;
 }
 
 /**
- * Approve / reject a single document (by `kyc_id`). NOTE: placeholder endpoint —
- * will 404 until the backend exists.
+ * Approve / reject a single document via `document-action` (PUT). The backend keys
+ * on `kyc_id` and a lowercase action; no reason is sent at the document level.
  */
-export async function reviewKycDocument(kycId: number, payload: ReviewKycPayload): Promise<ReviewKycResponse> {
-  const { data } = await api.post<ReviewKycResponse>(API_ENDPOINTS.ADMIN_KYC_DOC_REVIEW(kycId), payload);
+export async function reviewKycDocument(kycId: number, action: "APPROVE" | "REJECT"): Promise<ReviewKycResponse> {
+  const { data } = await api.put<ReviewKycResponse>(API_ENDPOINTS.ADMIN_KYC_DOC_ACTION, {
+    kyc_id: kycId,
+    action: action.toLowerCase(),
+  });
   return data;
 }
