@@ -125,7 +125,17 @@ export function KycReviewDrawer({
     }
   };
 
-  const footer = submission ? (
+  // Effective per-document statuses (optimistic override layered over backend
+  // status, so this is correct on refresh and back/forward navigation too).
+  const docStatuses = submission?.documents.map((doc) => docStatus[doc.kycId] ?? doc.status) ?? [];
+  // If any document is rejected, the whole KYC can't be approved (only rejected).
+  const anyDocRejected = docStatuses.some((s) => s === "REJECTED");
+  // Once every document is approved, rejecting the KYC no longer makes sense.
+  const allDocsApproved = docStatuses.length > 0 && docStatuses.every((s) => s === "APPROVED");
+  // A submission that's already approved is final — no review actions to take.
+  const isFinalised = submission?.status === "APPROVED";
+
+  const footer = submission && !isFinalised ? (
     <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3">
       <button
         type="button"
@@ -139,7 +149,7 @@ export function KycReviewDrawer({
       <button
         type="button"
         onClick={() => submitReview("REJECT")}
-        disabled={submitting !== null}
+        disabled={submitting !== null || allDocsApproved}
         className="flex h-11 items-center justify-center gap-2 rounded-xl border border-error/40 px-4 text-sm font-bold text-error transition-colors hover:bg-error/10 disabled:opacity-50"
       >
         {submitting === "REJECT" ? <Loader size={16} /> : <Icon name="cancel" size={18} />}
@@ -148,7 +158,7 @@ export function KycReviewDrawer({
       <button
         type="button"
         onClick={() => submitReview("APPROVE")}
-        disabled={submitting !== null}
+        disabled={submitting !== null || anyDocRejected}
         className="cta-gradient flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold text-on-primary transition-all hover:scale-[1.01] disabled:opacity-50"
       >
         {submitting === "APPROVE" ? <Loader size={16} /> : <Icon name="task_alt" size={18} />}
@@ -240,27 +250,30 @@ export function KycReviewDrawer({
 
                   {doc.rejectionReason && <p className="mt-2 text-xs text-error">Rejected: {doc.rejectionReason}</p>}
 
-                  {/* Per-document review actions */}
-                  <div className="mt-3 flex items-center justify-end gap-2 border-t border-outline/10 pt-3">
-                    <DocActionButton
-                      icon="check_circle"
-                      label="Approve"
-                      active={status === "APPROVED"}
-                      tone="approve"
-                      loading={busy && status !== "APPROVED"}
-                      disabled={busy}
-                      onClick={() => reviewDocument(doc, "APPROVE")}
-                    />
-                    <DocActionButton
-                      icon="cancel"
-                      label="Reject"
-                      active={status === "REJECTED"}
-                      tone="reject"
-                      loading={busy && status !== "REJECTED"}
-                      disabled={busy}
-                      onClick={() => reviewDocument(doc, "REJECT")}
-                    />
-                  </div>
+                  {/* Per-document review actions — hidden once a decision is made
+                      (the StatusPill above then conveys the final state). */}
+                  {status === "PENDING" && (
+                    <div className="mt-3 flex items-center justify-end gap-2 border-t border-outline/10 pt-3">
+                      <DocActionButton
+                        icon="check_circle"
+                        label="Approve"
+                        active={false}
+                        tone="approve"
+                        loading={busy}
+                        disabled={busy}
+                        onClick={() => reviewDocument(doc, "APPROVE")}
+                      />
+                      <DocActionButton
+                        icon="cancel"
+                        label="Reject"
+                        active={false}
+                        tone="reject"
+                        loading={busy}
+                        disabled={busy}
+                        onClick={() => reviewDocument(doc, "REJECT")}
+                      />
+                    </div>
+                  )}
                 </div>
               );
             })}

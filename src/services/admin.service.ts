@@ -96,10 +96,13 @@ function toKycSubmission(raw: Record<string, unknown>): KycSubmissionListItem {
   const docsRaw = (raw.kyc_documents as Record<string, unknown>[] | null) ?? [];
   const documents = Array.isArray(docsRaw) ? docsRaw.map(toKycDocument) : [];
 
-  // Submission-level status: verified → APPROVED; any rejected doc → REJECTED; else PENDING.
+  // Submission-level status reflects only the main review decision, NOT the
+  // per-document states. A rejected document must not auto-flip the submission to
+  // REJECTED while it's still awaiting the admin's main action — it stays PENDING
+  // until the backend marks it verified (→ APPROVED) or explicitly rejected.
   const status: KycReviewStatus = raw.is_kyc_verified
     ? "APPROVED"
-    : documents.some((d) => d.status === "REJECTED")
+    : raw.kyc_status === "REJECTED"
       ? "REJECTED"
       : "PENDING";
   // Earliest upload time across the documents drives the "Submitted" label.

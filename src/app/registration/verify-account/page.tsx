@@ -280,7 +280,7 @@ export default function VerifyAccountPage() {
           type="button"
           onClick={handleContinue}
           disabled={!bothVerified}
-          className="cta-gradient flex h-12 w-full items-center justify-center gap-2 bg-primary rounded-xl font-headline text-base font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] disabled:cursor-default disabled:opacity-60 disabled:transform-none"
+          className="cta-gradient flex h-12 w-full items-center justify-center gap-2 bg-primary rounded-xl font-headline text-base font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60 disabled:transform-none"
         >
           Continue
         </button>
