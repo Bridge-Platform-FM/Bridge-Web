@@ -20,9 +20,11 @@ export interface NavItem {
 
 // Items shared across the three user roles — declared once, reused below.
 const DASHBOARD: NavItem = { key: "dashboard", label: "Dashboard", icon: "space_dashboard", route: "/dashboard" };
-const REELS: NavItem = { key: "reels", label: "Reels", icon: "smart_display", route: "/dashboard/reels" };
+// Reels temporarily hidden from all roles — uncomment to restore.
+// const REELS: NavItem = { key: "reels", label: "Reels", icon: "smart_display", route: "/dashboard/reels" };
 const AI_INSIGHTS: NavItem = { key: "ai-insights", label: "AI Insights", icon: "auto_awesome", route: "/dashboard/ai-insights" };
 const DISCOVER: NavItem = { key: "discover", label: "Discover", icon: "explore", route: "/dashboard/discover" };
+const EXPLORE: NavItem = { key: "explore", label: "Explore", icon: "groups", route: "/dashboard/explore" };
 const CONNECTIONS: NavItem = { key: "connections", label: "Connections", icon: "hub", route: "/dashboard/connections" };
 const DEAL_ROOM: NavItem = { key: "deal-room", label: "Deal Room", icon: "handshake", route: "/dashboard/deal-room" };
 const PROFILE: NavItem = { key: "profile", label: "Profile", icon: "account_circle", route: "/dashboard/profile" };
@@ -46,9 +48,10 @@ export const DASHBOARD_NAV: Record<Role, NavItem[]> = {
   startup: [
     DASHBOARD,
     { key: "find-investors", label: "Find Investors", icon: "savings", route: "/dashboard/find-investors" },
-    REELS,
+    // REELS,
     AI_INSIGHTS,
     DISCOVER,
+    EXPLORE,
     CONNECTIONS,
     DEAL_ROOM,
     PROFILE,
@@ -56,9 +59,10 @@ export const DASHBOARD_NAV: Record<Role, NavItem[]> = {
   investor: [
     DASHBOARD,
     { key: "browse-startups", label: "Browse Startups", icon: "rocket_launch", route: "/dashboard/browse-startups" },
-    REELS,
+    // REELS,
     AI_INSIGHTS,
     DISCOVER,
+    EXPLORE,
     CONNECTIONS,
     DEAL_ROOM,
     PROFILE,
@@ -66,11 +70,12 @@ export const DASHBOARD_NAV: Record<Role, NavItem[]> = {
   b2b_enterprise: [
     DASHBOARD,
     { key: "match", label: "Match", icon: "join_inner", route: "/dashboard/match" },
-    REELS,
+    // REELS,
     { key: "global", label: "Global", icon: "public", route: "/dashboard/global" },
     AI_INSIGHTS,
     { key: "expand", label: "Expand", icon: "open_in_full", route: "/dashboard/expand" },
     DISCOVER,
+    EXPLORE,
     CONNECTIONS,
     DEAL_ROOM,
     PROFILE,

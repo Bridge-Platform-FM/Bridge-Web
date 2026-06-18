@@ -143,7 +143,10 @@ export function SignInScreen({
       // by the route so a missing `role` field doesn't bounce us off /dashboard.
       const role = normalizeRole(res.data.role) ?? PORTAL_ROLE[portal] ?? null;
       if (role) {
-        setSession({ role, user: { email: values.email } });
+        // Show the real name in the dashboard when the backend returns it; the
+        // sidebar falls back to the email when `name` is empty.
+        const fullName = [res.data.first_name, res.data.last_name].filter(Boolean).join(" ").trim();
+        setSession({ role, user: { email: values.email, name: fullName || undefined } });
       }
       // Persist the masked contact info for the verification-channel screen. Both
       // values arrive already masked from the backend — no client-side masking.

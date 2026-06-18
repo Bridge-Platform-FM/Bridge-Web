@@ -30,6 +30,7 @@ export function DashboardSidebar() {
   const isActive = (route: string) =>
     route === "/dashboard" ? pathname === route : pathname.startsWith(route);
 
+  console.log(user);
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col border-r border-outline-variant/30 bg-surface-container-low">
       {/* Brand — same lockup as the global navbar */}

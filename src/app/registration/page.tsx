@@ -98,8 +98,7 @@ export default function RegisterPage() {
     const payload = {
       companyName: values.legalName,
       email: values.email,
-      // countryCode: values.countryCode,
-      // countryCode: values.countryCode, // commented: not sending country code for now
+      countryCode: values.countryCode,
       phoneNumber: values.contact,
       password: values.password,
       role: ROLE_MAP[values.role],
