@@ -16,7 +16,7 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "Bridge oarding & KYC",
+  title: "Bridge Platform",
   description: "Corporate onboarding and KYC verification workflow.",
 };
 

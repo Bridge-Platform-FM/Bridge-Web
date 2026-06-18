@@ -8,6 +8,8 @@ const USERS = "/api/v1/users";
 // const KYC = "/api/v1/kyc";
 // Admin/super-admin back-office (User Management + KYC Review).
 const ADMIN = "/api/v1/admin";
+// Matching Engine (Explore — compatibility matches).
+const MATCHING = "/api/v1/matching";
 /** API endpoint paths (relative to NEXT_PUBLIC_API_BASE_URL host). */
 export const API_ENDPOINTS = {
   // TODO: replace with the real register path from the curl.
@@ -56,4 +58,9 @@ export const API_ENDPOINTS = {
   ADMIN_KYC_DOC_ACTION: `${ADMIN}/kyc/document-action`,
   // Approve / reject a whole submission (PUT, body: { company_id, action, rejection_reason? }).
   ADMIN_KYC_REVIEW_ACTION: `${ADMIN}/kyc/review-action`,
+
+  // ----- Matching Engine (Explore) -----
+  // Compatibility matches for a profile. TODO: switch to `${MATCHING}/me`
+  // (token-derived) once the backend supports it; for now the profileId is passed.
+  MATCHING: (profileId: number) => `${MATCHING}/${profileId}`,
 } as const;

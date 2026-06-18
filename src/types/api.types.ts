@@ -41,6 +41,9 @@ export interface LoginResponse {
     redirectTo?: string;
     /** Raw role string from the backend (e.g. "INVESTOR"); normalize via normalizeRole. */
     role?: string;
+    /** Authenticated user's name, when the backend echoes it on login. */
+    first_name?: string | null;
+    last_name?: string | null;
     /** Already-masked contact info for display on the verification-channel screen. */
     maskedMobile?: string;
     maskedEmail?: string;
@@ -386,3 +389,80 @@ export interface ReviewKycResponse {
   message?: string;
   data?: unknown;
 }
+/* ------------------------------------------------------------------ *
+ * Explore — Matching Engine results (swipe deck + grid)
+ * Mirrors the `/matches` response: a list of compatibility matches for the
+ * current profile. Components consume `ExploreMatch` (the `data.matches[]` item).
+ * ------------------------------------------------------------------ */
+/** The matched company's account type, as returned by the backend (uppercase). */
+export type ExploreMatchRole = "INVESTOR" | "B2B" | "STARTUP";
+
+/**
+ * One compatibility match — the shape of each `data.matches[]` entry. Keys mirror
+ * the backend exactly (snake_case, incl. spelling quirks like `prefrerred_*`,
+ * `export_rediness`, `products_ervice_Offered`). Role-specific blocks are optional:
+ * only the fields for that match's `role` are present.
+ */
+export interface ExploreMatch {
+  // ---- common ----
+  profileId: number;
+  role: ExploreMatchRole;
+  /** Overall compatibility score, 0–100. */
+  compatibility: number;
+  first_name: string | null;
+  last_name: string | null;
+  /** Background photo when present; otherwise the card shows an initials avatar. */
+  profile_photo: string | null;
+  /** Company name (used as the card title). */
+  organization_name: string;
+  short_bio: string | null;
+  country: string | null;
+  continent: string | null;
+  /** Sector tags shown as chips. */
+  primary_sector: string[];
+  linkedin_profile_url?: string | null;
+  linkedin_url?: string | null;
+  company_website_url?: string | null;
+  company_email?: string | null;
+  country_code?: string | null;
+  mobile_number?: string | null;
+
+  // ---- investor-specific (present when role === "INVESTOR") ----
+  ticket_size_amt_min?: number;
+  ticket_size_amt_max?: number;
+  prefrerred_investment_stage?: string[];
+  stage_focus?: string | null;
+  investor_sector_preference?: string[];
+  geographic_investment_preference?: string[];
+  investor_type?: string;
+  investor_portfolio_overview?: string | null;
+  number_of_investments_to_date?: number;
+  investor_intent?: string;
+
+  // ---- b2b-specific (present when role === "B2B") ----
+  b2b_sector?: string;
+  b2b_sub_sector?: string;
+  revenue_band?: string;
+  min_order_quantity?: number;
+  export_rediness?: string;
+  industry_vertical?: string;
+  years_in_operation?: number;
+  operational_capacity_description?: string | null;
+  products_ervice_Offered?: string;
+  business_requirements?: string;
+  b2b_intent?: string;
+}
+
+/** Raw envelope returned by the matches endpoint. */
+export interface ExploreMatchesResponse {
+  success: boolean;
+  data: {
+    /** The id of the profile these matches were computed for. */
+    profileId: number;
+    matches: ExploreMatch[];
+  };
+  message: string;
+}
+
+/** A swipe decision on a match card. */
+export type ExploreDecision = "reject" | "skip" | "send";

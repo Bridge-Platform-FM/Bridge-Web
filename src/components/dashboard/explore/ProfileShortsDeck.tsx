@@ -1,0 +1,189 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { Icon } from "@/components/ui/Icon";
+import { AsyncState } from "@/components/ui/AsyncState";
+import { ProfileCardFace, ProfileShortsCard } from "@/components/dashboard/explore/ProfileShortsCard";
+import { fetchExploreMatches, submitExploreDecision } from "@/services/explore.service";
+import type { ExploreDecision, ExploreMatch } from "@/types/api.types";
+
+/**
+ * The Explore "Shorts Mode" viewer. Loads the profile queue, shows one swipeable
+ * card at a time (with the next one peeking behind for depth) and a fixed action
+ * bar. Decisions can come from a drag, the action buttons, or the keyboard:
+ *   ← Reject   → Connect   ↓ Skip
+ *
+ * The card visuals + gestures live in `ProfileShortsCard`; this component owns the
+ * queue, the current index and the commanded-exit handshake so only one place
+ * advances the deck.
+ */
+
+interface ActionConfig {
+  decision: ExploreDecision;
+  label: string;
+  icon: string;
+  /** Tailwind classes for the round (glass) button — sits over the dark card. */
+  circle: string;
+  /** Icon size in px. */
+  iconSize: number;
+}
+
+const ACTIONS: ActionConfig[] = [
+  {
+    decision: "reject",
+    label: "Reject",
+    icon: "close",
+    circle: "size-12 bg-white/10 border border-white/25 text-error backdrop-blur-md",
+    iconSize: 22,
+  },
+  {
+    decision: "skip",
+    label: "Skip",
+    icon: "expand_more",
+    circle: "size-11 bg-white/10 border border-white/25 text-white/90 backdrop-blur-md",
+    iconSize: 20,
+  },
+  {
+    decision: "send",
+    label: "Send",
+    icon: "person_add",
+    circle: "size-14 bg-secondary text-on-secondary shadow-lg",
+    iconSize: 24,
+  },
+];
+
+export function ProfileShortsDeck() {
+  const [matches, setMatches] = useState<ExploreMatch[]>([]);
+  const [index, setIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  /** When set, the active card animates out in that direction. */
+  const [commandedExit, setCommandedExit] = useState<ExploreDecision | null>(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    setIndex(0);
+    fetchExploreMatches()
+      .then((data) => setMatches(data))
+      .catch(() => setError("Couldn't load matches. Please try again."))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- load() drives loading state; runs once on mount
+    load();
+  }, [load]);
+
+  const current = matches[index];
+  const next = matches[index + 1];
+
+  // Card finished flying off screen → record the decision and advance.
+  const handleExit = useCallback(
+    (decision: ExploreDecision) => {
+      if (current) void submitExploreDecision(current.profileId, decision);
+      setIndex((i) => i + 1);
+      setCommandedExit(null);
+    },
+    [current],
+  );
+
+  // Trigger an exit from a button / keyboard (ignored mid-animation).
+  const commandAction = useCallback(
+    (decision: ExploreDecision) => {
+      if (!current || commandedExit) return;
+      setCommandedExit(decision);
+    },
+    [current, commandedExit],
+  );
+
+  // Keyboard shortcuts: ← reject, → connect, ↓ skip.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") commandAction("reject");
+      else if (e.key === "ArrowRight") commandAction("send");
+      else if (e.key === "ArrowDown") commandAction("skip");
+      else return;
+      e.preventDefault();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [commandAction]);
+
+  const exhausted = !loading && !error && index >= matches.length;
+
+  return (
+    <div className="relative flex h-full min-h-[640px] w-full items-center justify-center overflow-hidden bg-surface p-4">
+      <div className="relative h-full max-h-[820px] w-full max-w-md">
+        <AsyncState
+          loading={loading}
+          error={error}
+          onRetry={load}
+          isEmpty={exhausted}
+          emptyIcon="done_all"
+          emptyText="You're all caught up — no more matches right now."
+        >
+          {/* Next card peeking behind for depth */}
+          {next && (
+            <div className="absolute inset-0 scale-[0.94] opacity-70">
+              <ProfileCardFace match={next} />
+            </div>
+          )}
+          {/* Active, swipeable card (keyed so each match mounts fresh) */}
+          {current && (
+            <ProfileShortsCard
+              key={current.profileId}
+              match={current}
+              commandedExit={commandedExit}
+              onExit={handleExit}
+            />
+          )}
+        </AsyncState>
+
+        {/* Action buttons — transparent overlay pinned to the bottom of the card */}
+        {current && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center px-4 pb-5">
+            <div className="pointer-events-auto flex items-center gap-5">
+              {ACTIONS.map((action) => (
+                <button
+                  key={action.decision}
+                  type="button"
+                  onClick={() => commandAction(action.decision)}
+                  disabled={!!commandedExit}
+                  className="group flex flex-col items-center gap-1.5 transition-transform active:scale-90 disabled:opacity-60"
+                >
+                  <span
+                    className={`flex items-center justify-center rounded-full transition-transform group-hover:scale-110 ${action.circle}`}
+                  >
+                    <Icon
+                      name={action.icon}
+                      size={action.iconSize}
+                      filled={action.decision === "send"}
+                    />
+                  </span>
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-white/85">
+                    {action.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* "All caught up" gets a restart affordance below the empty state */}
+        {exhausted && (
+          <div className="absolute inset-x-0 bottom-10 flex justify-center">
+            <button
+              type="button"
+              onClick={load}
+              className="flex items-center gap-2 rounded-full bg-secondary px-5 py-2.5 text-sm font-bold text-on-secondary transition-transform active:scale-95"
+            >
+              <Icon name="refresh" size={18} />
+              Start over
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

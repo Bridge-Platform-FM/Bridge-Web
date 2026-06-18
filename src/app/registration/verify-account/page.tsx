@@ -186,7 +186,8 @@ export default function VerifyAccountPage() {
             Secure your account
           </h1>
           <p className="mx-auto max-w-sm text-base leading-relaxed text-on-surface-variant">
-            We&apos;ve sent a 4-digit code to your mobile phone {maskPhone(String(data.contact ?? ""))}
+            We&apos;ve sent a 4-digit code to your mobile phone{" "}
+            {`${String(data.countryCode ?? "")} ${maskPhone(String(data.contact ?? ""))}`.trim()}
             {" "}and email {maskEmail(String(data.email ?? ""))}.
           </p>
         </div>
