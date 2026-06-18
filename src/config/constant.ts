@@ -3,6 +3,7 @@
 const AUTH = "/api/v1/auth";
 const FILE = "/api/v1/file";
 const USERS = "/api/v1/users";
+const OTP_CONFIG = "/api/v1/otp-config";
 // const KYC = "/api/v1/kyc";
 /** API endpoint paths (relative to NEXT_PUBLIC_API_BASE_URL host). */
 export const API_ENDPOINTS = {
@@ -32,4 +33,5 @@ export const API_ENDPOINTS = {
   SAVE_KYC_INFO: `${FILE}/save-kyc-info`,
   // Fetch the submitted KYC docs + submission/expiry timestamps (verification-status step).
   GET_KYC_DOCS: `${FILE}/get-kyc-docs`,
+  OTP_CONFIG: OTP_CONFIG,
 } as const;
