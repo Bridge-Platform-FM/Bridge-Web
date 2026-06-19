@@ -224,7 +224,7 @@ export default function VerifyAccountPage() {
 
               {mobileVerified ? (
                 <span className="flex items-center gap-1 px-1 text-xs font-medium text-primary">
-                  <Icon name="check_circle" size={16} />Mobile Otp Verified
+                  <Icon name="check_circle" size={16} />OTP Verified Successfully
                 </span>
               ) : verifyingMobile ? (
                 <span className="px-1 text-xs font-medium text-on-surface-variant">Verifying…</span>
@@ -266,7 +266,7 @@ export default function VerifyAccountPage() {
 
               {emailVerified ? (
                 <span className="flex items-center gap-1 px-1 text-xs font-medium text-primary">
-                  <Icon name="check_circle" size={16} />Email Otp Verified
+                  <Icon name="check_circle" size={16} />OTP Verified Successfully
                 </span>
               ) : verifyingEmail ? (
                 <span className="px-1 text-xs font-medium text-on-surface-variant">Verifying…</span>
