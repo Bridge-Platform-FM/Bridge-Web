@@ -13,3 +13,47 @@ export async function buildProfile(payload: UserProfilePayload): Promise<BuildPr
   const { data } = await api.post<BuildProfileResponse>(API_ENDPOINTS.BUILD_PROFILE, payload);
   return data;
 }
+
+/** One field returned by GET /api/v1/users/profile. */
+export interface ProfileField {
+  label: string;    
+  columnName: string;
+  value: string | string[];
+  isEditable: boolean;
+  /** Input type: "string" | "number" | "url" | "email" | "textarea" | "array" | ... */
+  type: string;
+  /** Options available when type === "array" */
+  options?: { value: string; label: string }[];
+}
+
+export interface GetProfileResponse {
+  success?: boolean;
+  message?: string;
+  data?: ProfileField[];
+}
+
+export interface SaveProfileResponse {
+  success?: boolean;
+  message?: string;
+  data?: unknown;
+}
+
+/**
+ * Fetch the current user's profile fields from GET /api/v1/users/profile.
+ * The access token is attached automatically by the axios interceptor.
+ */
+export async function getUserProfile(): Promise<GetProfileResponse> {
+  const { data } = await api.get<GetProfileResponse>(API_ENDPOINTS.GET_PROFILE);
+  return data;
+}
+
+/**
+ * Save / update the current user's profile (PUT /api/v1/users/profile).
+ * API is not yet live — callers should show a toast rather than failing silently.
+ */
+export async function saveUserProfile(
+  payload: Record<string, unknown>,
+): Promise<SaveProfileResponse> {
+  const { data } = await api.put<SaveProfileResponse>(API_ENDPOINTS.SAVE_PROFILE, payload);
+  return data;
+}

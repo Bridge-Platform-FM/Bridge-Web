@@ -62,5 +62,11 @@ export const API_ENDPOINTS = {
   // ----- Matching Engine (Explore) -----
   // Compatibility matches for a profile. TODO: switch to `${MATCHING}/me`
   // (token-derived) once the backend supports it; for now the profileId is passed.
-  MATCHING: (profileId: number) => `${MATCHING}/${profileId}`,
+  MATCHING: () => `${MATCHING}/profiles`,
+
+  // ----- User Profile -----
+  // Fetch the current user's profile fields (GET).
+  GET_PROFILE: `${USERS}/profile`,
+  // Save/update the current user's profile fields (PUT). API is not yet live.
+  SAVE_PROFILE: `${USERS}/profile`,
 } as const;
