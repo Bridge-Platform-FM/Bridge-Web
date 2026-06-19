@@ -242,7 +242,7 @@ export function SignInScreen({
               type="email"
               label="Official Email Address"
               required
-              placeholder="admin@company.com"
+              placeholder="john@example.com"
               error={errors.email?.message}
               adornment={<Icon name="mail" size={20} />}
               {...field("email", {

@@ -9,7 +9,7 @@ import type {
 /**
  * Explore data — the Matching Engine results powering the swipe deck + grid.
  *
- * Backed by the live `GET /api/v1/matching/:profileId` endpoint. The access token is
+ * Backed by the live `GET /api/v1/matching` endpoint. The access token is
  * attached automatically by the axios interceptor.
  *
  * TODO(api): the current user's profileId is hard-coded for testing. Once the
@@ -18,12 +18,12 @@ import type {
  */
 
 /** Temporary: the profile to fetch matches for until `/matching/me` exists. */
-const EXPLORE_TEST_PROFILE_ID = 14;
+// const EXPLORE_TEST_PROFILE_ID = 14;
 
 /** Fetch the current profile's compatibility matches for the Explore views. */
 export async function fetchExploreMatches(): Promise<ExploreMatch[]> {
   const { data } = await api.get<ExploreMatchesResponse>(
-    API_ENDPOINTS.MATCHING(EXPLORE_TEST_PROFILE_ID),
+    API_ENDPOINTS.MATCHING(),
   );
   return data.data.matches;
 }

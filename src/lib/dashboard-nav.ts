@@ -47,10 +47,10 @@ export const DASHBOARD_NAV: Record<Role, NavItem[]> = {
   admin: STAFF_NAV,
   startup: [
     DASHBOARD,
-    { key: "find-investors", label: "Find Investors", icon: "savings", route: "/dashboard/find-investors" },
+    // { key: "find-investors", label: "Find Investors", icon: "savings", route: "/dashboard/find-investors" },
     // REELS,
     AI_INSIGHTS,
-    DISCOVER,
+    // DISCOVER,
     EXPLORE,
     CONNECTIONS,
     DEAL_ROOM,
