@@ -7,6 +7,7 @@ const ACCESS_TOKEN_KEY =
   process.env.NEXT_PUBLIC_ACCESS_TOKEN_KEY ?? "bridge-platform.accessToken";
 const REFRESH_TOKEN_KEY =
   process.env.NEXT_PUBLIC_REFRESH_TOKEN_KEY ?? "bridge-platform.refreshToken";
+const STORAGE_KEY = process.env.NEXT_PUBLIC_STORAGE_KEY ?? "bridge-platform.onboarding";
 
 export interface AuthTokens {
   accessToken: string;
@@ -43,6 +44,7 @@ export function clearTokens() {
   try {
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
+    localStorage.removeItem(STORAGE_KEY);
   } catch {
     /* ignore */
   }
