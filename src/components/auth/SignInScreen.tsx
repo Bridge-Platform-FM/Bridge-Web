@@ -273,7 +273,7 @@ export function SignInScreen({
             <div className="flex justify-end">
               <Link
                 href={`${basePath}/forgot-password`}
-                className="text-sm font-bold text-primary hover:underline"
+                className="font-bold text-primary border-b border-transparent hover:border-current transition-colors"
               >
                 Forgot password?
               </Link>
@@ -290,16 +290,21 @@ export function SignInScreen({
               {showRegister && (
                 <p className="text-center text-sm text-on-surface-variant">
                   New to the portal?{" "}
-                  <Link href="/registration" className="font-bold text-primary hover:underline">
+                  <Link 
+                    href="/registration" 
+                    className="font-bold text-primary border-b border-transparent hover:border-current transition-colors"
+                  >
                     Create an account
                   </Link>
                 </p>
               )}
               {portal === "user" && (
                 <p className="text-center text-sm text-on-surface-variant">
-                  Staff member?{" "}
-                  <Link href="/admin/login" className="font-bold text-primary hover:underline">
-                    Sign in as admin
+                  <Link 
+                    href="/admin/login" 
+                    className="font-bold text-primary border-b border-transparent hover:border-current transition-colors"
+                  >
+                    Administrator Login
                   </Link>
                 </p>
               )}

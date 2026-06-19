@@ -91,7 +91,7 @@ export function ForgotPasswordScreen({ basePath = "/login" }: { basePath?: strin
 
               <p className="text-center text-sm text-on-surface-variant">
                 Remembered it?{" "}
-                <Link href={basePath} className="font-bold text-primary hover:underline">
+                <Link href={basePath} className="font-bold text-primary border-b border-transparent hover:border-current transition-colors">
                   Back to sign in
                 </Link>
               </p>
