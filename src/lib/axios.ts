@@ -1,5 +1,7 @@
 import axios, { AxiosError } from "axios";
-import { getAccessToken } from "@/lib/auth-tokens";
+import { toast } from "sonner";
+import { getAccessToken, clearTokens } from "@/lib/auth-tokens";
+import { clearSession } from "@/lib/auth-session";
 
 /**
  * Shared axios instance for all API calls.
@@ -25,10 +27,40 @@ export interface ApiError {
   data?: unknown;
 }
 
+// Guards against firing the logout/redirect more than once for a burst of 401s.
+let isLoggingOut = false;
+
+/**
+ * On an expired/invalid token (401) anywhere in the app: clear the stored tokens
+ * + session and bounce to the sign-in screen. Skipped on the auth screens
+ * themselves (a 401 there is a normal "wrong credentials", not a dead session).
+ */
+function handleUnauthorized() {
+  if (typeof window === "undefined" || isLoggingOut) return;
+
+  const path = window.location.pathname;
+  if (
+    path.startsWith("/login") ||
+    path.startsWith("/admin/login") ||
+    path.startsWith("/registration")
+  ) {
+    return;
+  }
+
+  isLoggingOut = true;
+  clearTokens();
+  clearSession();
+  toast.error("Your session has expired. Please sign in again.");
+  // Send staff back to the admin sign-in, everyone else to the user sign-in.
+  window.location.href = path.startsWith("/admin") ? "/admin/login" : "/login";
+}
+
 // Normalize errors so callers get a predictable shape.
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError<{ message?: string }>) => {
+    if (error.response?.status === 401) handleUnauthorized();
+
     const normalized: ApiError = {
       // Show only the backend-provided message; fall back to a generic line so
       // raw axios/technical strings never reach the UI.

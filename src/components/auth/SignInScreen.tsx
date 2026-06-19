@@ -295,6 +295,14 @@ export function SignInScreen({
                   </Link>
                 </p>
               )}
+              {portal === "user" && (
+                <p className="text-center text-sm text-on-surface-variant">
+                  Staff member?{" "}
+                  <Link href="/admin/login" className="font-bold text-primary hover:underline">
+                    Sign in as admin
+                  </Link>
+                </p>
+              )}
             </div>
           </form>
         </Card>
