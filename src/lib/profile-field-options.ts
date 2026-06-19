@@ -1,0 +1,151 @@
+/**
+ * Maps each backend profile column (snake_case, as returned by
+ * GET /api/v1/users/profile) to the SAME option list used in the registration
+ * "complete-profile" flow, plus whether the field is single- or multi-select.
+ *
+ * The profile page uses this so its dropdowns offer the full set of registration
+ * choices (e.g. every Primary Sector, every Country, every dial code) with the
+ * API's stored value pre-selected — instead of relying on whatever (possibly
+ * empty) `options` the API echoes back. To change a field's choices, edit the
+ * underlying `*-profile-options` / `countries` list; this registry just wires the
+ * column name to it.
+ *
+ * Column names mirror `toUserProfilePayload` in
+ * `app/registration/complete-profile/page.tsx` (including backend spellings such
+ * as `prefrerred_investment_stage` and `export_rediness`).
+ */
+import type { Option } from "@/lib/startup-profile-options";
+import {
+  INDUSTRY_SECTORS,
+  FUNDING_STAGES,
+  CURRENCIES,
+  INTENT_OPTIONS,
+} from "@/lib/startup-profile-options";
+import {
+  INVESTMENT_STAGES,
+  INVESTOR_TYPES,
+  PRIMARY_INTENT_OPTIONS,
+} from "@/lib/investor-profile-options";
+import {
+  PRIMARY_SECTORS,
+  SECTOR_OPTIONS,
+  SECTOR_TAXONOMY,
+  BUSINESS_TYPES,
+  REVENUE_BANDS,
+  EXPORT_READINESS,
+  BUSINESS_INTENTS,
+} from "@/lib/b2b-profile-options";
+import { COUNTRIES, CONTINENTS, DIAL_CODES } from "@/lib/countries";
+
+export interface FieldOptionConfig {
+  options: Option[];
+  /** true → multi-select (value is string[]); false → single-select. */
+  multiple: boolean;
+  /** Force the in-panel search box (defaults to Select's length-based rule). */
+  searchable?: boolean;
+}
+
+/** Drop duplicate option values while preserving order. */
+const dedupe = (opts: Option[]): Option[] => {
+  const seen = new Set<string>();
+  return opts.filter((o) => (seen.has(o.value) ? false : (seen.add(o.value), true)));
+};
+
+/**
+ * The B2B sub-sector / vertical pickers are cascading in registration. On the
+ * profile page each field stands alone, so we offer the flattened union of every
+ * sub-sector / vertical across all sectors (enough to resolve the stored value to
+ * a label and let the user re-pick).
+ */
+const ALL_SUB_SECTORS = dedupe(
+  SECTOR_TAXONOMY.flatMap((s) => (s.children ?? []).map(({ value, label }) => ({ value, label }))),
+);
+const ALL_VERTICALS = dedupe(
+  SECTOR_TAXONOMY.flatMap((s) =>
+    (s.children ?? []).flatMap((ss) =>
+      (ss.children ?? []).map(({ value, label }) => ({ value, label })),
+    ),
+  ),
+);
+
+const REGISTRY: Record<string, FieldOptionConfig> = {
+  // ── common (every role) ──
+  country: { options: COUNTRIES, multiple: false, searchable: true },
+  continent: { options: CONTINENTS, multiple: false },
+  primary_sector: { options: PRIMARY_SECTORS, multiple: true },
+  // Phone dial code — column name varies by backend; map the likely spellings.
+  country_code: { options: DIAL_CODES, multiple: false, searchable: true },
+  mobile_country_code: { options: DIAL_CODES, multiple: false, searchable: true },
+  phone_country_code: { options: DIAL_CODES, multiple: false, searchable: true },
+  dial_code: { options: DIAL_CODES, multiple: false, searchable: true },
+
+  // ── startup ──
+  startup_industry_sector: { options: INDUSTRY_SECTORS, multiple: true },
+  funding_stage: { options: FUNDING_STAGES, multiple: false },
+  funding_currency: { options: CURRENCIES, multiple: false },
+  startup_intent: { options: INTENT_OPTIONS, multiple: false },
+
+  // ── investor ──
+  prefrerred_investment_stage: { options: INVESTMENT_STAGES, multiple: true },
+  investor_sector_preference: { options: INDUSTRY_SECTORS, multiple: true },
+  geographic_investment_preference: { options: COUNTRIES, multiple: true, searchable: true },
+  investor_type: { options: INVESTOR_TYPES, multiple: false },
+  investor_intent: { options: PRIMARY_INTENT_OPTIONS, multiple: false },
+
+  // ── b2b enterprise ──
+  b2b_sector: { options: SECTOR_OPTIONS, multiple: false },
+  b2b_sub_sector: { options: ALL_SUB_SECTORS, multiple: false },
+  industry_vertical: { options: ALL_VERTICALS, multiple: false },
+  business_type: { options: BUSINESS_TYPES, multiple: false },
+  revenue_band: { options: REVENUE_BANDS, multiple: false },
+  export_rediness: { options: EXPORT_READINESS, multiple: false },
+  b2b_intent: { options: BUSINESS_INTENTS, multiple: false },
+};
+
+/**
+ * Option config for a profile column, or `null` if the column isn't a known
+ * choice field (then the page falls back to its API-driven rendering).
+ */
+export function getFieldOptionConfig(columnName: string): FieldOptionConfig | null {
+  if (!columnName) return null;
+  return REGISTRY[columnName] ?? REGISTRY[columnName.toLowerCase()] ?? null;
+}
+
+/**
+ * Columns rendered as a multi-line textarea — matching the registration flow,
+ * where these are `<Textarea>` (not a single-line input). Used to override the
+ * API's `type` when it reports a plain string.
+ */
+export const TEXTAREA_COLUMNS = new Set([
+  "short_bio",
+  "use_of_funds",
+  "business_description",
+  "investor_portfolio_overview",
+  "products_ervice_Offered",
+  "business_requirements",
+]);
+
+/**
+ * Columns rendered as a numeric input — matching the registration flow, where
+ * these are `<Input type="number">`.
+ */
+export const NUMBER_COLUMNS = new Set([
+  "funding_ask_amt_min",
+  "funding_ask_amt_max",
+  "team_size_min",
+  "team_size_max",
+  "ticket_size_amt_min",
+  "ticket_size_amt_max",
+  "number_of_investments_to_date",
+  "min_order_quantity",
+  "years_in_operation",
+]);
+
+/**
+ * Startup "Funding Ask Amount" group — currency + min + max rendered as one row
+ * (mirrors the registration widget). The page folds these three columns into a
+ * single control when `funding_ask_amt_min` is present.
+ */
+export const FUNDING_CURRENCY_COL = "funding_currency";
+export const FUNDING_MIN_COL = "funding_ask_amt_min";
+export const FUNDING_MAX_COL = "funding_ask_amt_max";
