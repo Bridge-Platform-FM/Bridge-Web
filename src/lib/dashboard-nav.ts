@@ -33,6 +33,7 @@ const PROFILE: NavItem = { key: "profile", label: "Profile", icon: "account_circ
 const STAFF_NAV: NavItem[] = [
   DASHBOARD,
   { key: "matching-engine", label: "Matching Engine", icon: "join_inner", route: "/dashboard/matching-engine" },
+  { key: "suggestion-weights", label: "Suggestion Weights", icon: "tune", route: "/dashboard/suggestion-weights" },
   { key: "user-management", label: "User Management", icon: "manage_accounts", route: "/dashboard/user-management" },
   { key: "kyc-review", label: "KYC Review", icon: "verified_user", route: "/dashboard/kyc-review" },
   { key: "subscription", label: "Subscription", icon: "card_membership", route: "/dashboard/subscription" },
