@@ -8,7 +8,6 @@ import {
   ROLE_ICON,
   ROLE_LABEL,
   companyInitials,
-  contactLinks,
   formatLocation,
   prettyTag,
   roleFacts,
@@ -24,42 +23,44 @@ import type { ExploreMatch } from "@/types/api.types";
 export function ProfileGridCard({ match }: { match: ExploreMatch }) {
   const fullName = [match.first_name, match.last_name].filter(Boolean).join(" ").trim();
   const location = formatLocation(match.country, match.continent);
-  const contacts = contactLinks(match);
-  const facts = roleFacts(match).slice(0, 4);
+  const facts = roleFacts(match).slice(0, 6);
+
+  const phone = match.country_code && match.mobile_number
+    ? `${match.country_code} ${match.mobile_number}`
+    : match.mobile_number ?? null;
 
   return (
     <div className="flex flex-col rounded-2xl border border-outline-variant/40 bg-surface-container-lowest p-5 shadow-sm transition-shadow hover:shadow-md">
-      {/* Header: avatar + identity + compatibility */}
-      <div className="flex items-start gap-3">
+
+      {/* ── Header: avatar · identity · compatibility ── */}
+      <div className="flex items-start gap-4">
         {match.profile_photo ? (
           // eslint-disable-next-line @next/next/no-img-element -- remote portrait, no fixed dimensions
           <img
             src={match.profile_photo}
             alt={match.organization_name}
-            className="size-14 shrink-0 rounded-xl object-cover"
+            className="size-16 shrink-0 rounded-xl object-cover"
           />
         ) : (
           <div
-            className={`flex size-14 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${ROLE_GRADIENT[match.role]} text-base font-black text-white`}
+            className={`flex size-16 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${ROLE_GRADIENT[match.role]} text-lg font-black text-white`}
           >
             {companyInitials(match.organization_name)}
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1">
-            <h3 className="truncate font-headline text-base font-bold text-on-surface">
+          <div className="flex items-center gap-1.5">
+            <h3 className="font-headline text-lg font-bold text-on-surface">
               {fullName || match.organization_name}
             </h3>
             {match.compatibility >= 80 && (
-              <Icon name="verified" size={16} filled className="shrink-0 text-secondary" />
+              <Icon name="verified" size={18} filled className="shrink-0 text-secondary" />
             )}
           </div>
-          <p className="flex items-center gap-1 text-sm font-semibold text-primary">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-primary">
             <Icon name={ROLE_ICON[match.role]} size={15} />
             {ROLE_LABEL[match.role]}
-            <span className="truncate font-normal text-on-surface-variant">
-              · {match.organization_name}
-            </span>
+            <span className="font-normal text-on-surface-variant">· {match.organization_name}</span>
           </p>
           {location && (
             <p className="mt-0.5 flex items-center gap-1 text-xs text-on-surface-variant">
@@ -68,65 +69,126 @@ export function ProfileGridCard({ match }: { match: ExploreMatch }) {
             </p>
           )}
         </div>
-        <CompatibilityRing value={match.compatibility} size={48} className="shrink-0 text-primary" />
+        <CompatibilityRing value={match.compatibility} size={52} className="shrink-0 text-primary" />
       </div>
 
-      {/* Short bio (hidden when the backend sends null) */}
+      {/* ── Bio ── */}
       {match.short_bio && (
-        <p className="mt-3 line-clamp-2 text-sm text-on-surface-variant">{match.short_bio}</p>
+        <p className="mt-3 text-sm leading-relaxed text-on-surface-variant">{match.short_bio}</p>
       )}
 
-      {/* Sector tags */}
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {match.primary_sector.map((sector) => (
-          <span
-            key={sector}
-            className="rounded-full bg-surface-container px-2.5 py-1 text-xs font-medium text-on-surface-variant"
-          >
-            {prettyTag(sector)}
-          </span>
-        ))}
+      {/* ── Body: sectors + rationale (left) · role facts (right) ── */}
+      <div className="mt-4 grid grid-cols-1 gap-4 border-t border-outline-variant/30 pt-4 sm:grid-cols-2">
+
+        {/* Left: sectors + rationale */}
+        <div className="flex flex-col gap-3">
+          <div>
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/70">
+                Primary Sector
+              </span>
+              {match.number_of_investments_to_date != null && (
+                <span className="text-xs font-semibold text-primary">
+                  {match.number_of_investments_to_date} investments
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {match.primary_sector.map((sector) => (
+                <span
+                  key={sector}
+                  className="rounded-full bg-surface-container px-2.5 py-1 text-xs font-medium text-on-surface-variant"
+                >
+                  {prettyTag(sector)}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {match.rationale && (
+            <div>
+              <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/70">
+                Reason for suggestion
+              </span>
+              <span className="inline-block rounded-full bg-surface-container px-2.5 py-1 text-xs font-medium text-on-surface-variant">
+                {match.rationale}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Right: role-specific facts */}
+        {facts.length > 0 && (
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+            {facts.map((fact) => (
+              <div key={fact.label} className="min-w-0">
+                <span className="block text-[9px] font-bold uppercase tracking-wider text-on-surface-variant/70">
+                  {fact.label}
+                </span>
+                <span className="block truncate text-xs font-bold text-on-surface">{fact.value}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Role-based details */}
-      {facts.length > 0 && (
-        <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-outline-variant/30 pt-3">
-          {facts.map((fact) => (
-            <div key={fact.label} className="min-w-0">
-              <span className="block text-[9px] font-bold uppercase tracking-wider text-on-surface-variant/70">
-                {fact.label}
-              </span>
-              <span className="block truncate text-xs font-bold text-on-surface">{fact.value}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Contact links + action */}
-      <div className="mt-4 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          {contacts.map((c) => (
+      {/* ── Contact info row ── */}
+      {(phone || match.company_email || match.company_website_url || match.linkedin_profile_url || match.linkedin_url) && (
+        <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 border-t border-outline-variant/30 pt-4">
+          {phone && (
             <a
-              key={c.label}
-              href={c.href}
+              href={`tel:${match.mobile_number}`}
+              className="flex items-center gap-1.5 text-xs text-on-surface-variant transition-colors hover:text-primary"
+            >
+              <Icon name="call" size={14} />
+              <span>{phone}</span>
+            </a>
+          )}
+          {match.company_email && (
+            <a
+              href={`mailto:${match.company_email}`}
+              className="flex items-center gap-1.5 text-xs text-on-surface-variant transition-colors hover:text-primary"
+            >
+              <Icon name="mail" size={14} />
+              <span>{match.company_email}</span>
+            </a>
+          )}
+          {match.company_website_url && (
+            <a
+              href={match.company_website_url}
               target="_blank"
               rel="noopener noreferrer"
-              title={c.label}
-              className="flex size-8 items-center justify-center rounded-full bg-surface-container text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-primary"
+              className="flex items-center gap-1.5 text-xs text-on-surface-variant transition-colors hover:text-primary"
             >
-              <Icon name={c.icon} size={16} />
+              <Icon name="language" size={14} />
+              <span>{match.company_website_url.replace(/^https?:\/\//, "")}</span>
             </a>
-          ))}
+          )}
+          {(match.linkedin_profile_url || match.linkedin_url) && (
+            <a
+              href={(match.linkedin_profile_url || match.linkedin_url)!}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-xs text-on-surface-variant transition-colors hover:text-primary"
+            >
+              <Icon name="link" size={14} />
+              <span>LinkedIn</span>
+            </a>
+          )}
         </div>
+      )}
+
+      {/* ── Action ── */}
+      <div className="mt-4 flex justify-end">
         <button
           type="button"
-          // TODO(api): route to a real profile detail page once it exists.
           onClick={() => toast("Full profile view coming soon")}
-          className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-on-primary transition-transform active:scale-95"
+          className="rounded-xl bg-primary px-5 py-2 text-xs font-bold text-on-primary transition-transform active:scale-95"
         >
           View Full Profile
         </button>
       </div>
+
     </div>
   );
 }

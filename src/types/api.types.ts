@@ -420,6 +420,8 @@ export interface ExploreMatch {
   continent: string | null;
   /** Sector tags shown as chips. */
   primary_sector: string[];
+  /** AI-generated explanation of why this profile was matched. */
+  rationale?: string | null;
   linkedin_profile_url?: string | null;
   linkedin_url?: string | null;
   company_website_url?: string | null;

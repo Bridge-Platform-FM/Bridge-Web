@@ -40,7 +40,7 @@ export function ProfileGridView() {
         emptyIcon="group_off"
         emptyText="No matches to explore right now."
       >
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="flex flex-col gap-5">
           {matches.map((match) => (
             <ProfileGridCard key={match.profileId} match={match} />
           ))}

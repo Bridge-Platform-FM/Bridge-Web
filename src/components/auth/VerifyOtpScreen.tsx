@@ -56,18 +56,22 @@ export function VerifyOtpScreen({
     setVerifying(true);
     try {
       const res = await verifyMfaOtp({ channel, otp: code }, portal);
+      console.log("redirectRoute123", res.data?.redirectRoute);
+      const destination = res.data?.redirectRoute || SUCCESS_ROUTE;
       setMessage(res.message ?? null);
-      setRedirectRoute(res.data?.redirectRoute ?? null);
+      setRedirectRoute(destination);
       // Persist the real name + role echoed back here so the dashboard sidebar shows
       // the actual signed-in user (login only had the email at that point). The
       // dashboard's AuthProvider reads this from localStorage on mount.
       const current = getSession();
+      console.log("current123", current)
       const fullName = [res.data?.first_name, res.data?.last_name].filter(Boolean).join(" ").trim();
       const nextRole = normalizeRole(res.data?.role) ?? current?.role ?? null;
       if (nextRole) {
         setSession({ role: nextRole, user: { ...current?.user, name: fullName || current?.user?.name } });
       }
       setVerified(true);
+      router.push(destination);
     } catch (err) {
       setError((err as ApiError).message ?? "Verification failed. Please try again.");
     } finally {
