@@ -114,7 +114,7 @@ export default function SuggestionWeightsPage() {
             Parameter
           </p>
           <p className="flex-1 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant">
-            Slider
+            
           </p>
           <p className="w-16 shrink-0 text-center font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant">
             Weight

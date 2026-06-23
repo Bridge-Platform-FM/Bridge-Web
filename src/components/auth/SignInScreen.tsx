@@ -166,15 +166,15 @@ export function SignInScreen({
       {/* Left: editorial context — scrolls with the page; the card stays pinned. */}
       <div className="flex flex-col gap-8 lg:col-span-7 lg:py-10">
         <div className="space-y-4">
-          <span className="inline-flex rounded-full bg-secondary-container px-3 py-1 text-xs font-semibold uppercase tracking-wider text-on-secondary-container">
+          {/* <span className="inline-flex rounded-full bg-secondary-container px-3 py-1 text-xs font-semibold uppercase tracking-wider text-on-secondary-container">
             {badge}
-          </span>
+          </span> */}
           <h1 className="font-headline text-3xl font-extrabold leading-[1.1] tracking-[-0.03em] text-on-surface sm:text-4xl lg:text-[2.75rem]">
             Where businesses, startups &amp; <span className="text-primary">investors connect</span>
           </h1>
           <p className="max-w-xl text-base leading-relaxed text-on-surface-variant sm:text-lg">
             Whether you&apos;re scaling a startup, sourcing investment, or growing your supply
-            chain — BRIDGE matches you with verified partners who fit.
+            chain - BRIDGE matches you with verified partners who fit.
           </p>
         </div>
 

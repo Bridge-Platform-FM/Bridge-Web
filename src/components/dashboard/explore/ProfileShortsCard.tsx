@@ -123,7 +123,7 @@ export function ProfileCardFace({ match }: { match: ExploreMatch }) {
 
           {/* Primary sector tags */}
           <div className="flex flex-wrap gap-1.5">
-            {match.primary_sector.map((sector) => (
+            {match?.primary_sector?.map((sector) => (
               <span
                 key={sector}
                 className="rounded-full border border-white/10 bg-white/20 px-2.5 py-0.5 text-xs font-semibold backdrop-blur-md"
