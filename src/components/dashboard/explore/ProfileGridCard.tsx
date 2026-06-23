@@ -34,7 +34,7 @@ export function ProfileGridCard({ match }: { match: ExploreMatch }) {
 
       {/* ── Header: avatar · identity · compatibility ── */}
       <div className="flex items-start gap-4">
-        {match.profile_photo ? (
+        {match?.profile_photo ? (
           // eslint-disable-next-line @next/next/no-img-element -- remote portrait, no fixed dimensions
           <img
             src={match.profile_photo}
@@ -83,18 +83,13 @@ export function ProfileGridCard({ match }: { match: ExploreMatch }) {
         {/* Left: sectors + rationale */}
         <div className="flex flex-col gap-3">
           <div>
-            <div className="mb-1.5 flex items-center justify-between gap-2">
+            {/* <div className="mb-1.5 flex items-center justify-between gap-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/70">
                 Primary Sector
               </span>
-              {match.number_of_investments_to_date != null && (
-                <span className="text-xs font-semibold text-primary">
-                  {match.number_of_investments_to_date} investments
-                </span>
-              )}
-            </div>
+            </div> */}
             <div className="flex flex-wrap gap-1.5">
-              {match.primary_sector.map((sector) => (
+              {match?.primary_sector?.map((sector) => (
                 <span
                   key={sector}
                   className="rounded-full bg-surface-container px-2.5 py-1 text-xs font-medium text-on-surface-variant"
@@ -121,9 +116,9 @@ export function ProfileGridCard({ match }: { match: ExploreMatch }) {
         {facts.length > 0 && (
           <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
             {facts.map((fact) => (
-              <div key={fact.label} className="min-w-0">
+              <div key={fact?.label} className="min-w-0">
                 <span className="block text-[9px] font-bold uppercase tracking-wider text-on-surface-variant/70">
-                  {fact.label}
+                  {fact?.label}
                 </span>
                 <span className="block truncate text-xs font-bold text-on-surface">{fact.value}</span>
               </div>
