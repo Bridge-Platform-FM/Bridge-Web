@@ -106,6 +106,42 @@ export interface VerifyMfaOtpResponse {
   };
 }
 
+/* ---- Password reset (standalone flow, all portals) ---- */
+
+/** Step 1: request an OTP to the account email. */
+export interface ResetPasswordTriggerOtpPayload {
+  email: string;
+}
+export interface ResetPasswordTriggerOtpResponse {
+  success?: boolean;
+  message?: string;
+  data?: unknown;
+}
+
+/** Step 2: verify the emailed OTP; returns a short-lived reset access token. */
+export interface ResetPasswordVerifyOtpPayload {
+  email: string;
+  otp: string;
+}
+export interface ResetPasswordVerifyOtpResponse {
+  success?: boolean;
+  message?: string;
+  data?: {
+    /** Short-lived RESET_PASSWORD_ACCESS_TOKEN used to authorize the reset call. */
+    accessToken: string;
+  };
+}
+
+/** Step 3: set the new password (authorized by the reset access token). */
+export interface ResetPasswordPayload {
+  newPassword: string;
+}
+export interface ResetPasswordResponse {
+  success?: boolean;
+  message?: string;
+  data?: unknown;
+}
+
 /** Payload for verifying a one-time code. Field names/values match the backend schema. */
 export interface VerifyOtpPayload {
   /** Which channel the code was sent over. */

@@ -9,10 +9,14 @@ export const ERROR_MESSAGES = {
   NO_SESSION: "Your session couldn't be started. Please try again.",
   LOGIN_FAILED: "Login failed. Please check your credentials.",
   REGISTRATION_FAILED: "Registration failed. Please try again.",
+  RESET_PASSWORD_FAILED: "Couldn't reset your password. Please try again.",
+  INVALID_OTP: "The code you entered is invalid or has expired.",
 } as const;
 
 /** Success messages surfaced to the user (toasts). */
 export const SUCCESS_MESSAGES = {
   LOGIN: "Welcome back.",
   REGISTRATION: "Registration successful.",
+  RESET_PASSWORD_OTP_SENT: "We've sent a one-time code to your email.",
+  RESET_PASSWORD_SUCCESS: "Password reset successfully. Please sign in.",
 } as const;

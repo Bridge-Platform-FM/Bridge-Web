@@ -272,8 +272,8 @@ export function SignInScreen({
 
             <div className="flex justify-end">
               <Link
-                href={`${basePath}/forgot-password`}
-                className="font-bold text-primary border-b border-transparent hover:border-current transition-colors"
+                href={`/reset-password?from=${encodeURIComponent(basePath)}`}
+                className="text-sm font-bold text-primary hover:underline"
               >
                 Forgot password?
               </Link>
