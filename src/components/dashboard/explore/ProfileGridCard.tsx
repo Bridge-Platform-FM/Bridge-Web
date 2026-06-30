@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { toast } from "sonner";
 import { Icon } from "@/components/ui/Icon";
 import { CompatibilityRing } from "@/components/dashboard/explore/CompatibilityRing";
@@ -21,6 +22,7 @@ import type { ExploreMatch } from "@/types/api.types";
  * "Explore Experts – Entry Grid" screen.
  */
 export function ProfileGridCard({ match }: { match: ExploreMatch }) {
+  const [photoFailed, setPhotoFailed] = useState(false);
   const fullName = [match.first_name, match.last_name].filter(Boolean).join(" ").trim();
   const location = formatLocation(match.country, match.continent);
   const facts = roleFacts(match).slice(0, 6);
@@ -34,18 +36,19 @@ export function ProfileGridCard({ match }: { match: ExploreMatch }) {
 
       {/* ── Header: avatar · identity · compatibility ── */}
       <div className="flex items-start gap-4">
-        {match?.profile_photo ? (
+        {match?.profile_photo && !photoFailed ? (
           // eslint-disable-next-line @next/next/no-img-element -- remote portrait, no fixed dimensions
           <img
             src={match.profile_photo}
-            alt={match.organization_name}
+            alt={fullName || match.organization_name}
+            onError={() => setPhotoFailed(true)}
             className="size-16 shrink-0 rounded-xl object-cover"
           />
         ) : (
           <div
             className={`flex size-16 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${ROLE_GRADIENT[match.role]} text-lg font-black text-white`}
           >
-            {companyInitials(match.organization_name)}
+            {companyInitials(fullName || match.organization_name)}
           </div>
         )}
         <div className="min-w-0 flex-1">

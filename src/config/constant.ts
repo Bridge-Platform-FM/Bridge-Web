@@ -20,6 +20,11 @@ export const API_ENDPOINTS = {
   MFA_SELECT_CHANNEL: `${AUTH}/mfa/trigger-otp`,
   // Login MFA: verify the OTP the user entered for the chosen channel.
   MFA_VERIFY_OTP: `${AUTH}/mfa/verify-otp`,
+  // Password reset (standalone flow, all portals): trigger an OTP to the email,
+  // verify it (returns a short-lived reset access token), then set the new password.
+  RESET_PASSWORD_TRIGGER_OTP: `${AUTH}/reset-password/trigger-otp`,
+  RESET_PASSWORD_VERIFY_OTP: `${AUTH}/reset-password/verify-otp`,
+  RESET_PASSWORD: `${AUTH}/reset-password`,
   // Admin auth — same login + MFA flow, admin-prefixed paths.
   ADMIN_LOGIN: `${ADMIN_AUTH}/login`,
   ADMIN_MFA_SELECT_CHANNEL: `${ADMIN_AUTH}/mfa/trigger-otp`,

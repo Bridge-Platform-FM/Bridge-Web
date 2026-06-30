@@ -16,7 +16,8 @@ export const api = axios.create({
 // Attach the access token (issued at registration) so every later call is authenticated.
 api.interceptors.request.use((config) => {
   const token = getAccessToken();
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  // Don't clobber an Authorization header a caller set explicitly per-request.
+  if (token && !config.headers.Authorization) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
@@ -42,7 +43,10 @@ function handleUnauthorized() {
   if (
     path.startsWith("/login") ||
     path.startsWith("/admin/login") ||
-    path.startsWith("/registration")
+    path.startsWith("/registration") ||
+    // The reset flow uses a short-lived reset token; an expired one should surface
+    // an inline error on the reset screen, not bounce the (logged-out) user away.
+    path.startsWith("/reset-password")
   ) {
     return;
   }

@@ -15,6 +15,12 @@ import type {
   ResendOtpResponse,
   SwitchRolePayload,
   SwitchRoleResponse,
+  ResetPasswordTriggerOtpPayload,
+  ResetPasswordTriggerOtpResponse,
+  ResetPasswordVerifyOtpPayload,
+  ResetPasswordVerifyOtpResponse,
+  ResetPasswordPayload,
+  ResetPasswordResponse,
 } from "@/types/api.types";
 
 /** Which login portal a request targets — selects the endpoint group below. */
@@ -89,6 +95,44 @@ export async function verifyMfaOtp(
   portal: Portal = "user",
 ): Promise<VerifyMfaOtpResponse> {
   const { data } = await api.post<VerifyMfaOtpResponse>(AUTH_BY_PORTAL[portal].MFA_VERIFY_OTP, payload);
+  return data;
+}
+
+/**
+ * Password reset — step 1: trigger an OTP to the account email. No auth needed.
+ */
+export async function triggerResetPasswordOtp(
+  payload: ResetPasswordTriggerOtpPayload,
+): Promise<ResetPasswordTriggerOtpResponse> {
+  const { data } = await api.post<ResetPasswordTriggerOtpResponse>(
+    API_ENDPOINTS.RESET_PASSWORD_TRIGGER_OTP,
+    payload,
+  );
+  return data;
+}
+
+/**
+ * Password reset — step 2: verify the emailed OTP. The response carries a short-
+ * lived reset access token; the caller persists it (via setTokens) so the axios
+ * interceptor authorizes the step-3 reset call.
+ */
+export async function verifyResetPasswordOtp(
+  payload: ResetPasswordVerifyOtpPayload,
+): Promise<ResetPasswordVerifyOtpResponse> {
+  const { data } = await api.post<ResetPasswordVerifyOtpResponse>(
+    API_ENDPOINTS.RESET_PASSWORD_VERIFY_OTP,
+    payload,
+  );
+  return data;
+}
+
+/**
+ * Password reset — step 3: set the new password. Authorization is the reset
+ * access token from step 2, attached automatically by the request interceptor
+ * (stored via setTokens), so no manual header is needed here.
+ */
+export async function resetPassword(payload: ResetPasswordPayload): Promise<ResetPasswordResponse> {
+  const { data } = await api.post<ResetPasswordResponse>(API_ENDPOINTS.RESET_PASSWORD, payload);
   return data;
 }
 
