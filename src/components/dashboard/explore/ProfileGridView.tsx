@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { AsyncState } from "@/components/ui/AsyncState";
 import { ProfileGridCard } from "@/components/dashboard/explore/ProfileGridCard";
+import { MatchProfileModal } from "@/components/dashboard/explore/MatchProfileModal";
+import { ProposalFormModal, type ProposalRecipient } from "@/components/dashboard/connections/ProposalFormModal";
+import { useSenderIdentity } from "@/components/dashboard/connections/sender-identity";
 import { fetchExploreMatches } from "@/services/explore.service";
 import type { ExploreMatch } from "@/types/api.types";
 
@@ -15,6 +18,12 @@ export function ProfileGridView() {
   const [matches, setMatches] = useState<ExploreMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** Recipient for the open proposal modal; null = modal closed. */
+  const [proposalRecipient, setProposalRecipient] = useState<ProposalRecipient | null>(null);
+  /** Match whose full profile is open; null = closed. */
+  const [profileMatch, setProfileMatch] = useState<ExploreMatch | null>(null);
+
+  const { sender } = useSenderIdentity();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -42,10 +51,27 @@ export function ProfileGridView() {
       >
         <div className="flex flex-col gap-5">
           {matches.map((match) => (
-            <ProfileGridCard key={match.profileId} match={match} />
+            <ProfileGridCard
+              key={match.profileId}
+              match={match}
+              onConnect={(m) => setProposalRecipient({ id: m.profileId, roleId: m.roleId, companyId: m.companyId })}
+              onViewProfile={setProfileMatch}
+            />
           ))}
         </div>
       </AsyncState>
+
+      {proposalRecipient && (
+        <ProposalFormModal
+          open
+          recipient={proposalRecipient}
+          sender={sender}
+          onClose={() => setProposalRecipient(null)}
+          onSent={() => setProposalRecipient(null)}
+        />
+      )}
+
+      <MatchProfileModal match={profileMatch} onClose={() => setProfileMatch(null)} />
     </div>
   );
 }

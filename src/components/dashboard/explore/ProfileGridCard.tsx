@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { toast } from "sonner";
 import { Icon } from "@/components/ui/Icon";
 import { CompatibilityRing } from "@/components/dashboard/explore/CompatibilityRing";
 import {
@@ -21,7 +20,15 @@ import type { ExploreMatch } from "@/types/api.types";
  * sector tags), laid out for at-a-glance reading. Adapted from the Stitch
  * "Explore Experts – Entry Grid" screen.
  */
-export function ProfileGridCard({ match }: { match: ExploreMatch }) {
+export function ProfileGridCard({
+  match,
+  onConnect,
+  onViewProfile,
+}: {
+  match: ExploreMatch;
+  onConnect: (match: ExploreMatch) => void;
+  onViewProfile: (match: ExploreMatch) => void;
+}) {
   const [photoFailed, setPhotoFailed] = useState(false);
   const fullName = [match.first_name, match.last_name].filter(Boolean).join(" ").trim();
   const location = formatLocation(match.country, match.continent);
@@ -177,13 +184,21 @@ export function ProfileGridCard({ match }: { match: ExploreMatch }) {
       )}
 
       {/* ── Action ── */}
-      <div className="mt-4 flex justify-end">
+      <div className="mt-4 flex justify-end gap-2">
         <button
           type="button"
-          onClick={() => toast("Full profile view coming soon")}
-          className="rounded-xl bg-primary px-5 py-2 text-xs font-bold text-on-primary transition-transform active:scale-95"
+          onClick={() => onViewProfile(match)}
+          className="rounded-xl border border-outline-variant/50 px-5 py-2 text-xs font-bold text-on-surface transition-colors hover:bg-surface-container"
         >
           View Full Profile
+        </button>
+        <button
+          type="button"
+          onClick={() => onConnect(match)}
+          className="flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2 text-xs font-bold text-on-primary transition-transform active:scale-95"
+        >
+          <Icon name="person_add" size={15} />
+          Connect
         </button>
       </div>
 
