@@ -1,15 +1,20 @@
 
+/** Shared API version prefix — change here to bump the whole API version. */
+const BASE = "/api/v1";
+
 /** Path prefix per API group — change/add groups here. */
-const AUTH = "/api/v1/auth";
-const ADMIN_AUTH = "/api/v1/admin/auth";
-const SUPERADMIN_AUTH = "/api/v1/superadmin/auth";
-const FILE = "/api/v1/file";
-const USERS = "/api/v1/users";
-// const KYC = "/api/v1/kyc";
+const AUTH = `${BASE}/auth`;
+const ADMIN_AUTH = `${BASE}/admin/auth`;
+const SUPERADMIN_AUTH = `${BASE}/superadmin/auth`;
+const FILE = `${BASE}/file`;
+const USERS = `${BASE}/users`;
+// const KYC = `${BASE}/kyc`;
 // Admin/super-admin back-office (User Management + KYC Review).
-const ADMIN = "/api/v1/admin";
+const ADMIN = `${BASE}/admin`;
 // Matching Engine (Explore — compatibility matches).
-const MATCHING = "/api/v1/matching";
+const MATCHING = `${BASE}/matching`;
+// Connection requests (proposals sent to matched profiles).
+const CONNECTIONS = `${BASE}/connections`;
 /** API endpoint paths (relative to NEXT_PUBLIC_API_BASE_URL host). */
 export const API_ENDPOINTS = {
   // TODO: replace with the real register path from the curl.
@@ -74,4 +79,14 @@ export const API_ENDPOINTS = {
   GET_PROFILE: `${USERS}/profile`,
   // Save/update the current user's profile fields (PUT). API is not yet live.
   SAVE_PROFILE: `${USERS}/profile`,
+
+  // ----- Connections -----
+  // Send a connection request (proposal) to a matched profile. POST.
+  CONNECTION_CREATE: `${CONNECTIONS}/`,
+  // List my connection requests for a direction ("received" | "sent"). GET.
+  //   /api/v1/connections/sent   ·   /api/v1/connections/received
+  CONNECTIONS_LIST: (direction: string) => `${CONNECTIONS}/${direction}`,
+  // Change a request's status (accept / decline / defer / withdraw).
+  // body: { connectionId, status }. POST.
+  CONNECTION_ACTION: `${CONNECTIONS}/change-status`,
 } as const;

@@ -442,6 +442,9 @@ export type ExploreMatchRole = "INVESTOR" | "B2B" | "STARTUP";
 export interface ExploreMatch {
   // ---- common ----
   profileId: number;
+  /** Recipient identifiers used when sending a connection request. */
+  roleId: number;
+  companyId: number;
   role: ExploreMatchRole;
   /** Overall compatibility score, 0–100. */
   compatibility: number;
@@ -504,3 +507,72 @@ export interface ExploreMatchesResponse {
 
 /** A swipe decision on a match card. */
 export type ExploreDecision = "reject" | "skip" | "send";
+
+/** Body sent to POST /api/v1/connection (keys per backend). */
+export interface SendConnectionRequestPayload {
+  recipientUserId: number;
+  recipientRoleId?: number;
+  recipientCompanyId?: number;
+  personalMessage: string;
+  bussinessIntent: string[];
+  expectedDealSize: string;
+  productServiceDetails: string;
+}
+
+/** Response from POST /api/v1/connection. */
+export interface SendConnectionRequestResponse {
+  success: boolean;
+  message: string;
+  data?: unknown;
+}
+
+/** Lifecycle status of a connection request. */
+export type ConnectionStatus =
+  | "PENDING"
+  | "VIEWED"
+  | "ACCEPTED"
+  | "DECLINED"
+  | "DEFERRED"
+  | "WITHDRAWN"
+  | "EXPIRED";
+
+/** Whether I'm the recipient (received) or the sender (sent) of the request. */
+export type ConnectionDirection = "received" | "sent";
+
+/** One connection request as shown in the Connections screen (list + detail). */
+export interface ConnectionRequest {
+  id: string;
+  direction: ConnectionDirection;
+  name: string;
+  company: string;
+  role: Role;
+  intent: string;
+  message?: string;
+  status: ConnectionStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Actions a user can take on a request (UI-level). */
+export type ConnectionActionType = "ACCEPT" | "DECLINE" | "DEFER" | "WITHDRAW";
+
+/** Body for the change-status API. `status` is the backend's title-case value
+ *  (e.g. "Accepted"), translated from our internal uppercase status. */
+export interface ConnectionActionPayload {
+  connectionId: number;
+  status: string;
+  reason?: string;
+}
+
+export interface ConnectionActionResponse {
+  success: boolean;
+  message: string;
+  data?: { id: string; status: ConnectionStatus };
+}
+
+/** Response from GET /api/v1/connections?direction=. */
+export interface ConnectionsListResponse {
+  success: boolean;
+  message: string;
+  data: ConnectionRequest[];
+}

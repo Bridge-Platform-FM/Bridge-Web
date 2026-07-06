@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { AsyncState } from "@/components/ui/AsyncState";
 import { ProfileCardFace, ProfileShortsCard } from "@/components/dashboard/explore/ProfileShortsCard";
+import { ProposalFormModal, type ProposalRecipient } from "@/components/dashboard/connections/ProposalFormModal";
+import { useSenderIdentity } from "@/components/dashboard/connections/sender-identity";
 import { fetchExploreMatches, submitExploreDecision } from "@/services/explore.service";
 import type { ExploreDecision, ExploreMatch } from "@/types/api.types";
 
@@ -47,7 +49,7 @@ const ACTIONS: ActionConfig[] = [
     decision: "send",
     label: "Send",
     icon: "person_add",
-    circle: "size-14 bg-secondary text-on-secondary shadow-lg",
+    circle: "size-14 bg-white/10 border border-white/25 text-white backdrop-blur-md",
     iconSize: 24,
   },
 ];
@@ -59,6 +61,10 @@ export function ProfileShortsDeck() {
   const [error, setError] = useState<string | null>(null);
   /** When set, the active card animates out in that direction. */
   const [commandedExit, setCommandedExit] = useState<ExploreDecision | null>(null);
+  /** Recipient for the open proposal modal; null = modal closed. */
+  const [proposalRecipient, setProposalRecipient] = useState<ProposalRecipient | null>(null);
+
+  const { sender } = useSenderIdentity();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -88,14 +94,25 @@ export function ProfileShortsDeck() {
     [current],
   );
 
-  // Trigger an exit from a button / keyboard (ignored mid-animation).
+  // Trigger an action from a button / keyboard (ignored mid-animation). "send"
+  // opens the proposal modal instead of committing; reject/skip exit immediately.
   const commandAction = useCallback(
     (decision: ExploreDecision) => {
-      if (!current || commandedExit) return;
+      if (!current || commandedExit || proposalRecipient != null) return;
+      if (decision === "send") {
+        setProposalRecipient({ id: current.profileId, roleId: current.roleId, companyId: current.companyId });
+        return;
+      }
       setCommandedExit(decision);
     },
-    [current, commandedExit],
+    [current, commandedExit, proposalRecipient],
   );
+
+  // Proposal sent → fly the card out ("send") so the deck advances via handleExit.
+  const handleProposalSent = useCallback(() => {
+    setProposalRecipient(null);
+    setCommandedExit("send");
+  }, []);
 
   // Keyboard shortcuts: ← reject, → connect, ↓ skip.
   useEffect(() => {
@@ -136,6 +153,7 @@ export function ProfileShortsDeck() {
               match={current}
               commandedExit={commandedExit}
               onExit={handleExit}
+              onSendIntent={() => commandAction("send")}
             />
           )}
         </AsyncState>
@@ -184,6 +202,16 @@ export function ProfileShortsDeck() {
           </div>
         )}
       </div>
+
+      {proposalRecipient && (
+        <ProposalFormModal
+          open
+          recipient={proposalRecipient}
+          sender={sender}
+          onClose={() => setProposalRecipient(null)}
+          onSent={handleProposalSent}
+        />
+      )}
     </div>
   );
 }

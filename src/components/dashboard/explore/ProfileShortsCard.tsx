@@ -162,9 +162,15 @@ interface ProfileShortsCardProps {
   commandedExit: ExploreDecision | null;
   /** Fires once the card has animated off screen. */
   onExit: (decision: ExploreDecision) => void;
+  /**
+   * Right-swipe / connect intent. Instead of committing immediately, the deck opens
+   * the proposal modal; the card springs back to center so it stays put until the
+   * user either sends (deck then commands the exit) or cancels.
+   */
+  onSendIntent: () => void;
 }
 
-export function ProfileShortsCard({ match, commandedExit, onExit }: ProfileShortsCardProps) {
+export function ProfileShortsCard({ match, commandedExit, onExit, onSendIntent }: ProfileShortsCardProps) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const controls = useAnimationControls();
@@ -189,15 +195,19 @@ export function ProfileShortsCard({ match, commandedExit, onExit }: ProfileShort
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to a new command
   }, [commandedExit]);
 
+  const springBack = () =>
+    controls.start({ x: 0, y: 0, transition: { type: "spring", stiffness: 300, damping: 25 } });
   const handleDragEnd = (_: unknown, info: PanInfo) => {
     if (info.offset.x < -SWIPE_DISTANCE || info.velocity.x < -SWIPE_VELOCITY) {
       flyOut("reject");
     } else if (info.offset.x > SWIPE_DISTANCE || info.velocity.x > SWIPE_VELOCITY) {
-      flyOut("send");
+      // Connect: open the proposal modal first; keep the card in place until sent.
+      springBack();
+      onSendIntent();
     } else if (info.offset.y > SWIPE_DISTANCE || info.velocity.y > SWIPE_VELOCITY) {
       flyOut("skip");
     } else {
-      controls.start({ x: 0, y: 0, transition: { type: "spring", stiffness: 300, damping: 25 } });
+      springBack();
     }
   };
 

@@ -40,5 +40,15 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-*.md 
+*.md
 *.html
+
+# Deal Room DEMO — local walkthrough only, never pushed. Delete these two folders to
+# remove the feature entirely (they touch no shared/committed code).
+src/app/dashboard/deal-room/
+src/components/dashboard/deal-room/
+
+# Connections DEMO — walkthrough-only /demo route (its dummy data is inlined in the
+# route's page.tsx). The real connections feature (page.tsx, screen/list/drawer, lib,
+# service) stays tracked; only this demo-only path is ignored.
+src/app/dashboard/connections/demo/
