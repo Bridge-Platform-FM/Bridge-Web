@@ -43,10 +43,9 @@ next-env.d.ts
 *.md
 *.html
 
-# Deal Room DEMO — local walkthrough only, never pushed. Delete these two folders to
-# remove the feature entirely (they touch no shared/committed code).
-src/app/dashboard/deal-room/
-src/components/dashboard/deal-room/
+# Deal Room — real feature is now tracked. Only the walkthrough /demo route stays
+# ignored (its dummy data + in-memory store live under demo/ and the store/dummy files).
+src/app/dashboard/deal-room/demo/
 
 # Connections DEMO — walkthrough-only /demo route (its dummy data is inlined in the
 # route's page.tsx). The real connections feature (page.tsx, screen/list/drawer, lib,
