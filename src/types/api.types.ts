@@ -567,7 +567,10 @@ export interface ConnectionActionPayload {
 export interface ConnectionActionResponse {
   success: boolean;
   message: string;
-  data?: { id: string; status: ConnectionStatus };
+  data?: {
+    connection?: { id: string | number; status: ConnectionStatus };
+    deal_room_id?: number | null;
+  };
 }
 
 /** Response from GET /api/v1/connections?direction=. */

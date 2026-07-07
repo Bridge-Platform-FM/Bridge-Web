@@ -49,6 +49,13 @@ export default function ConnectionsPage() {
     try {
       const res = await actOnConnection(id, status, reason);
       toast.success(res.message ?? "Action completed.");
+
+      const dealRoomId = res.data?.deal_room_id;
+      if (status === "ACCEPTED" && dealRoomId) {
+        router.push(`/dashboard/deal-room/${dealRoomId}`);
+        return; // navigating away — no need to reload the list
+      }
+
       load();
     } catch (err) {
       toast.error((err as ApiError).message ?? "Couldn't complete the action. Please try again.");

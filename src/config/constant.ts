@@ -15,6 +15,8 @@ const ADMIN = `${BASE}/admin`;
 const MATCHING = `${BASE}/matching`;
 // Connection requests (proposals sent to matched profiles).
 const CONNECTIONS = `${BASE}/connections`;
+// Deal Rooms (chat workspaces spawned from an accepted connection).
+const DEAL_ROOMS = `${BASE}/deal-rooms`;
 /** API endpoint paths (relative to NEXT_PUBLIC_API_BASE_URL host). */
 export const API_ENDPOINTS = {
   // TODO: replace with the real register path from the curl.
@@ -89,4 +91,19 @@ export const API_ENDPOINTS = {
   // Change a request's status (accept / decline / defer / withdraw).
   // body: { connectionId, status }. POST.
   CONNECTION_ACTION: `${CONNECTIONS}/change-status`,
+
+  // ----- Deal Rooms ----- (Bridge-Server: /api/v1/deal-rooms + /:id/messages, JWT)
+  // List the current user's deal rooms. GET. Returns flat requester_*/recipient_* rows.
+  DEAL_ROOMS_LIST: DEAL_ROOMS,
+  // A room's message history (cursor-paginated, newest-first). GET.
+  DEAL_ROOM_MESSAGES: (id: string) => `${DEAL_ROOMS}/${id}/messages`,
+  // Close a deal room (both sides go read-only). PUT, body: { reason? }.
+  DEAL_ROOM_CLOSE: (id: string) => `${DEAL_ROOMS}/${id}/close`,
+  // Send a FILE/media message. POST multipart: field `media` (+ optional `caption`,
+  // `download_allowed` = "true"|"false"). NOTE: TEXT messages go over the socket.
+  DEAL_ROOM_SEND_MEDIA: (id: string) => `${DEAL_ROOMS}/${id}/messages/media`,
+  // List every file shared in a room (shared-files drawer). GET.
+  DEAL_ROOM_FILES: (id: string) => `${DEAL_ROOMS}/${id}/messages/media`,
+  // Deferred: authenticated media download GET `.../messages/{messageId}/media`,
+  //           read receipts PUT `${DEAL_ROOMS}/${id}/messages/read`.
 } as const;
