@@ -98,9 +98,24 @@ export function MessageBubble({ message, counterparty, onPreview }: MessageBubbl
           {message.attachment && <Attachment file={message.attachment} mine={mine} onPreview={onPreview} />}
           {message.text && <span className="text-sm leading-relaxed">{message.text}</span>}
         </div>
-        <p className={`mt-1 px-1 text-[10px] font-semibold tracking-wide text-on-surface-variant uppercase ${mine ? "text-right" : "text-left"}`}>
-          {clockTime(message.at)}
-        </p>
+        <div className={`mt-1 flex items-center gap-1.5 px-1 ${mine ? "justify-end" : "justify-start"}`}>
+          <span className="text-[10px] font-semibold tracking-wide text-on-surface-variant uppercase">
+            {clockTime(message.at)}
+          </span>
+          {mine && (
+            <span className="group relative flex items-center">
+              <Icon
+                name={message.read ? "done_all" : "done"}
+                size={18}
+                className={message.read ? "text-primary" : "text-on-surface-variant"}
+              />
+              {/* Themed hover tooltip (matches the app surface, not a native black box). */}
+              <span className="pointer-events-none absolute bottom-full right-0 mb-1.5 hidden whitespace-nowrap rounded-lg border border-outline-variant/40 bg-surface-container-highest px-2.5 py-1 text-[11px] font-semibold text-on-surface shadow-lg group-hover:block">
+                {message.read ? "Seen" : "Delivered"}
+              </span>
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

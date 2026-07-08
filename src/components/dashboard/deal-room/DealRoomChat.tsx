@@ -23,6 +23,12 @@ interface DealRoomChatProps {
   onSendMessage: (text: string, file?: File, downloadAllowed?: boolean) => void;
   /** Close the deal; the parent flips the room to CLOSED. */
   onCloseDeal: () => void;
+  /** The counterparty is currently typing → show the "typing…" indicator. */
+  counterpartyTyping?: boolean;
+  /** Call on each composer keystroke (emits `typing`, throttled by the socket hook). */
+  onTyping?: () => void;
+  /** Call when the draft is sent/cleared (emits `stop_typing`). */
+  onStopTyping?: () => void;
 }
 
 /** A file the user has picked but not sent yet (url is a local preview object URL). */
@@ -42,7 +48,15 @@ interface PendingFile {
  * the side panel. Data-source agnostic: it renders `room` and calls `onSendMessage` /
  * `onCloseDeal`, so the live page (service-backed) and demo page (store-backed) reuse it.
  */
-export function DealRoomChat({ room, backHref, onSendMessage, onCloseDeal }: DealRoomChatProps) {
+export function DealRoomChat({
+  room,
+  backHref,
+  onSendMessage,
+  onCloseDeal,
+  counterpartyTyping = false,
+  onTyping,
+  onStopTyping,
+}: DealRoomChatProps) {
   const router = useRouter();
   const { counterparty: cp } = room;
   const messages = room.messages;
@@ -64,7 +78,7 @@ export function DealRoomChat({ room, backHref, onSendMessage, onCloseDeal }: Dea
   // just-sent message is never left below the fold.
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [messages]);
+  }, [messages, counterpartyTyping]);
 
   const pickFile = (file: File) => {
     const kind: DealAttachment["kind"] = file.type.startsWith("image/") ? "image" : "file";
@@ -80,6 +94,7 @@ export function DealRoomChat({ room, backHref, onSendMessage, onCloseDeal }: Dea
     onSendMessage(text, pending?.file, pending?.downloadAllowed);
     setDraft("");
     setPending(null);
+    onStopTyping?.();
   };
 
   // Open the watermarked preview modal for a shared file. Needs a server-side s3Key —
@@ -211,6 +226,23 @@ export function DealRoomChat({ room, backHref, onSendMessage, onCloseDeal }: Dea
               </Fragment>
             );
           })}
+
+          {/* Typing indicator — shown while the counterparty is composing. */}
+          {counterpartyTyping && !closed && (
+            <div className="flex items-end gap-2.5">
+              <span
+                className={`flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${ROLE_AVATAR_GRADIENT[cp.role]} text-[11px] font-bold text-on-primary`}
+              >
+                {initials(cp.name)}
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-2xl rounded-tl-sm bg-surface-container-high px-4 py-3">
+                <span className="size-1.5 animate-bounce rounded-full bg-on-surface-variant [animation-delay:-0.2s]" />
+                <span className="size-1.5 animate-bounce rounded-full bg-on-surface-variant [animation-delay:-0.1s]" />
+                <span className="size-1.5 animate-bounce rounded-full bg-on-surface-variant" />
+              </span>
+            </div>
+          )}
+
           {/* Scroll anchor — the newest message is kept in view via this element. */}
           <div ref={bottomRef} />
         </div>
@@ -295,7 +327,11 @@ export function DealRoomChat({ room, backHref, onSendMessage, onCloseDeal }: Dea
                 </button>
                 <textarea
                   value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
+                  onChange={(e) => {
+                    setDraft(e.target.value);
+                    if (e.target.value.trim()) onTyping?.();
+                    else onStopTyping?.();
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
@@ -303,7 +339,7 @@ export function DealRoomChat({ room, backHref, onSendMessage, onCloseDeal }: Dea
                     }
                   }}
                   rows={1}
-                  placeholder="Type your message…  (Enter to send, Shift+Enter for a new line)"
+                  placeholder="Type your message…"
                   className="max-h-32 min-h-12 flex-1 resize-none bg-transparent py-3 pr-4 text-sm text-on-surface outline-none placeholder:text-on-surface-variant"
                 />
               </div>
