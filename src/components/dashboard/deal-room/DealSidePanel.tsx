@@ -3,18 +3,9 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Icon } from "@/components/ui/Icon";
-import { Input } from "@/components/ui/input";
-import { Modal } from "@/components/modal/Modal";
 import { SharedFilesDrawer } from "./SharedFilesDrawer";
+import { ScheduleMeetingDrawer, type ScheduledMeeting } from "./ScheduleMeetingDrawer";
 import type { DealRoom, PreviewableFile } from "./types";
-
-/** A scheduled meeting shown in the Upcoming Meetings card (demo-only). */
-interface Meeting {
-  id: string;
-  title: string;
-  /** Friendly when-label, e.g. "Today, 11:30 AM". */
-  when: string;
-}
 
 /** A file shared in the deal room (top-N preview, derived from the chat thread). */
 interface SharedFile {
@@ -69,7 +60,7 @@ export function DealSidePanel({ room, closed, onPreview }: DealSidePanelProps) {
 
   // No dummy meetings — starts empty; the user adds them via Schedule Meeting.
   // TODO(backend): load scheduled meetings for this room when the API is ready.
-  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [meetings, setMeetings] = useState<ScheduledMeeting[]>([]);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [filesOpen, setFilesOpen] = useState(false);
 
@@ -186,89 +177,16 @@ export function DealSidePanel({ room, closed, onPreview }: DealSidePanelProps) {
         onPreview={onPreview}
       />
 
-      {/* Schedule Meeting modal */}
-      <ScheduleMeetingModal
+      {/* Schedule Meeting drawer (right slide-in) */}
+      <ScheduleMeetingDrawer
         open={scheduleOpen}
         onClose={() => setScheduleOpen(false)}
-        onSchedule={(mtg) => {
+        onConfirm={(mtg) => {
           setMeetings((prev) => [...prev, mtg]);
           setScheduleOpen(false);
           toast.success("Meeting scheduled.");
         }}
       />
     </>
-  );
-}
-
-/** Lightweight schedule form in a shared Modal. */
-function ScheduleMeetingModal({
-  open,
-  onClose,
-  onSchedule,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onSchedule: (m: Meeting) => void;
-}) {
-  const [title, setTitle] = useState("");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
-
-  const canSave = title.trim() && date && time;
-
-  const submit = () => {
-    if (!canSave) return;
-    const when = new Date(`${date}T${time}`).toLocaleString([], {
-      weekday: "short",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-    onSchedule({ id: `m-${Date.now()}`, title: title.trim(), when });
-    setTitle("");
-    setDate("");
-    setTime("");
-  };
-
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title="Schedule Meeting"
-      maxWidthClass="max-w-md"
-      footer={
-        <>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-11 items-center rounded-xl px-5 font-bold text-on-surface-variant transition-colors hover:bg-surface-container"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={submit}
-            disabled={!canSave}
-            className="flex h-11 items-center gap-2 rounded-xl bg-primary px-6 font-bold text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <Icon name="event_available" size={18} />
-            Schedule
-          </button>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-4">
-        <Input
-          label="Meeting title"
-          required
-          placeholder="e.g. Due Diligence Review"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-        <div className="grid grid-cols-2 gap-3">
-          <Input label="Date" required type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          <Input label="Time" required type="time" value={time} onChange={(e) => setTime(e.target.value)} />
-        </div>
-      </div>
-    </Modal>
   );
 }
