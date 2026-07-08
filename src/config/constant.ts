@@ -1,4 +1,3 @@
-
 /** Shared API version prefix — change here to bump the whole API version. */
 const BASE = "/api/v1";
 
@@ -8,6 +7,7 @@ const ADMIN_AUTH = `${BASE}/admin/auth`;
 const SUPERADMIN_AUTH = `${BASE}/superadmin/auth`;
 const FILE = `${BASE}/file`;
 const USERS = `${BASE}/users`;
+const SESSIONS = `${BASE}/sessions`;
 // const KYC = `${BASE}/kyc`;
 // Admin/super-admin back-office (User Management + KYC Review).
 const ADMIN = `${BASE}/admin`;
@@ -17,6 +17,7 @@ const MATCHING = `${BASE}/matching`;
 const CONNECTIONS = `${BASE}/connections`;
 // Deal Rooms (chat workspaces spawned from an accepted connection).
 const DEAL_ROOMS = `${BASE}/deal-rooms`;
+
 /** API endpoint paths (relative to NEXT_PUBLIC_API_BASE_URL host). */
 export const API_ENDPOINTS = {
   // TODO: replace with the real register path from the curl.
@@ -58,6 +59,14 @@ export const API_ENDPOINTS = {
   SAVE_KYC_INFO: `${FILE}/save-kyc-info`,
   // Fetch the submitted KYC docs + submission/expiry timestamps (verification-status step).
   GET_KYC_DOCS: `${FILE}/get-kyc-docs`,
+
+  // ----- Session Management -----
+  // Check whether the user is at their active-session limit (called after MFA
+  // verify, before the dashboard redirect). The access token is sent via the
+  // shared axios interceptor — no extra headers needed at the call site.
+  SESSION_LIMIT_STATUS: `${SESSIONS}/limit-status`,
+  // Revoke one or more sessions by id (called from the session-chooser modal).
+  REVOKE_SELECTED_SESSIONS: `${SESSIONS}/revoke-selected`,
 
   // ----- Admin / Super-Admin back-office -----
   // User Management list + detail. TODO: replace with the real paths from the curl.

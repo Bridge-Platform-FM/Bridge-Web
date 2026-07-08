@@ -11,6 +11,10 @@ export const ERROR_MESSAGES = {
   REGISTRATION_FAILED: "Registration failed. Please try again.",
   RESET_PASSWORD_FAILED: "Couldn't reset your password. Please try again.",
   INVALID_OTP: "The code you entered is invalid or has expired.",
+  /** Couldn't fetch the active-session limit status after OTP verification. */
+  SESSION_LIMIT_FETCH_FAILED: "Couldn't check active sessions. Please try again.",
+  /** Revoking the selected sessions failed (generic fallback; backend message takes priority). */
+  SESSION_REVOKE_FAILED: "Couldn't log out the selected session(s). Please try again.",
 } as const;
 
 /** Success messages surfaced to the user (toasts). */

@@ -311,6 +311,58 @@ export interface GetKycDocsResponse {
 }
 
 /* ===========================================================================
+ * Session Management
+ * Shapes used by the active-session limit check and session-chooser modal that
+ * runs between MFA OTP verification and the dashboard redirect.
+ * ======================================================================== */
+
+/** One active device session returned by GET /api/v1/sessions/limit-status. */
+export interface ActiveSession {
+  id: string;
+  deviceName: string;
+  browser: string;
+  os: string;
+  ipAddress: string;
+  /** ISO 8601 timestamp of the most recent activity on this session. */
+  lastActivityAt: string;
+  /** ISO 8601 timestamp of when this session was originally created. */
+  createdAt: string;
+}
+
+/**
+ * Response from GET /api/v1/sessions/limit-status. Called after MFA verification
+ * succeeds. When `atLimit` is true the session-chooser modal is shown; when false
+ * the client proceeds to the dashboard immediately.
+ *
+ * Note: `activeSessions` never includes the user's current (just-created) session —
+ * the backend excludes it. Every item in the list is safe to display as-is.
+ */
+export interface SessionLimitStatusResponse {
+  success?: boolean;
+  message?: string;
+  data?: {
+    /** True when the user has hit the concurrent-session ceiling. */
+    atLimit: boolean;
+    /**
+     * Existing sessions the user may choose to revoke. Empty array when
+     * `atLimit` is false.
+     */
+    activeSessions: ActiveSession[];
+  };
+}
+
+/** Payload for POST /api/v1/sessions/revoke-selected. */
+export interface RevokeSelectedSessionsPayload {
+  sessionIds: string[];
+}
+
+/** Response from POST /api/v1/sessions/revoke-selected. */
+export interface RevokeSelectedSessionsResponse {
+  success?: boolean;
+  message?: string;
+}
+
+/* ===========================================================================
  * Admin / Super-Admin back-office (User Management + KYC Review).
  * Fields are optional/tolerant like the rest of this file — the service layer
  * normalizes the raw backend shape into these before the UI consumes them.
