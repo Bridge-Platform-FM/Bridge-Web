@@ -1,27 +1,52 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import { Drawer } from "@/components/ui/Drawer";
 import { AsyncState } from "@/components/ui/AsyncState";
 import { Icon } from "@/components/ui/Icon";
-import type { ScheduledMeeting } from "./ScheduleMeetingDrawer";
+import { fetchAllMeetings } from "@/services/deal-room.service";
+import type { ApiError } from "@/lib/axios";
+import type { ScheduledMeeting } from "./types";
 
 interface MeetingsDrawerProps {
   open: boolean;
   onClose: () => void;
-  meetings: ScheduledMeeting[];
-  /** Open the details modal for the chosen meeting. */
-  onSelect: (meeting: ScheduledMeeting) => void;
+  dealRoomId: string;
+  /** Open the details modal for the chosen meeting id. */
+  onSelect: (meetingId: string) => void;
   /** Open the Schedule Meeting drawer. */
   onScheduleNew: () => void;
   closed: boolean;
 }
 
 /**
- * Right-side drawer listing EVERY meeting scheduled in this deal room. Mirrors
- * `SharedFilesDrawer`'s layout; each row opens `MeetingDetailsModal`. Also surfaces
- * "Schedule Meeting" in the footer since meetings (unlike files) are created here.
+ * Right-side drawer listing EVERY meeting scheduled in this deal room — loaded from
+ * `GET /meetings?dealRoomId=`, mirroring `SharedFilesDrawer`'s fetch-on-open pattern.
+ * Each row opens `MeetingDetailsModal` (by id, which fetches its own detail). Also
+ * surfaces "Schedule Meeting" in the footer since meetings (unlike files) are created here.
  */
-export function MeetingsDrawer({ open, onClose, meetings, onSelect, onScheduleNew, closed }: MeetingsDrawerProps) {
+export function MeetingsDrawer({ open, onClose, dealRoomId, onSelect, onScheduleNew, closed }: MeetingsDrawerProps) {
+  const [meetings, setMeetings] = useState<ScheduledMeeting[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setMeetings(await fetchAllMeetings(dealRoomId));
+    } catch (err) {
+      setError((err as ApiError).message ?? "Couldn't load meetings.");
+    } finally {
+      setLoading(false);
+    }
+  }, [dealRoomId]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- state lives in load()
+    if (open) load();
+  }, [open, load]);
+
   return (
     <Drawer
       open={open}
@@ -41,18 +66,19 @@ export function MeetingsDrawer({ open, onClose, meetings, onSelect, onScheduleNe
       }
     >
       <AsyncState
-        loading={false}
-        error={null}
+        loading={loading}
+        error={error}
         isEmpty={meetings.length === 0}
         emptyIcon="event_busy"
         emptyText="No meetings scheduled yet."
+        onRetry={load}
       >
         <ul className="flex flex-col gap-1">
           {meetings.map((mtg) => (
             <li key={mtg.id}>
               <button
                 type="button"
-                onClick={() => onSelect(mtg)}
+                onClick={() => onSelect(mtg.id)}
                 className="flex w-full items-center gap-3 rounded-lg p-2.5 text-left transition-colors hover:bg-surface-container-low"
               >
                 <Icon name="event" size={22} className="shrink-0 text-primary" />

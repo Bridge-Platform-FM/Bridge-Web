@@ -1,13 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Icon } from "@/components/ui/Icon";
 import { SharedFilesDrawer } from "./SharedFilesDrawer";
-import { ScheduleMeetingDrawer, type ScheduledMeeting } from "./ScheduleMeetingDrawer";
+import { ScheduleMeetingDrawer, type ScheduleMeetingFormValues } from "./ScheduleMeetingDrawer";
 import { MeetingsDrawer } from "./MeetingsDrawer";
 import { MeetingDetailsModal } from "./MeetingDetailsModal";
-import type { DealRoom, PreviewableFile } from "./types";
+import { fetchUpcomingMeetings, scheduleMeeting } from "@/services/deal-room.service";
+import type { ApiError } from "@/lib/axios";
+import type { DealRoom, PreviewableFile, ScheduledMeeting } from "./types";
 
 /** A file shared in the deal room (top-N preview, derived from the chat thread). */
 interface SharedFile {
@@ -60,13 +62,25 @@ interface DealSidePanelProps {
 export function DealSidePanel({ room, closed, onPreview }: DealSidePanelProps) {
   const { counterparty: cp } = room;
 
-  // No dummy meetings — starts empty; the user adds them via Schedule Meeting.
-  // TODO(backend): load scheduled meetings for this room when the API is ready.
+  // Inline preview — loaded from GET /meetings/upcoming; refetched after scheduling.
   const [meetings, setMeetings] = useState<ScheduledMeeting[]>([]);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [filesOpen, setFilesOpen] = useState(false);
   const [meetingsOpen, setMeetingsOpen] = useState(false);
-  const [selectedMeeting, setSelectedMeeting] = useState<ScheduledMeeting | null>(null);
+  /** Id of the meeting whose details modal is open; null = closed. */
+  const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
+
+  const loadUpcomingMeetings = useCallback(() => {
+    fetchUpcomingMeetings(room.id)
+      .then(setMeetings)
+      .catch((err) => {
+        toast.error((err as ApiError).message ?? "Couldn't load upcoming meetings.");
+      });
+  }, [room.id]);
+
+  useEffect(() => {
+    loadUpcomingMeetings();
+  }, [loadUpcomingMeetings]);
 
   // Inline top-4 preview is derived from the chat thread's attachments; the full list
   // lives behind "View All Files" (SharedFilesDrawer, backed by the files API).
@@ -87,6 +101,25 @@ export function DealSidePanel({ room, closed, onPreview }: DealSidePanelProps) {
         }),
     [room.messages, cp.name],
   );
+
+  const handleScheduleMeeting = async (values: ScheduleMeetingFormValues) => {
+    try {
+      await scheduleMeeting({
+        dealRoomId: Number(room.id),
+        recipientUserId: cp.userId,
+        title: values.title,
+        agenda: values.agenda,
+        meetingLink: values.link,
+        scheduledAt: new Date(`${values.date}T${values.time}`).toISOString(),
+        duration: values.duration,
+      });
+      loadUpcomingMeetings();
+      setScheduleOpen(false);
+      toast.success("Meeting scheduled.");
+    } catch (err) {
+      toast.error((err as ApiError).message ?? "Couldn't schedule the meeting. Please try again.");
+    }
+  };
 
   return (
     <>
@@ -113,7 +146,7 @@ export function DealSidePanel({ room, closed, onPreview }: DealSidePanelProps) {
                 <li key={mtg.id}>
                   <button
                     type="button"
-                    onClick={() => setSelectedMeeting(mtg)}
+                    onClick={() => setSelectedMeetingId(mtg.id)}
                     className="w-full rounded-xl bg-surface-container-low p-3 text-left transition-colors hover:bg-surface-container"
                   >
                     <p className="text-sm font-bold text-on-surface">{mtg.title}</p>
@@ -192,22 +225,14 @@ export function DealSidePanel({ room, closed, onPreview }: DealSidePanelProps) {
       />
 
       {/* Schedule Meeting drawer (right slide-in) */}
-      <ScheduleMeetingDrawer
-        open={scheduleOpen}
-        onClose={() => setScheduleOpen(false)}
-        onConfirm={(mtg) => {
-          setMeetings((prev) => [...prev, mtg]);
-          setScheduleOpen(false);
-          toast.success("Meeting scheduled.");
-        }}
-      />
+      <ScheduleMeetingDrawer open={scheduleOpen} onClose={() => setScheduleOpen(false)} onConfirm={handleScheduleMeeting} />
 
-      {/* All meetings (mirrors Shared Files' "View All") */}
+      {/* All meetings (mirrors Shared Files' "View All"), loaded from GET /meetings */}
       <MeetingsDrawer
         open={meetingsOpen}
         onClose={() => setMeetingsOpen(false)}
-        meetings={meetings}
-        onSelect={(mtg) => setSelectedMeeting(mtg)}
+        dealRoomId={room.id}
+        onSelect={(id) => setSelectedMeetingId(id)}
         onScheduleNew={() => {
           setMeetingsOpen(false);
           setScheduleOpen(true);
@@ -215,8 +240,12 @@ export function DealSidePanel({ room, closed, onPreview }: DealSidePanelProps) {
         closed={closed}
       />
 
-      {/* Meeting details modal, opened from either the inline list or MeetingsDrawer */}
-      <MeetingDetailsModal meeting={selectedMeeting} onClose={() => setSelectedMeeting(null)} />
+      {/* Meeting details modal, opened by id from either the inline list or MeetingsDrawer */}
+      <MeetingDetailsModal
+        meetingId={selectedMeetingId}
+        onClose={() => setSelectedMeetingId(null)}
+        onUpdated={loadUpcomingMeetings}
+      />
     </>
   );
 }

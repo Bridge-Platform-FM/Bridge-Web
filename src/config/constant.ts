@@ -17,6 +17,8 @@ const MATCHING = `${BASE}/matching`;
 const CONNECTIONS = `${BASE}/connections`;
 // Deal Rooms (chat workspaces spawned from an accepted connection).
 const DEAL_ROOMS = `${BASE}/deal-rooms`;
+// Meetings scheduled inside a deal room.
+const MEETINGS = `${BASE}/meetings`;
 
 /** API endpoint paths (relative to NEXT_PUBLIC_API_BASE_URL host). */
 export const API_ENDPOINTS = {
@@ -115,4 +117,17 @@ export const API_ENDPOINTS = {
   DEAL_ROOM_FILES: (id: string) => `${DEAL_ROOMS}/${id}/messages/media`,
   // Deferred: authenticated media download GET `.../messages/{messageId}/media`,
   //           read receipts PUT `${DEAL_ROOMS}/${id}/messages/read`.
+  
+  
+  // ----- Meetings -----
+  // Schedule a meeting inside a deal room. POST.
+  MEETING_CREATE: MEETINGS,
+  // Upcoming meetings for a deal room (drives the panel's inline preview). GET.
+  MEETINGS_UPCOMING: (dealRoomId: number) => `${MEETINGS}/upcoming?dealRoomId=${dealRoomId}`,
+  // Every meeting for a deal room (drives the "View All" drawer). GET.
+  MEETINGS_LIST: (dealRoomId: number) => `${MEETINGS}?dealRoomId=${dealRoomId}`,
+  // A single meeting's full detail (drives the details modal). GET.
+  MEETING_DETAIL: (meetingId: string) => `${MEETINGS}/detail?meetingId=${meetingId}`,
+  // Update a meeting (partial body — any subset of title/agenda/meetingLink/scheduledAt). PUT.
+  MEETING_UPDATE: (meetingId: string) => `${MEETINGS}/update?meetingId=${meetingId}`,
 } as const;

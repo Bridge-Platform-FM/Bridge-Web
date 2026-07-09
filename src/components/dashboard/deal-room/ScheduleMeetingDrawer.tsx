@@ -6,15 +6,15 @@ import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
+import { TimePicker } from "@/components/ui/TimePicker";
 
-/** The scheduled meeting payload handed back on Confirm (UI-only for now). */
-export interface ScheduledMeeting {
-  id: string;
+/** The scheduled meeting form values handed back on Confirm. */
+export interface ScheduleMeetingFormValues {
   title: string;
-  /** Friendly when-label, e.g. "Oct 24". */
-  when: string;
-  /** Raw date value from the form (yyyy-mm-dd), if provided. */
+  /** yyyy-mm-dd */
   date: string;
+  /** HH:mm (24h) */
+  time: string;
   duration: string;
   link: string;
   agenda: string;
@@ -31,45 +31,52 @@ const DURATION_OPTIONS = [
 interface ScheduleMeetingDrawerProps {
   open: boolean;
   onClose: () => void;
-  /** Called on Confirm with the (UI-only) meeting. */
-  onConfirm: (meeting: ScheduledMeeting) => void;
+  /** Called on Confirm with the form values; the caller owns the actual API call. */
+  onConfirm: (values: ScheduleMeetingFormValues) => Promise<void> | void;
 }
 
 /**
- * Right-side drawer to schedule a meeting in the deal room. UI only for now — the fields
- * (duration, link, agenda) are collected locally; Confirm hands back a title +
- * when-label. Reuses the shared `Drawer`, `Input`, `Textarea`, `Select`.
+ * Right-side drawer to schedule a meeting in the deal room. Purely presentational —
+ * collects title/date/time/duration/link/agenda and hands them to `onConfirm`, which
+ * the caller (DealSidePanel) turns into the `POST /meetings` payload (adding
+ * `dealRoomId` + `recipientUserId`, and combining date+time into an ISO `scheduledAt`).
  */
 export function ScheduleMeetingDrawer({ open, onClose, onConfirm }: ScheduleMeetingDrawerProps) {
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
   const [duration, setDuration] = useState("30m");
   const [link, setLink] = useState("");
   const [agenda, setAgenda] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const canConfirm = title.trim().length > 0;
+  const canConfirm = title.trim().length > 0 && date.length > 0 && time.length > 0;
 
   const reset = () => {
     setTitle("");
     setDate("");
+    setTime("");
     setDuration("30m");
     setLink("");
     setAgenda("");
   };
 
-  const confirm = () => {
-    if (!canConfirm) return;
-    const when = date ? new Date(date).toLocaleDateString([], { month: "short", day: "numeric" }) : "Today";
-    onConfirm({
-      id: `m-${Date.now()}`,
-      title: title.trim(),
-      when,
-      date,
-      duration,
-      link: link.trim(),
-      agenda: agenda.trim(),
-    });
-    reset();
+  const confirm = async () => {
+    if (!canConfirm || submitting) return;
+    setSubmitting(true);
+    try {
+      await onConfirm({
+        title: title.trim(),
+        date,
+        time,
+        duration,
+        link: link.trim(),
+        agenda: agenda.trim(),
+      });
+      reset();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const discard = () => {
@@ -96,11 +103,11 @@ export function ScheduleMeetingDrawer({ open, onClose, onConfirm }: ScheduleMeet
           <button
             type="button"
             onClick={confirm}
-            disabled={!canConfirm}
+            disabled={!canConfirm || submitting}
             className="flex h-11 items-center gap-2 rounded-xl bg-primary px-6 font-bold text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Icon name="event_available" size={18} />
-            Confirm Meeting
+            {submitting ? "Scheduling…" : "Confirm Meeting"}
           </button>
         </>
       }
@@ -115,16 +122,19 @@ export function ScheduleMeetingDrawer({ open, onClose, onConfirm }: ScheduleMeet
           onChange={(e) => setTitle(e.target.value)}
         />
 
-        {/* Date + Duration */}
+        {/* Date + Time */}
         <div className="grid grid-cols-2 gap-3">
           <Input label="Date" required type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          <Select label="Duration" required options={DURATION_OPTIONS} value={duration} onChange={setDuration} searchable={false} />
+          <TimePicker label="Time" required value={time} onChange={setTime} />
         </div>
 
-        {/* Meeting link (optional) */}
+        {/* Duration */}
+        <Select label="Duration" required options={DURATION_OPTIONS} value={duration} onChange={setDuration} searchable={false} />
+
+        {/* Meeting link */}
         <Input
           label="Link"
-          optional
+          required
           type="url"
           placeholder="e.g. https://meet.google.com/abc-defg-hij"
           value={link}
