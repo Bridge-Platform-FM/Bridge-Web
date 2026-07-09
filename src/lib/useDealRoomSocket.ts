@@ -9,12 +9,12 @@ import type { DealMessage } from "@/components/dashboard/deal-room/types";
 
 /** Payload for the server's `messages_read` broadcast. */
 export interface MessagesReadPayload {
-  dealRoomId: string | number;
+  dealRoomId: string;
   readBy: number;
 }
 /** Payload for the server's `user_typing` broadcast. */
 export interface UserTypingPayload {
-  dealRoomId: string | number;
+  dealRoomId: string;
   userId: number;
   typing: boolean;
 }

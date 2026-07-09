@@ -123,9 +123,9 @@ export const API_ENDPOINTS = {
   // Schedule a meeting inside a deal room. POST.
   MEETING_CREATE: MEETINGS,
   // Upcoming meetings for a deal room (drives the panel's inline preview). GET.
-  MEETINGS_UPCOMING: (dealRoomId: number) => `${MEETINGS}/upcoming?dealRoomId=${dealRoomId}`,
+  MEETINGS_UPCOMING: (dealRoomId: string) => `${MEETINGS}/upcoming?dealRoomId=${dealRoomId}`,
   // Every meeting for a deal room (drives the "View All" drawer). GET.
-  MEETINGS_LIST: (dealRoomId: number) => `${MEETINGS}?dealRoomId=${dealRoomId}`,
+  MEETINGS_LIST: (dealRoomId: string) => `${MEETINGS}?dealRoomId=${dealRoomId}`,
   // A single meeting's full detail (drives the details modal). GET.
   MEETING_DETAIL: (meetingId: string) => `${MEETINGS}/detail?meetingId=${meetingId}`,
   // Update a meeting (partial body — any subset of title/agenda/meetingLink/scheduledAt). PUT.
