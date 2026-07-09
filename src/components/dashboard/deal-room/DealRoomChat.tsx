@@ -147,7 +147,7 @@ export function DealRoomChat({
             {room.title}
           </p>
           <p className="truncate text-sm text-on-surface-variant">
-            with {cp.name}, {cp.title} at {cp.company}
+            with {cp.name}
           </p>
         </div>
 

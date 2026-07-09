@@ -7,7 +7,7 @@ import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { Input } from "@/components/ui/input";
 import { Icon } from "@/components/ui/Icon";
-import { ROLE_META } from "@/lib/roles";
+import { ROLE_META, type Role } from "@/lib/roles";
 import { companyInitials } from "@/lib/explore-format";
 import { getIntentOptions } from "@/lib/connection-intent-options";
 import { sendConnectionRequest } from "@/services/connections.service";
@@ -24,12 +24,15 @@ interface ProposalFormValues {
   expectedDealSize: string;
 }
 
-/** Recipient identifiers sent to the backend. `roleId`/`companyId` are sourced
- *  from the profile API (to be wired); `id` is the matched profile id. */
+/** Recipient identifiers sent to the backend, plus display identity (name/role/company)
+ *  shown read-only in the modal — sourced from the Explore match the request is sent from. */
 export interface ProposalRecipient {
   id: number;
   roleId?: number;
   companyId?: number;
+  name: string;
+  company: string;
+  role: Role | null;
 }
 
 interface ProposalFormModalProps {
@@ -62,7 +65,7 @@ export function ProposalFormModal({ open, onClose, recipient, sender, onSent }: 
   const message = useWatch({ control, name: "message" }) ?? "";
   const intent = useWatch({ control, name: "intent" }) ?? [];
 
-  const roleMeta = sender.role ? ROLE_META[sender.role] : undefined;
+  const recipientRoleMeta = recipient.role ? ROLE_META[recipient.role] : undefined;
   const options = getIntentOptions(sender.role);
 
   const close = () => {
@@ -117,20 +120,20 @@ export function ProposalFormModal({ open, onClose, recipient, sender, onSent }: 
       }
     >
       <form id={FORM_ID} onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
-        {/* Sender identity — prepopulated, read-only */}
+        {/* Recipient identity — who this request is being sent TO, read-only */}
         <div className="flex items-center gap-3 rounded-xl border border-outline-variant/40 bg-surface-container-low p-4">
           <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-secondary text-base font-black text-white">
-            {companyInitials(sender.name || sender.company || "—")}
+            {companyInitials(recipient.name || recipient.company || "—")}
           </div>
           <div className="min-w-0">
             <h3 className="truncate font-headline text-base font-bold text-on-surface">
-              {sender.name || "—"}
+              {recipient.name || "—"}
             </h3>
             <p className="flex items-center gap-1.5 text-sm font-semibold text-primary">
-              {roleMeta && <Icon name={roleMeta.icon} size={15} />}
-              {roleMeta?.label ?? "—"}
-              {sender.company && (
-                <span className="truncate font-normal text-on-surface-variant">· {sender.company}</span>
+              {recipientRoleMeta && <Icon name={recipientRoleMeta.icon} size={15} />}
+              {recipientRoleMeta?.label ?? "—"}
+              {recipient.company && (
+                <span className="truncate font-normal text-on-surface-variant">· {recipient.company}</span>
               )}
             </p>
           </div>

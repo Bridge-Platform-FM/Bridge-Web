@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { Icon } from "@/components/ui/Icon";
 import { SharedFilesDrawer } from "./SharedFilesDrawer";
 import { ScheduleMeetingDrawer, type ScheduledMeeting } from "./ScheduleMeetingDrawer";
+import { MeetingsDrawer } from "./MeetingsDrawer";
+import { MeetingDetailsModal } from "./MeetingDetailsModal";
 import type { DealRoom, PreviewableFile } from "./types";
 
 /** A file shared in the deal room (top-N preview, derived from the chat thread). */
@@ -63,6 +65,8 @@ export function DealSidePanel({ room, closed, onPreview }: DealSidePanelProps) {
   const [meetings, setMeetings] = useState<ScheduledMeeting[]>([]);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [filesOpen, setFilesOpen] = useState(false);
+  const [meetingsOpen, setMeetingsOpen] = useState(false);
+  const [selectedMeeting, setSelectedMeeting] = useState<ScheduledMeeting | null>(null);
 
   // Inline top-4 preview is derived from the chat thread's attachments; the full list
   // lives behind "View All Files" (SharedFilesDrawer, backed by the files API).
@@ -92,22 +96,32 @@ export function DealSidePanel({ room, closed, onPreview }: DealSidePanelProps) {
           icon="event"
           title="Upcoming Meetings"
           action={
-            <span className="rounded-full bg-secondary-container px-2 py-0.5 text-[10px] font-bold text-on-surface-variant">
-              {meetings.length} Scheduled
-            </span>
+            <button
+              type="button"
+              onClick={() => setMeetingsOpen(true)}
+              className="rounded-full bg-secondary-container px-2 py-0.5 text-[10px] font-bold text-on-surface-variant transition-colors hover:bg-secondary-container/70"
+            >
+              View All
+            </button>
           }
         >
           {meetings.length === 0 ? (
             <p className="py-2 text-xs text-on-surface-variant">No meetings scheduled yet.</p>
           ) : (
             <ul className="flex flex-col gap-2.5">
-              {meetings.map((mtg) => (
-                <li key={mtg.id} className="rounded-xl bg-surface-container-low p-3">
-                  <p className="text-sm font-bold text-on-surface">{mtg.title}</p>
-                  <p className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-primary">
-                    <Icon name="schedule" size={13} />
-                    {mtg.when}
-                  </p>
+              {meetings.slice(0, 2).map((mtg) => (
+                <li key={mtg.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedMeeting(mtg)}
+                    className="w-full rounded-xl bg-surface-container-low p-3 text-left transition-colors hover:bg-surface-container"
+                  >
+                    <p className="text-sm font-bold text-on-surface">{mtg.title}</p>
+                    <p className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-primary">
+                      <Icon name="schedule" size={13} />
+                      {mtg.when}
+                    </p>
+                  </button>
                 </li>
               ))}
             </ul>
@@ -138,7 +152,7 @@ export function DealSidePanel({ room, closed, onPreview }: DealSidePanelProps) {
             <p className="py-2 text-xs text-on-surface-variant">No files shared yet.</p>
           ) : (
             <ul className="flex flex-col gap-1">
-              {files.slice(0, 4).map((f) => (
+              {files.slice(0, 2).map((f) => (
                 <li key={f.id}>
                   <button
                     type="button"
@@ -187,6 +201,22 @@ export function DealSidePanel({ room, closed, onPreview }: DealSidePanelProps) {
           toast.success("Meeting scheduled.");
         }}
       />
+
+      {/* All meetings (mirrors Shared Files' "View All") */}
+      <MeetingsDrawer
+        open={meetingsOpen}
+        onClose={() => setMeetingsOpen(false)}
+        meetings={meetings}
+        onSelect={(mtg) => setSelectedMeeting(mtg)}
+        onScheduleNew={() => {
+          setMeetingsOpen(false);
+          setScheduleOpen(true);
+        }}
+        closed={closed}
+      />
+
+      {/* Meeting details modal, opened from either the inline list or MeetingsDrawer */}
+      <MeetingDetailsModal meeting={selectedMeeting} onClose={() => setSelectedMeeting(null)} />
     </>
   );
 }

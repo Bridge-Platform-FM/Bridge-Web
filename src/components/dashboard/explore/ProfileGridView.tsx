@@ -7,6 +7,7 @@ import { MatchProfileModal } from "@/components/dashboard/explore/MatchProfileMo
 import { ProposalFormModal, type ProposalRecipient } from "@/components/dashboard/connections/ProposalFormModal";
 import { useSenderIdentity } from "@/components/dashboard/connections/sender-identity";
 import { fetchExploreMatches } from "@/services/explore.service";
+import { normalizeRole } from "@/lib/roles";
 import type { ExploreMatch } from "@/types/api.types";
 
 /**
@@ -54,7 +55,16 @@ export function ProfileGridView() {
             <ProfileGridCard
               key={match.profileId}
               match={match}
-              onConnect={(m) => setProposalRecipient({ id: m.profileId, roleId: m.roleId, companyId: m.companyId })}
+              onConnect={(m) =>
+                setProposalRecipient({
+                  id: m.profileId,
+                  roleId: m.roleId,
+                  companyId: m.companyId,
+                  name: [m.first_name, m.last_name].filter(Boolean).join(" ").trim(),
+                  company: m.organization_name,
+                  role: normalizeRole(m.role),
+                })
+              }
               onViewProfile={setProfileMatch}
             />
           ))}

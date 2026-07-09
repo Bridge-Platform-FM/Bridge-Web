@@ -13,15 +13,12 @@ export interface ScheduledMeeting {
   title: string;
   /** Friendly when-label, e.g. "Oct 24". */
   when: string;
+  /** Raw date value from the form (yyyy-mm-dd), if provided. */
+  date: string;
+  duration: string;
+  link: string;
+  agenda: string;
 }
-
-/** Meeting delivery type — the three toggle cards. */
-const MEETING_TYPES = [
-  { key: "video", label: "Video", icon: "videocam" },
-  { key: "phone", label: "Phone", icon: "call" },
-  { key: "in_person", label: "In Person", icon: "location_on" },
-] as const;
-type MeetingType = (typeof MEETING_TYPES)[number]["key"];
 
 /** Duration dropdown options. */
 const DURATION_OPTIONS = [
@@ -30,11 +27,6 @@ const DURATION_OPTIONS = [
   { value: "45m", label: "45 min" },
   { value: "60m", label: "1 hour" },
 ];
-
-/** Small section label above a group of fields. */
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <span className="mb-2 block text-xs font-bold text-on-surface-variant">{children}</span>;
-}
 
 interface ScheduleMeetingDrawerProps {
   open: boolean;
@@ -45,12 +37,11 @@ interface ScheduleMeetingDrawerProps {
 
 /**
  * Right-side drawer to schedule a meeting in the deal room. UI only for now — the fields
- * (type, duration, link, agenda) are collected locally; Confirm hands back a title +
+ * (duration, link, agenda) are collected locally; Confirm hands back a title +
  * when-label. Reuses the shared `Drawer`, `Input`, `Textarea`, `Select`.
  */
 export function ScheduleMeetingDrawer({ open, onClose, onConfirm }: ScheduleMeetingDrawerProps) {
   const [title, setTitle] = useState("");
-  const [type, setType] = useState<MeetingType>("video");
   const [date, setDate] = useState("");
   const [duration, setDuration] = useState("30m");
   const [link, setLink] = useState("");
@@ -60,7 +51,6 @@ export function ScheduleMeetingDrawer({ open, onClose, onConfirm }: ScheduleMeet
 
   const reset = () => {
     setTitle("");
-    setType("video");
     setDate("");
     setDuration("30m");
     setLink("");
@@ -70,7 +60,15 @@ export function ScheduleMeetingDrawer({ open, onClose, onConfirm }: ScheduleMeet
   const confirm = () => {
     if (!canConfirm) return;
     const when = date ? new Date(date).toLocaleDateString([], { month: "short", day: "numeric" }) : "Today";
-    onConfirm({ id: `m-${Date.now()}`, title: title.trim(), when });
+    onConfirm({
+      id: `m-${Date.now()}`,
+      title: title.trim(),
+      when,
+      date,
+      duration,
+      link: link.trim(),
+      agenda: agenda.trim(),
+    });
     reset();
   };
 
@@ -110,37 +108,12 @@ export function ScheduleMeetingDrawer({ open, onClose, onConfirm }: ScheduleMeet
       <div className="flex flex-col gap-5">
         {/* Meeting title */}
         <Input
-          label="Meeting Title"
+          label="Title"
           required
           placeholder="e.g. Q4 Strategy Review"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
-
-        {/* Meeting type — three toggle cards */}
-        <div>
-          <FieldLabel>Meeting Type</FieldLabel>
-          <div className="grid grid-cols-3 gap-2.5">
-            {MEETING_TYPES.map((t) => {
-              const active = type === t.key;
-              return (
-                <button
-                  key={t.key}
-                  type="button"
-                  onClick={() => setType(t.key)}
-                  className={`flex flex-col items-center gap-1.5 rounded-xl border-2 py-3 text-xs font-semibold transition-colors ${
-                    active
-                      ? "border-primary bg-primary/5 text-primary"
-                      : "border-outline-variant/40 text-on-surface-variant hover:border-outline-variant"
-                  }`}
-                >
-                  <Icon name={t.icon} size={22} />
-                  {t.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
 
         {/* Date + Duration */}
         <div className="grid grid-cols-2 gap-3">
@@ -150,7 +123,7 @@ export function ScheduleMeetingDrawer({ open, onClose, onConfirm }: ScheduleMeet
 
         {/* Meeting link (optional) */}
         <Input
-          label="Meeting Link"
+          label="Link"
           optional
           type="url"
           placeholder="e.g. https://meet.google.com/abc-defg-hij"
