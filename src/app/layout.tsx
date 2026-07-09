@@ -35,7 +35,10 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block"
         />
       </head>
-      <body className="flex h-screen w-screen flex-col overflow-hidden bg-background text-on-surface">
+      <body
+        className="flex h-screen w-screen flex-col overflow-hidden bg-background text-on-surface"
+        suppressHydrationWarning
+      >
         <Navbar />
         <main className="thin-scrollbar flex-1 overflow-y-auto overflow-x-hidden">
           <OnboardingProvider>{children}</OnboardingProvider>

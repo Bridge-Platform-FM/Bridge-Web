@@ -621,7 +621,7 @@ export interface ConnectionActionResponse {
   message: string;
   data?: {
     connection?: { id: string | number; status: ConnectionStatus };
-    deal_room_id?: number | null;
+    deal_room_id?: string | null;
   };
 }
 

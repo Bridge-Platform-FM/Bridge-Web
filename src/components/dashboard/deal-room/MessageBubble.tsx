@@ -2,6 +2,7 @@
 
 import { Icon } from "@/components/ui/Icon";
 import { ROLE_AVATAR_GRADIENT } from "@/lib/connections";
+import { useFilePreview } from "@/lib/useFilePreview";
 import { clockTime, initials } from "./deal-room-meta";
 import type { DealAttachment, DealCounterparty, DealMessage, PreviewableFile } from "./types";
 
@@ -25,11 +26,32 @@ function Attachment({
   // or demo attachments without one simply don't open).
   const open = () => onPreview?.(file);
 
+  // `file.url` is only set for a locally-picked file pending upload (composer). Server
+  // messages carry "" (see DealAttachment.url) and need the watermarked preview fetched
+  // by s3Key instead — same endpoint the preview modal already uses.
+  const needsFetch = file.kind === "image" && !file.url && !!file.s3Key;
+  const { url: fetchedUrl, loading } = useFilePreview(needsFetch ? file.s3Key! : null);
+  const imageSrc = file.url || fetchedUrl;
+
   if (file.kind === "image") {
     return (
       <button type="button" onClick={open} className="mb-1.5 block w-full" aria-label={`Preview ${file.name}`}>
-        {/* eslint-disable-next-line @next/next/no-img-element -- object URL / server preview, not a static asset */}
-        <img src={file.url} alt={file.name} className="max-h-56 w-full rounded-lg object-cover" />
+        {imageSrc ? (
+          // eslint-disable-next-line @next/next/no-img-element -- object URL / server preview, not a static asset
+          <img src={imageSrc} alt={file.name} className="max-h-56 w-full rounded-lg object-cover" />
+        ) : (
+          <div
+            className={`flex h-40 w-full items-center justify-center rounded-lg ${
+              mine ? "bg-on-primary/15" : "bg-surface-container-high"
+            }`}
+          >
+            <Icon
+              name={loading ? "hourglass_empty" : "image"}
+              size={28}
+              className={mine ? "text-on-primary" : "text-on-surface-variant"}
+            />
+          </div>
+        )}
       </button>
     );
   }

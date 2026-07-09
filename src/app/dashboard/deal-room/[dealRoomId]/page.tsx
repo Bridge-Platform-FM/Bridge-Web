@@ -9,7 +9,7 @@ import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
 import { Loader } from "@/components/common/loader";
 import { DealRoomChat } from "@/components/dashboard/deal-room/DealRoomChat";
-import { closeDealRoom, fetchDealRoom, fetchDealRoomMessages, sendDealMedia } from "@/services/deal-room.service";
+import { fetchDealRoom, fetchDealRoomMessages, sendDealMedia } from "@/services/deal-room.service";
 import { useDealRoomSocket } from "@/lib/useDealRoomSocket";
 import { getCurrentUserId } from "@/lib/jwt";
 import type { DealMessage, DealRoom } from "@/components/dashboard/deal-room/types";
@@ -146,12 +146,7 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
   };
 
   const onCloseDeal = () => {
-    const prev = room;
-    setRoom({ ...room, status: "CLOSED" }); // optimistic
-    closeDealRoom(dealRoomId).catch((err) => {
-      setRoom(prev); // revert on failure
-      toast.error((err as ApiError).message ?? "Couldn't close the deal. Please try again.");
-    });
+    setRoom({ ...room, status: "CLOSED" });
   };
 
   return (

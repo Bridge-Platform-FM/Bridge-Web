@@ -23,7 +23,7 @@ import type { DealAttachment, DealMessage, DealRoom, ScheduledMeeting } from "@/
 
 /** One flat deal-room row from `GET /deal-rooms` (snake_case, both participants inline). */
 interface RawRoom {
-  deal_room_id: number;
+  deal_room_id: string;
   title: string | null;
   deal_room_status: string; // "Active" | "Closed"
   deal_room_created_at: string;
@@ -42,7 +42,7 @@ interface RawRoom {
 /** One message row from `GET /deal-rooms/:id/messages` (+ nested sender in history). */
 export interface RawMessage {
   id: number;
-  deal_room_id?: number;
+  deal_room_id?: string;
   sender_user_id: number;
   message: string | null;
   message_type?: string; // TEXT | IMAGE | DOCUMENT | AUDIO | VIDEO
@@ -103,7 +103,7 @@ function toDealRoom(raw: RawRoom): DealRoom {
       };
 
   return {
-    id: String(raw.deal_room_id),
+    id: raw.deal_room_id,
     title: raw.title || cp.company || "Deal Room",
     counterparty: {
       userId: cp.userId,
@@ -262,7 +262,7 @@ export async function fetchDealRoomFiles(id: string): Promise<SharedFileItem[]> 
 
 /** Body for `POST /meetings`. */
 export interface ScheduleMeetingPayload {
-  dealRoomId: number;
+  dealRoomId: string;
   recipientUserId: number;
   title: string;
   agenda: string;
@@ -341,13 +341,13 @@ export async function scheduleMeeting(payload: ScheduleMeetingPayload): Promise<
 
 /** Upcoming meetings for a deal room (panel's inline preview). GET /meetings/upcoming. */
 export async function fetchUpcomingMeetings(dealRoomId: string): Promise<ScheduledMeeting[]> {
-  const { data } = await api.get<unknown>(API_ENDPOINTS.MEETINGS_UPCOMING(Number(dealRoomId)));
+  const { data } = await api.get<unknown>(API_ENDPOINTS.MEETINGS_UPCOMING(dealRoomId));
   return extractMeetingsArray(data).map((raw) => toScheduledMeeting(raw));
 }
 
 /** Every meeting for a deal room ("View All" drawer). GET /meetings. */
 export async function fetchAllMeetings(dealRoomId: string): Promise<ScheduledMeeting[]> {
-  const { data } = await api.get<unknown>(API_ENDPOINTS.MEETINGS_LIST(Number(dealRoomId)));
+  const { data } = await api.get<unknown>(API_ENDPOINTS.MEETINGS_LIST(dealRoomId));
   return extractMeetingsArray(data).map((raw) => toScheduledMeeting(raw));
 }
 

@@ -105,7 +105,7 @@ export function DealSidePanel({ room, closed, onPreview }: DealSidePanelProps) {
   const handleScheduleMeeting = async (values: ScheduleMeetingFormValues) => {
     try {
       await scheduleMeeting({
-        dealRoomId: Number(room.id),
+        dealRoomId: room.id,
         recipientUserId: cp.userId,
         title: values.title,
         agenda: values.agenda,
