@@ -19,7 +19,7 @@ import { api } from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/constant";
 import { normalizeRole } from "@/lib/roles";
 import { getCurrentUserId } from "@/lib/jwt";
-import type { DealAttachment, DealMessage, DealRoom } from "@/components/dashboard/deal-room/types";
+import type { DealAttachment, DealMessage, DealRoom, ScheduledMeeting } from "@/components/dashboard/deal-room/types";
 
 /** One flat deal-room row from `GET /deal-rooms` (snake_case, both participants inline). */
 interface RawRoom {
@@ -90,11 +90,13 @@ function toDealRoom(raw: RawRoom): DealRoom {
   const iAmRequester = me != null && me === raw.requester_user_id;
   const cp = iAmRequester
     ? {
+        userId: raw.recipient_user_id,
         name: fullName(raw.recipient_first_name, raw.recipient_last_name),
         company: raw.recipient_company_name ?? "",
         role: raw.recipient_role_code,
       }
     : {
+        userId: raw.requester_user_id,
         name: fullName(raw.requester_first_name, raw.requester_last_name),
         company: raw.requester_company_name ?? "",
         role: raw.requester_role_code,
@@ -104,6 +106,7 @@ function toDealRoom(raw: RawRoom): DealRoom {
     id: String(raw.deal_room_id),
     title: raw.title || cp.company || "Deal Room",
     counterparty: {
+      userId: cp.userId,
       name: cp.name || cp.company || "—",
       title: "", // backend has no designation field
       company: cp.company,
@@ -255,4 +258,107 @@ function toSharedFile(raw: RawSharedFile): SharedFileItem {
 export async function fetchDealRoomFiles(id: string): Promise<SharedFileItem[]> {
   const { data } = await api.get<{ data?: RawSharedFile[] }>(API_ENDPOINTS.DEAL_ROOM_FILES(id));
   return (data.data ?? []).map(toSharedFile).filter((f) => f.messageId !== "");
+}
+
+/** Body for `POST /meetings`. */
+export interface ScheduleMeetingPayload {
+  dealRoomId: number;
+  recipientUserId: number;
+  title: string;
+  agenda: string;
+  meetingLink: string;
+  /** ISO timestamp. */
+  scheduledAt: string;
+  duration: string;
+}
+
+/** Body for `PUT /meetings/update` — any subset of the editable fields. */
+export interface UpdateMeetingPayload {
+  title?: string;
+  agenda?: string;
+  meetingLink?: string;
+  /** ISO timestamp. */
+  scheduledAt?: string;
+  duration?: string;
+}
+
+/** Raw meeting row as returned by the meetings endpoints (tolerant of naming variants). */
+interface RawMeeting {
+  id?: number | string;
+  meeting_id?: number | string;
+  meetingId?: number | string;
+  title?: string;
+  agenda?: string;
+  meeting_link?: string;
+  meetingLink?: string;
+  scheduled_at?: string;
+  scheduledAt?: string;
+  duration?: string;
+}
+
+/** Pull the meeting array out of a response body, tolerant of the exact envelope shape:
+ *  `data: [...]`, a bare array, a nested `data: { meetings/rows/items: [...] }`, or (as
+ *  `/meetings/upcoming` actually does) `data: { ...a single meeting row... }`. */
+function extractMeetingsArray(body: unknown): RawMeeting[] {
+  if (Array.isArray(body)) return body;
+  if (body && typeof body === "object") {
+    const obj = body as Record<string, unknown>;
+    if (Array.isArray(obj.data)) return obj.data as RawMeeting[];
+    if (obj.data && typeof obj.data === "object") {
+      const nested = obj.data as Record<string, unknown>;
+      for (const key of ["meetings", "rows", "items", "results"]) {
+        if (Array.isArray(nested[key])) return nested[key] as RawMeeting[];
+      }
+      // A single meeting object, e.g. GET /meetings/upcoming returns just the next one.
+      if ("id" in nested || "title" in nested) return [nested as RawMeeting];
+    }
+  }
+  return [];
+}
+
+/** Map a raw meeting row into the UI shape. `fallback` fills in gaps for a POST/PUT
+ *  response that only echoes back a partial row. */
+function toScheduledMeeting(raw: RawMeeting, fallback: Partial<ScheduleMeetingPayload> = {}): ScheduledMeeting {
+  const scheduledAt = raw.scheduled_at ?? raw.scheduledAt ?? fallback.scheduledAt ?? "";
+  return {
+    id: String(raw.id ?? raw.meeting_id ?? raw.meetingId ?? `m-${Date.now()}`),
+    title: raw.title ?? fallback.title ?? "",
+    when: scheduledAt
+      ? new Date(scheduledAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+      : "",
+    scheduledAt,
+    duration: raw.duration ?? fallback.duration ?? "",
+    link: raw.meeting_link ?? raw.meetingLink ?? fallback.meetingLink ?? "",
+    agenda: raw.agenda ?? fallback.agenda ?? "",
+  };
+}
+
+/** Schedule a meeting inside a deal room. POST /meetings. */
+export async function scheduleMeeting(payload: ScheduleMeetingPayload): Promise<ScheduledMeeting> {
+  const { data } = await api.post<{ data?: RawMeeting }>(API_ENDPOINTS.MEETING_CREATE, payload);
+  return toScheduledMeeting(data.data ?? {}, payload);
+}
+
+/** Upcoming meetings for a deal room (panel's inline preview). GET /meetings/upcoming. */
+export async function fetchUpcomingMeetings(dealRoomId: string): Promise<ScheduledMeeting[]> {
+  const { data } = await api.get<unknown>(API_ENDPOINTS.MEETINGS_UPCOMING(Number(dealRoomId)));
+  return extractMeetingsArray(data).map((raw) => toScheduledMeeting(raw));
+}
+
+/** Every meeting for a deal room ("View All" drawer). GET /meetings. */
+export async function fetchAllMeetings(dealRoomId: string): Promise<ScheduledMeeting[]> {
+  const { data } = await api.get<unknown>(API_ENDPOINTS.MEETINGS_LIST(Number(dealRoomId)));
+  return extractMeetingsArray(data).map((raw) => toScheduledMeeting(raw));
+}
+
+/** A single meeting's full detail (details modal). GET /meetings/detail. */
+export async function fetchMeetingDetail(meetingId: string): Promise<ScheduledMeeting> {
+  const { data } = await api.get<{ data?: RawMeeting }>(API_ENDPOINTS.MEETING_DETAIL(meetingId));
+  return toScheduledMeeting(data.data ?? {});
+}
+
+/** Update a meeting (partial). PUT /meetings/update. */
+export async function updateMeeting(meetingId: string, payload: UpdateMeetingPayload): Promise<ScheduledMeeting> {
+  const { data } = await api.put<{ data?: RawMeeting }>(API_ENDPOINTS.MEETING_UPDATE(meetingId), payload);
+  return toScheduledMeeting(data.data ?? {}, payload);
 }

@@ -18,6 +18,8 @@ export type DealRoomTab = "ACTIVE" | "CLOSED";
 
 /** The other party in a deal room (derived from the accepted connection). */
 export interface DealCounterparty {
+  /** Numeric user id — sent as `recipientUserId` when scheduling a meeting. */
+  userId: number;
   name: string;
   /** Job title, e.g. "Managing Partner". */
   title: string;
@@ -69,6 +71,19 @@ export interface DealMessage {
   /** For MY ("me") messages only: has the counterparty read it? Drives the delivered
    *  (single tick) vs seen (double blue tick) receipt. Undefined/false = delivered. */
   read?: boolean;
+}
+
+/** A meeting scheduled inside a deal room (`POST /meetings`, normalized for display). */
+export interface ScheduledMeeting {
+  id: string;
+  title: string;
+  /** Friendly when-label, e.g. "Oct 24, 10:30 AM". */
+  when: string;
+  /** ISO timestamp of the scheduled time. */
+  scheduledAt: string;
+  duration: string;
+  link: string;
+  agenda: string;
 }
 
 /** One deal room = an accepted connection the two parties are progressing. */
