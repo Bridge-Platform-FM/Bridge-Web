@@ -7,6 +7,7 @@ import { ProfileCardFace, ProfileShortsCard } from "@/components/dashboard/explo
 import { ProposalFormModal, type ProposalRecipient } from "@/components/dashboard/connections/ProposalFormModal";
 import { useSenderIdentity } from "@/components/dashboard/connections/sender-identity";
 import { fetchExploreMatches, submitExploreDecision } from "@/services/explore.service";
+import { normalizeRole } from "@/lib/roles";
 import type { ExploreDecision, ExploreMatch } from "@/types/api.types";
 
 /**
@@ -100,7 +101,14 @@ export function ProfileShortsDeck() {
     (decision: ExploreDecision) => {
       if (!current || commandedExit || proposalRecipient != null) return;
       if (decision === "send") {
-        setProposalRecipient({ id: current.profileId, roleId: current.roleId, companyId: current.companyId });
+        setProposalRecipient({
+          id: current.profileId,
+          roleId: current.roleId,
+          companyId: current.companyId,
+          name: [current.first_name, current.last_name].filter(Boolean).join(" ").trim(),
+          company: current.organization_name,
+          role: normalizeRole(current.role),
+        });
         return;
       }
       setCommandedExit(decision);

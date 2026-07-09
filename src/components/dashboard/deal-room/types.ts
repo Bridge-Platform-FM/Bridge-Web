@@ -66,6 +66,9 @@ export interface DealMessage {
   attachment?: DealAttachment;
   /** ISO timestamp. */
   at: string;
+  /** For MY ("me") messages only: has the counterparty read it? Drives the delivered
+   *  (single tick) vs seen (double blue tick) receipt. Undefined/false = delivered. */
+  read?: boolean;
 }
 
 /** One deal room = an accepted connection the two parties are progressing. */

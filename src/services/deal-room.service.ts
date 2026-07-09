@@ -51,6 +51,7 @@ export interface RawMessage {
   attachment_s3_key?: string | null;
   attachment_mime_type?: string | null;
   download_allowed?: boolean | null;
+  read_at?: string | null;
   created_at: string;
   sender?: { id: number; first_name?: string; last_name?: string } | null;
 }
@@ -141,6 +142,7 @@ export function normalizeMessage(raw: RawMessage): DealMessage {
     ...(raw.message ? { text: raw.message } : {}),
     ...(attachment ? { attachment } : {}),
     at: raw.created_at ?? new Date().toISOString(),
+    read: !!raw.read_at,
   };
 }
 
