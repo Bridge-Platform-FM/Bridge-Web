@@ -121,6 +121,11 @@ export function DealSidePanel({ room, closed, onPreview }: DealSidePanelProps) {
     }
   };
 
+  // TODO: call the real "request next stage" API once it exists.
+  const handleRequestNextStage = () => {
+    toast.success("Requested for Next Stage.");
+  };
+
   return (
     <>
       <div className="flex flex-col gap-4">
@@ -176,9 +181,18 @@ export function DealSidePanel({ room, closed, onPreview }: DealSidePanelProps) {
           icon="folder_open"
           title="Shared Files"
           action={
-            <span className="rounded-full bg-secondary-container px-2 py-0.5 text-[10px] font-bold text-on-surface-variant">
-              {files.length}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="rounded-full bg-secondary-container px-2 py-0.5 text-[10px] font-bold text-on-surface-variant">
+                {files.length}
+              </span>
+              <button
+                type="button"
+                onClick={() => setFilesOpen(true)}
+                className="rounded-full bg-secondary-container px-2 py-0.5 text-[10px] font-bold text-on-surface-variant transition-colors hover:bg-secondary-container/70"
+              >
+                View All
+              </button>
+            </div>
           }
         >
           {files.length === 0 ? (
@@ -205,13 +219,15 @@ export function DealSidePanel({ room, closed, onPreview }: DealSidePanelProps) {
             </ul>
           )}
 
+          {/* TODO: wire to the "request next stage" API once it exists. */}
           <button
             type="button"
-            onClick={() => setFilesOpen(true)}
-            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-outline-variant/50 py-2 text-xs font-bold text-on-surface-variant transition-colors hover:border-primary/50 hover:text-primary"
+            onClick={handleRequestNextStage}
+            disabled={closed}
+            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-outline-variant/50 py-2 text-xs font-bold text-on-surface-variant transition-colors hover:border-primary/50 hover:text-primary disabled:opacity-50"
           >
-            <Icon name="folder_open" size={16} />
-            View All Files
+            <Icon name="arrow_forward" size={16} />
+            Request Next Stage
           </button>
         </PanelCard>
       </div>
