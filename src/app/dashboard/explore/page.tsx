@@ -22,7 +22,7 @@ export default function ExplorePage() {
   if (!isLoaded || !isUserRole(role)) return null;
 
   return (
-    <div className="h-full min-h-[640px]">
+    <div className="h-full">
       <ExploreView />
     </div>
   );

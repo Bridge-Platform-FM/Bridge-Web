@@ -28,6 +28,21 @@ export async function fetchExploreMatches(): Promise<ExploreMatch[]> {
   return data.data.matches;
 }
 
+export interface ExploreConnectionLimit {
+  remaining: number;
+  total: number;
+}
+
+/** Daily connection-request allowance, from the same GET /api/v1/matching response
+ *  fetchExploreMatches uses. TODO(api): backend doesn't populate
+ *  connectionRequestLimit/connectionRequestsRemaining yet — falls back to 50/50. */
+export async function fetchExploreConnectionLimit(): Promise<ExploreConnectionLimit> {
+  const { data } = await api.get<ExploreMatchesResponse>(API_ENDPOINTS.MATCHING());
+  const total = data.data.connectionRequestLimit ?? 50;
+  const remaining = data.data.connectionRequestsRemaining ?? total;
+  return { remaining, total };
+}
+
 //  Record a swipe decision (connect / skip / reject) for a matched profile.
 //  TODO(api): POST to the connect/reject endpoint once available. For now this is a
 //   no-op that resolves immediately so the deck advances optimistically.
