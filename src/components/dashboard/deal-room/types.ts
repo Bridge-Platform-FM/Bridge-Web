@@ -80,6 +80,8 @@ export interface DealMessage {
 /** A meeting scheduled inside a deal room (`POST /meetings`, normalized for display). */
 export interface ScheduledMeeting {
   id: string;
+  /** True if the logged-in user is the one who scheduled this meeting — only they're allowed to edit it (enforced server-side too). */
+  createdByMe: boolean;
   title: string;
   /** Friendly when-label, e.g. "Oct 24, 10:30 AM". */
   when: string;

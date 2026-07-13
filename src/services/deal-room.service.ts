@@ -313,6 +313,8 @@ interface RawMeeting {
   scheduled_at?: string;
   scheduledAt?: string;
   duration?: string;
+  created_by?: number;
+  createdBy?: number;
 }
 
 /** Pull the meeting array out of a response body, tolerant of the exact envelope shape:
@@ -337,8 +339,13 @@ function extractMeetingsArray(body: unknown): RawMeeting[] {
 
 /** Map a raw meeting row into the UI shape. `fallback` fills in gaps for a POST/PUT
  *  response that only echoes back a partial row. */
-function toScheduledMeeting(raw: RawMeeting, fallback: Partial<ScheduleMeetingPayload> = {}): ScheduledMeeting {
+function toScheduledMeeting(
+  raw: RawMeeting,
+  fallback: Partial<ScheduleMeetingPayload> & { createdByMe?: boolean } = {}
+): ScheduledMeeting {
   const scheduledAt = raw.scheduled_at ?? raw.scheduledAt ?? fallback.scheduledAt ?? "";
+  const createdBy = raw.created_by ?? raw.createdBy;
+  const createdByMe = createdBy != null ? createdBy === getCurrentUserId() : (fallback.createdByMe ?? false);
   return {
     id: String(raw.id ?? raw.meeting_id ?? raw.meetingId ?? `m-${Date.now()}`),
     title: raw.title ?? fallback.title ?? "",
@@ -349,13 +356,14 @@ function toScheduledMeeting(raw: RawMeeting, fallback: Partial<ScheduleMeetingPa
     duration: raw.duration ?? fallback.duration ?? "",
     link: raw.meeting_link ?? raw.meetingLink ?? fallback.meetingLink ?? "",
     agenda: raw.agenda ?? fallback.agenda ?? "",
+    createdByMe,
   };
 }
 
 /** Schedule a meeting inside a deal room. POST /meetings. */
 export async function scheduleMeeting(payload: ScheduleMeetingPayload): Promise<ScheduledMeeting> {
   const { data } = await api.post<{ data?: RawMeeting }>(API_ENDPOINTS.MEETING_CREATE, payload);
-  return toScheduledMeeting(data.data ?? {}, payload);
+  return toScheduledMeeting(data.data ?? {}, { ...payload, createdByMe: true });
 }
 
 /** Upcoming meetings for a deal room (panel's inline preview). GET /meetings/upcoming. */
@@ -379,5 +387,5 @@ export async function fetchMeetingDetail(meetingId: string): Promise<ScheduledMe
 /** Update a meeting (partial). PUT /meetings/update. */
 export async function updateMeeting(meetingId: string, payload: UpdateMeetingPayload): Promise<ScheduledMeeting> {
   const { data } = await api.put<{ data?: RawMeeting }>(API_ENDPOINTS.MEETING_UPDATE(meetingId), payload);
-  return toScheduledMeeting(data.data ?? {}, payload);
+  return toScheduledMeeting(data.data ?? {}, { ...payload, createdByMe: true });
 }

@@ -164,7 +164,7 @@ export function MeetingDetailsModal({ meetingId, onClose, onUpdated }: MeetingDe
               {saving ? "Saving…" : "Save Changes"}
             </button>
           </>
-        ) : (
+        ) : meeting?.createdByMe ? (
           <button
             type="button"
             onClick={() => setEditing(true)}
@@ -173,7 +173,7 @@ export function MeetingDetailsModal({ meetingId, onClose, onUpdated }: MeetingDe
             <Icon name="edit" size={16} />
             Edit
           </button>
-        )
+        ) : null
       }
     >
       <AsyncState loading={loading} error={error} onRetry={load}>
