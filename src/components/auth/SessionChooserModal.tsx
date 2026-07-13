@@ -163,9 +163,13 @@ export function SessionChooserModal({
                   <div className="flex flex-1 flex-col gap-1.5 overflow-hidden">
                     {/* Device name */}
                     <div className="flex items-center gap-2">
-                      <Icon name="devices" size={18} className="shrink-0 text-primary" />
+                      <Icon
+                        name={session.deviceName === "Mobile" ? "smartphone" : "devices"}
+                        size={18}
+                        className="shrink-0 text-primary"
+                      />
                       <span className="truncate font-headline text-sm font-bold text-on-surface">
-                        {session.deviceName}
+                        {session?.deviceName}
                       </span>
                     </div>
 
