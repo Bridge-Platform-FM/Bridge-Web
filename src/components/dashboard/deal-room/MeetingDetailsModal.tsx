@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/Textarea";
 import { TimePicker } from "@/components/ui/TimePicker";
 import { AsyncState } from "@/components/ui/AsyncState";
+import { todayLocalDateStr, nowLocalTimeStr } from "@/lib/utils";
 import { fetchMeetingDetail, updateMeeting } from "@/services/deal-room.service";
 import type { ApiError } from "@/lib/axios";
 import type { ScheduledMeeting } from "./types";
@@ -95,6 +96,14 @@ export function MeetingDetailsModal({ meetingId, onClose, onUpdated }: MeetingDe
     else setEditing(false);
   }, [meetingId, load]);
 
+  const today = todayLocalDateStr();
+  const minTime = date === today ? nowLocalTimeStr() : undefined;
+
+  const handleDateChange = (nextDate: string) => {
+    setDate(nextDate);
+    if (nextDate === today && time && time < nowLocalTimeStr()) setTime("");
+  };
+
   const close = () => {
     setEditing(false);
     onClose();
@@ -164,8 +173,8 @@ export function MeetingDetailsModal({ meetingId, onClose, onUpdated }: MeetingDe
           <div className="flex flex-col gap-5">
             <Input label="Title" required value={title} onChange={(e) => setTitle(e.target.value)} />
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Date" required type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-              <TimePicker label="Time" required value={time} onChange={setTime} />
+              <Input label="Date" required type="date" min={today} value={date} onChange={(e) => handleDateChange(e.target.value)} />
+              <TimePicker label="Time" required value={time} onChange={setTime} minTime={minTime} />
             </div>
             <Input label="Link" type="url" value={link} onChange={(e) => setLink(e.target.value)} />
             <Textarea label="Agenda" rows={4} value={agenda} onChange={(e) => setAgenda(e.target.value)} />
