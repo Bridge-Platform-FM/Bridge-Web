@@ -26,7 +26,7 @@ export const DEAL_STATUS_BADGE: Record<DealRoomStatus, { label: string; classNam
 };
 
 /** The fixed 4-step deal pipeline rendered by the chat page's stage stepper. */
-export const DEAL_STAGES = ["LOI Signed", "Due Diligence", "Term Sheet", "Closing"] as const;
+export const DEAL_STAGES = ["Initial Connection", "Negotiation", "Due Diligence", "Closing"] as const;
 
 /** "2h ago" / "3d ago" style relative time for list rows + message meta. */
 export function relativeTime(iso: string): string {
