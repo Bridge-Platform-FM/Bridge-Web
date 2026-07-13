@@ -1,7 +1,7 @@
 "use client";
 
 import { Icon } from "@/components/ui/Icon";
-import { DEAL_STAGES } from "./deal-room-meta";
+import { DEAL_STAGES, DEAL_STAGE_INFO } from "./deal-room-meta";
 
 // Colours are applied via inline styles, not Tailwind classes: this Tailwind v4 setup
 // doesn't reliably generate arbitrary colour utilities (green/hex), so inline is safe.
@@ -42,7 +42,7 @@ export function DealStageStepper({ stage }: DealStageStepperProps) {
           const fillColor = i < stage ? GREEN : BLUE;
 
           return (
-            <div key={label} className="relative flex flex-1 flex-col items-center">
+            <div key={label} className="group relative flex flex-1 flex-col items-center">
               {/* Connector: from this circle's centre to the next circle's centre. */}
               {i < last && (
                 <span
@@ -79,6 +79,14 @@ export function DealStageStepper({ stage }: DealStageStepperProps) {
                 style={{ color: done ? GREEN : current ? BLUE : MUTED }}
               >
                 {label}
+              </span>
+
+              {/* Info tooltip — styled flyout below the label, shown on hover/focus. */}
+              <span
+                role="tooltip"
+                className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-max max-w-[220px] -translate-x-1/2 scale-95 rounded-lg bg-surface-container-highest px-3 py-2 text-center text-xs font-medium normal-case tracking-normal text-on-surface opacity-0 shadow-lg transition-all duration-150 group-hover:scale-100 group-hover:opacity-100"
+              >
+                {DEAL_STAGE_INFO[i]}
               </span>
             </div>
           );

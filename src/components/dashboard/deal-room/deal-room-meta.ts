@@ -28,6 +28,15 @@ export const DEAL_STATUS_BADGE: Record<DealRoomStatus, { label: string; classNam
 /** The fixed 4-step deal pipeline rendered by the chat page's stage stepper. */
 export const DEAL_STAGES = ["Initial Connection", "Negotiation", "Due Diligence", "Closing"] as const;
 
+/** Tooltip copy shown on hover for each `DEAL_STAGES` entry (same order/index).
+ *  TODO(content): placeholder text — swap in the real per-stage descriptions. */
+export const DEAL_STAGE_INFO: string[] = [
+  "Initial Connection: More info coming soon.",
+  "Negotiation: More info coming soon.",
+  "Due Diligence: More info coming soon.",
+  "Closing: More info coming soon.",
+];
+
 /** "2h ago" / "3d ago" style relative time for list rows + message meta. */
 export function relativeTime(iso: string): string {
   const t = new Date(iso).getTime();
