@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { Modal } from "@/components/modal/Modal";
 import { Icon } from "@/components/ui/Icon";
@@ -21,14 +22,15 @@ const DURATION_LABELS: Record<string, string> = {
 };
 
 /** One label + value row in the read-only details view. */
-function DetailRow({ icon, label, value }: { icon: string; label: string; value: string }) {
+function DetailRow({ icon, label, value, action }: { icon: string; label: string; value: string; action?: ReactNode }) {
   return (
     <div className="flex items-start gap-3">
       <Icon name={icon} size={20} className="mt-0.5 shrink-0 text-primary" />
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="text-xs font-bold text-on-surface-variant">{label}</p>
         <p className="break-words text-sm font-semibold text-on-surface">{value}</p>
       </div>
+      {action}
     </div>
   );
 }
@@ -102,6 +104,12 @@ export function MeetingDetailsModal({ meetingId, onClose, onUpdated }: MeetingDe
   const handleDateChange = (nextDate: string) => {
     setDate(nextDate);
     if (nextDate === today && time && time < nowLocalTimeStr()) setTime("");
+  };
+
+  const copyLink = async () => {
+    if (!meeting?.link) return;
+    await navigator.clipboard.writeText(meeting.link);
+    toast.success("Link copied to clipboard.");
   };
 
   const close = () => {
@@ -184,7 +192,23 @@ export function MeetingDetailsModal({ meetingId, onClose, onUpdated }: MeetingDe
             <div className="flex flex-col gap-5">
               <DetailRow icon="event" label="Date" value={meeting.when} />
               <DetailRow icon="schedule" label="Duration" value={DURATION_LABELS[meeting.duration] ?? meeting.duration} />
-              {meeting.link && <DetailRow icon="link" label="Link" value={meeting.link} />}
+              {meeting.link && (
+                <DetailRow
+                  icon="link"
+                  label="Link"
+                  value={meeting.link}
+                  action={
+                    <button
+                      type="button"
+                      onClick={copyLink}
+                      aria-label="Copy link"
+                      className="shrink-0 rounded-lg p-1.5 text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
+                    >
+                      <Icon name="content_copy" size={18} />
+                    </button>
+                  }
+                />
+              )}
               {meeting.agenda && (
                 <div className="flex items-start gap-3">
                   <Icon name="notes" size={20} className="mt-0.5 shrink-0 text-primary" />
