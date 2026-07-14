@@ -41,13 +41,19 @@ export function nextStageValue(currentIndex: number): string | undefined {
   return DEAL_STAGE_VALUES[currentIndex + 1];
 }
 
+/** Fixed reason options for the "Close Deal" confirmation dropdown. */
+export const CLOSE_DEAL_REASONS = [
+  { value: "Not relevant", label: "Not relevant" },
+  { value: "Profile incomplete", label: "Profile incomplete" },
+];
+
 /** Tooltip copy shown on hover for each `DEAL_STAGES` entry (same order/index).
  *  TODO(content): placeholder text — swap in the real per-stage descriptions. */
 export const DEAL_STAGE_INFO: string[] = [
-  "Initial Connection: More info coming soon.",
-  "Negotiation: More info coming soon.",
-  "Due Diligence: More info coming soon.",
-  "Closing: More info coming soon.",
+  "Initial Connection: Secure messaging is activated after the connection is accepted. Introduce yourselves, exchange contact details, and schedule an initial meeting if needed.",
+  "Negotiation: Discuss commercial terms such as pricing, equity, valuation, or supply agreements. Track offers, counter-offers, and term sheet updates.",
+  "Due Diligence: Securely share confidential documents with role-based access. Downloaded files are watermarked to protect sensitive information.",
+  "Closing: Finalize legal documents, confirm the transaction, and close the deal. Download a complete summary of the Deal Room activity."
 ];
 
 /** Material Symbols icon name for each `DEAL_STAGES` entry (same order/index). */

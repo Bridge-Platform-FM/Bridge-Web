@@ -7,8 +7,11 @@ import { ROLE_AVATAR_GRADIENT } from "@/lib/connections";
 import { MessageBubble } from "./MessageBubble";
 import { DealStageStepper } from "./DealStageStepper";
 import { DealSidePanel } from "./DealSidePanel";
-import { dayLabel, formatLocation, initials } from "./deal-room-meta";
+import { CLOSE_DEAL_REASONS, formatLocation, dayLabel, initials } from "./deal-room-meta";
 import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewModal";
+import { Modal } from "@/components/modal/Modal";
+import { Loader } from "@/components/common/loader";
+import { Select } from "@/components/ui/Select";
 import type { DealAttachment, DealRoom, PreviewableFile } from "./types";
 
 interface DealRoomChatProps {
@@ -21,8 +24,9 @@ interface DealRoomChatProps {
    *  recipient may download the file (else view-only). The parent persists it (live page
    *  uploads the file / emits the text; demo appends locally). */
   onSendMessage: (text: string, file?: File, downloadAllowed?: boolean) => void;
-  /** Close the deal; the parent flips the room to CLOSED. */
-  onCloseDeal: () => void;
+  /** Close the deal with the chosen reason; the parent flips the room to CLOSED. May be
+   *  async (live page persists it via the backend) — rejecting keeps the confirm modal open. */
+  onCloseDeal: (reason: string) => void | Promise<void>;
   /** The counterparty is currently typing → show the "typing…" indicator. */
   counterpartyTyping?: boolean;
   /** Call on each composer keystroke (emits `typing`, throttled by the socket hook). */
@@ -91,6 +95,9 @@ export function DealRoomChat({
   // Side panel open by default; the chat status-bar arrow collapses it to give the
   // chat full width (and expands it back).
   const [panelOpen, setPanelOpen] = useState(true);
+  const [closeModalOpen, setCloseModalOpen] = useState(false);
+  const [closeReason, setCloseReason] = useState("");
+  const [closing, setClosing] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -128,9 +135,25 @@ export function DealRoomChat({
 
   const handleClose = () => {
     if (closed) return;
-    const ok = window.confirm(`Close the deal with ${cp.name}? You won't be able to send or receive messages.`);
-    if (!ok) return;
-    onCloseDeal();
+    setCloseModalOpen(true);
+  };
+
+  const dismissCloseModal = () => {
+    setCloseModalOpen(false);
+    setCloseReason("");
+  };
+
+  const handleConfirmClose = async () => {
+    if (closing || !closeReason) return;
+    setClosing(true);
+    try {
+      await onCloseDeal(closeReason);
+      dismissCloseModal();
+    } catch {
+      // Error toast is the caller's responsibility; keep the modal open to retry/cancel.
+    } finally {
+      setClosing(false);
+    }
   };
 
   return (
@@ -413,6 +436,47 @@ export function DealRoomChat({
         // solely by our own button (shown only when downloadAllowed).
         hidePdfToolbar
       />
+
+      {/* Close Deal confirmation — replaces the native window.confirm(). */}
+      <Modal
+        open={closeModalOpen}
+        onClose={dismissCloseModal}
+        title="Close Deal"
+        maxWidthClass="max-w-md"
+        bodyClassName="p-6"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={dismissCloseModal}
+              disabled={closing}
+              className="flex h-11 items-center justify-center rounded-xl border border-outline-variant/50 px-6 font-bold text-on-surface-variant transition-colors hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmClose}
+              disabled={closing || !closeReason}
+              className="flex h-11 min-w-[120px] items-center justify-center rounded-xl bg-error px-6 font-bold text-on-error transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {closing ? <Loader size="small" /> : "Close Deal"}
+            </button>
+          </>
+        }
+      >
+        <p className="mb-4 text-sm text-on-surface-variant">
+          Close the deal with {cp.name}? You won&apos;t be able to send or receive messages.
+        </p>
+        <Select
+          label="Reason"
+          required
+          value={closeReason}
+          onChange={setCloseReason}
+          options={CLOSE_DEAL_REASONS}
+          placeholder="Select a reason"
+        />
+      </Modal>
     </div>
   );
 }

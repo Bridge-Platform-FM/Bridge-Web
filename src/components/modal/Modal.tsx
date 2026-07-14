@@ -15,6 +15,10 @@ interface ModalProps {
   maxWidthClass?: string;
   /** Scroll handler for the internal scrollable body (e.g. to detect scroll-to-bottom). */
   onBodyScroll?: React.UIEventHandler<HTMLDivElement>;
+  /** Override the body wrapper's classes entirely — e.g. to drop `flex-1 overflow-y-auto`
+   *  for a small, fixed-content dialog (like a confirm prompt) that should never scroll.
+   *  Defaults to the standard scrollable body. */
+  bodyClassName?: string;
 }
 
 /**
@@ -23,7 +27,7 @@ interface ModalProps {
  * so it escapes any parent stacking/overflow context. Closes on ✕, the default
  * Close button, backdrop click and Escape; locks page scroll while open.
  */
-export function Modal({ open, onClose, title, children, footer, maxWidthClass = "max-w-2xl", onBodyScroll }: ModalProps) {
+export function Modal({ open, onClose, title, children, footer, maxWidthClass = "max-w-2xl", onBodyScroll, bodyClassName }: ModalProps) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -66,7 +70,7 @@ export function Modal({ open, onClose, title, children, footer, maxWidthClass = 
         </div>
 
         {/* Scrollable body */}
-        <div className="thin-scrollbar flex-1 overflow-y-auto overscroll-contain p-6" onScroll={onBodyScroll}>{children}</div>
+        <div className={bodyClassName ?? "thin-scrollbar flex-1 overflow-y-auto overscroll-contain p-6"} onScroll={onBodyScroll}>{children}</div>
 
         {/* Footer — pass footer={null} to hide it entirely (e.g. when the action
             lives inside the scrollable body). */}
