@@ -1,5 +1,7 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+Bridge Platform web frontend — corporate onboarding, KYC verification, and a role-based dashboard. Run `npm run lint` before pushing.
+
 ## Getting Started
 
 First, run the development server:

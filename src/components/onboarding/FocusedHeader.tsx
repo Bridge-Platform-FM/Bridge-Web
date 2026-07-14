@@ -11,11 +11,6 @@ interface FocusedHeaderProps {
   backHref?: string;
 }
 
-/**
- * Back + brand header used on the focused (steps 2–5) screens. The global
- * Corporate Portal navbar already sits above this; this adds the per-screen
- * "Back" affordance the Stitch designs show.
- */
 export function FocusedHeader({ backLabel = "Back", backHref }: FocusedHeaderProps) {
   const router = useRouter();
   return (
