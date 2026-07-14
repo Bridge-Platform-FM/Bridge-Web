@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
+import { Input } from "@/components/ui/input";
 
 /** The Bridge Platform glyph (no wordmark). The color is inherited (currentColor). */
 export function BridgeMark({ className = "size-8 text-blue-600" }: { className?: string }) {
@@ -44,11 +45,21 @@ export function BrandLockup({ className = "" }: { className?: string }) {
  */
 export function DashboardNavbar() {
     return (
-        <header className="flex h-16 shrink-0 items-center justify-end gap-2 border-b border-outline-variant/30 bg-surface-container-lowest px-6">
+        <header className="grid h-16 shrink-0 grid-cols-[1fr_3fr_1fr] items-center gap-2 border-b border-outline-variant/30 bg-surface-container-lowest px-6">
+            <div />
+            <div className="w-full justify-self-center">
+                <Input
+                    type="search"
+                    placeholder="Search"
+                    aria-label="Search"
+                    adornment={<Icon name="search" size={18} />}
+                    className="!rounded-full"
+                />
+            </div>
             <button
                 type="button"
                 aria-label="Notifications"
-                className="flex size-10 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container-highest hover:text-on-surface"
+                className="flex size-10 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container-highest hover:text-on-surface justify-self-end"
             >
                 <Icon name="notifications" size={22} />
             </button>

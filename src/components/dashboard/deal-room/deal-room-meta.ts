@@ -57,6 +57,11 @@ export function dayLabel(iso: string): string {
   return d.toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" });
 }
 
+/** "Maharashtra, India" from state + country (skips blanks; a lone value renders alone). */
+export function formatLocation(state?: string | null, country?: string | null): string {
+  return [state?.trim(), country?.trim()].filter(Boolean).join(", ");
+}
+
 /** Two-letter initials from a display name (avatar fallback). */
 export function initials(name: string): string {
   return name
