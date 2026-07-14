@@ -9,10 +9,11 @@ import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
 import { Loader } from "@/components/common/loader";
 import { DealRoomChat } from "@/components/dashboard/deal-room/DealRoomChat";
-import { fetchDealRoom, fetchDealRoomMessages, sendDealMedia } from "@/services/deal-room.service";
+import { fetchDealRoom, fetchDealRoomMessages, fetchPendingStageRequest, sendDealMedia } from "@/services/deal-room.service";
+import { DEAL_STAGES, nextStageValue } from "@/components/dashboard/deal-room/deal-room-meta";
 import { useDealRoomSocket } from "@/lib/useDealRoomSocket";
 import { getCurrentUserId } from "@/lib/jwt";
-import type { DealMessage, DealRoom } from "@/components/dashboard/deal-room/types";
+import type { DealMessage, DealRoom, DealStageRequest, ScheduledMeeting } from "@/components/dashboard/deal-room/types";
 import type { ApiError } from "@/lib/axios";
 
 /**
@@ -40,13 +41,18 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
-    Promise.all([fetchDealRoom(dealRoomId), fetchDealRoomMessages(dealRoomId)])
-      .then(([meta, messages]) => {
+    Promise.all([
+      fetchDealRoom(dealRoomId),
+      fetchDealRoomMessages(dealRoomId),
+      // Non-critical: don't fail the whole page load if this lookup errors.
+      fetchPendingStageRequest(dealRoomId).catch(() => null),
+    ])
+      .then(([meta, messages, pendingStageRequest]) => {
         if (!meta) {
           setError("This deal room doesn't exist.");
           return;
         }
-        setRoom({ ...meta, messages });
+        setRoom({ ...meta, messages, pendingStageRequest });
       })
       .catch(() => setError("Couldn't load this deal room. Please try again."))
       .finally(() => setLoading(false));
@@ -113,12 +119,49 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
     setCounterpartyOnline(false);
   }, [dealRoomId]);
 
-  const { sendMessage, notifyTyping, stopTyping } = useDealRoomSocket(room ? dealRoomId : "", {
-    onNewMessage,
-    onMessagesRead,
-    onUserTyping,
-    onPresenceChange,
-  });
+  // const { sendMessage, notifyTyping, stopTyping } = useDealRoomSocket(room ? dealRoomId : "", {
+  //   onNewMessage,
+  //   onMessagesRead,
+  //   onUserTyping,
+  //   onPresenceChange,
+  // });
+  // Either side requested a stage change (including my own request, echoed back) → show
+  // it in the side panel (Accept/Reject for them, "Request Pending…" for me).
+  const onStageRequested = useCallback((request: DealStageRequest) => {
+    setRoom((prev) => (prev ? { ...prev, pendingStageRequest: request } : prev));
+  }, []);
+
+  // The pending request was accepted/rejected — clear it, and on accept advance the
+  // stepper to the room's new stage.
+  const onStageResponded = useCallback(
+    (payload: { requestId: string; decision: "Accepted" | "Rejected"; newStageIndex?: number }) => {
+      setRoom((prev) => {
+        if (!prev || prev.pendingStageRequest?.id !== payload.requestId) return prev;
+        return {
+          ...prev,
+          pendingStageRequest: null,
+          stage: payload.newStageIndex ?? prev.stage,
+        };
+      });
+      if (payload.decision === "Rejected") toast.error("Stage change request was rejected.");
+      else toast.success("Deal moved to the next stage.");
+    },
+    [],
+  );
+
+  // Either side scheduled a meeting (including my own, echoed back) — bump a counter so
+  // the side panel's "Upcoming Meetings" list refetches live, and toast the counterparty
+  // (my own scheduling already gets a toast from the schedule form itself).
+  const [meetingsRefreshKey, setMeetingsRefreshKey] = useState(0);
+  const onMeetingScheduled = useCallback((meeting: ScheduledMeeting) => {
+    setMeetingsRefreshKey((k) => k + 1);
+    if (!meeting.createdByMe) toast.success(`New meeting scheduled: ${meeting.title}`);
+  }, []);
+
+  const { sendMessage, notifyTyping, stopTyping, requestNextStage, respondStageUpdate } = useDealRoomSocket(
+    room ? dealRoomId : "",
+    { onNewMessage, onMessagesRead, onUserTyping, onStageRequested, onStageResponded, onPresenceChange, onMeetingScheduled }
+  );
 
   if (!isLoaded || !isUserRole(role)) return null;
 
@@ -166,6 +209,20 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
     setRoom({ ...room, status: "CLOSED" });
   };
 
+  const onRequestNextStage = () => {
+    const requestedStage = nextStageValue(room.stage);
+    if (!requestedStage) return; // already on the last stage
+    requestNextStage(requestedStage);
+  };
+
+  const onAcceptStage = () => {
+    if (room.pendingStageRequest) respondStageUpdate(room.pendingStageRequest.id, "Accepted");
+  };
+
+  const onRejectStage = () => {
+    if (room.pendingStageRequest) respondStageUpdate(room.pendingStageRequest.id, "Rejected");
+  };
+
   return (
     <DealRoomChat
       room={room}
@@ -176,6 +233,11 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
       onTyping={notifyTyping}
       onStopTyping={stopTyping}
       counterpartyOnline={counterpartyOnline}
+      isLastStage={room.stage >= DEAL_STAGES.length - 1}
+      meetingsRefreshKey={meetingsRefreshKey}
+      onRequestNextStage={onRequestNextStage}
+      onAcceptStage={onAcceptStage}
+      onRejectStage={onRejectStage}
     />
   );
 }

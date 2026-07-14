@@ -4,8 +4,9 @@ import { useEffect, useRef } from "react";
 import { io, type Socket } from "socket.io-client";
 import { toast } from "sonner";
 import { getAccessToken } from "@/lib/auth-tokens";
-import { normalizeMessage, type RawMessage } from "@/services/deal-room.service";
-import type { DealMessage } from "@/components/dashboard/deal-room/types";
+import { normalizeMessage, toScheduledMeeting, type RawMessage } from "@/services/deal-room.service";
+import { stageIndexFromValue } from "@/components/dashboard/deal-room/deal-room-meta";
+import type { DealMessage, DealStageRequest, ScheduledMeeting } from "@/components/dashboard/deal-room/types";
 
 /** Payload for the server's `messages_read` broadcast. */
 export interface MessagesReadPayload {
@@ -25,6 +26,21 @@ export interface UserPresencePayload {
   userId: number;
   online: boolean;
 }
+/** Raw `stage_update_requested` broadcast (Bridge-Server's `DealRoomStageRequest` row). */
+interface RawStageRequested {
+  id: number | string;
+  requested_stage: string;
+  requested_by_user_id: number;
+}
+/** Raw `stage_update_responded` broadcast: the responded-to request + the room's new
+ *  stage (only present when the decision was "Accepted"). */
+interface RawStageResponded {
+  request: { id: number | string; status: "Accepted" | "Rejected"; requested_by_user_id: number };
+  dealRoom: { stage: string };
+}
+/** Decision passed to `respondStageUpdate`. */
+export type StageDecision = "Accepted" | "Rejected";
+
 interface DealRoomSocketHandlers {
   onNewMessage: (msg: DealMessage) => void;
   /** Fired when someone marks the room read (used for "Seen" receipts). */
@@ -33,6 +49,14 @@ interface DealRoomSocketHandlers {
   onUserTyping?: (payload: UserTypingPayload) => void;
   /** Fired when the other participant opens/closes this deal room. */
   onPresenceChange?: (payload: UserPresencePayload) => void;
+  /** Fired when either side requests a stage change — including my own request
+   *  echoed back, so the "Request Next Stage" button can flip to a pending state. */
+  onStageRequested?: (request: DealStageRequest) => void;
+  /** Fired once the request is accepted/rejected. `newStageIndex` is only set on accept. */
+  onStageResponded?: (payload: { requestId: string; decision: StageDecision; newStageIndex?: number }) => void;
+  /** Fired when either side schedules a meeting — including my own echoed back, so
+   *  every open tab (mine and the counterparty's) can refresh the meetings list live. */
+  onMeetingScheduled?: (meeting: ScheduledMeeting) => void;
 }
 
 /** How long after the LAST keystroke we auto-emit `stop_typing` (indicator lingers this
@@ -54,6 +78,9 @@ const TYPING_HEARTBEAT_MS = 2000;
  * - inbound `user_presence` → `onPresenceChange` (drives the online/offline dot — the
  *   server sends the counterparty's current status right after `join_deal_room`, then
  *   pushes updates as they join/leave/disconnect from this room);
+ * - inbound `meeting_scheduled` → `onMeetingScheduled` (broadcast by the REST
+ *   `POST /meetings` handler right after it commits, so both sides see the new meeting
+ *   live without a manual refresh);
  * - `sendMessage(text)` emits `send_message`;
  * - `notifyTyping()` / `stopTyping()` emit `typing` / `stop_typing` (throttled — one
  *   `typing` per burst, auto `stop_typing` after {@link TYPING_IDLE_MS} idle).
@@ -103,6 +130,26 @@ export function useDealRoomSocket(dealRoomId: string, handlers: DealRoomSocketHa
     socket.on("messages_read", (payload: MessagesReadPayload) => handlersRef.current.onMessagesRead?.(payload));
     socket.on("user_typing", (payload: UserTypingPayload) => handlersRef.current.onUserTyping?.(payload));
     socket.on("user_presence", (payload: UserPresencePayload) => handlersRef.current.onPresenceChange?.(payload));
+
+    socket.on("stage_update_requested", (raw: RawStageRequested) => {
+      handlersRef.current.onStageRequested?.({
+        id: String(raw.id),
+        requestedStage: raw.requested_stage,
+        requestedByUserId: raw.requested_by_user_id,
+      });
+    });
+
+    socket.on("stage_update_responded", (raw: RawStageResponded) => {
+      handlersRef.current.onStageResponded?.({
+        requestId: String(raw.request.id),
+        decision: raw.request.status,
+        ...(raw.request.status === "Accepted" ? { newStageIndex: stageIndexFromValue(raw.dealRoom.stage) } : {}),
+      });
+    });
+
+    socket.on("meeting_scheduled", (raw: Parameters<typeof toScheduledMeeting>[0]) => {
+      handlersRef.current.onMeetingScheduled?.(toScheduledMeeting(raw));
+    });
 
     socket.on("error", (err: { message?: string }) =>
       toast.error(err?.message ?? "Deal room connection error."),
@@ -155,5 +202,18 @@ export function useDealRoomSocket(dealRoomId: string, handlers: DealRoomSocketHa
     typingTimerRef.current = setTimeout(stopTyping, TYPING_IDLE_MS);
   };
 
-  return { sendMessage, markRead, notifyTyping, stopTyping };
+  /** Ask the counterparty to move the deal to `requestedStage` (a DEAL_STAGE_VALUES
+   *  entry). The server broadcasts `stage_update_requested` back to the whole room
+   *  (including me), so no optimistic state is set here. */
+  const requestNextStage = (requestedStage: string) => {
+    socketRef.current?.emit("request_stage_update", { dealRoomId, requestedStage });
+  };
+
+  /** Accept/reject a pending stage-update request (only the non-requester may call this
+   *  — enforced server-side too). */
+  const respondStageUpdate = (requestId: string, decision: StageDecision) => {
+    socketRef.current?.emit("respond_stage_update", { dealRoomId, requestId, decision });
+  };
+
+  return { sendMessage, markRead, notifyTyping, stopTyping, requestNextStage, respondStageUpdate };
 }

@@ -74,22 +74,47 @@ export function MeetingsDrawer({ open, onClose, dealRoomId, onSelect, onSchedule
         onRetry={load}
       >
         <ul className="flex flex-col gap-1">
-          {meetings.map((mtg) => (
-            <li key={mtg.id}>
-              <button
-                type="button"
-                onClick={() => onSelect(mtg.id)}
-                className="flex w-full items-center gap-3 rounded-lg p-2.5 text-left transition-colors hover:bg-surface-container-low"
-              >
-                <Icon name="event" size={22} className="shrink-0 text-primary" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold text-on-surface">{mtg.title}</span>
-                  <span className="block truncate text-xs text-on-surface-variant">{mtg.when}</span>
-                </span>
-                <Icon name="chevron_right" size={18} className="shrink-0 text-on-surface-variant" />
-              </button>
-            </li>
-          ))}
+          {(() => {
+            const now = Date.now();
+            const upcoming = meetings
+              .filter((mtg) => new Date(mtg.scheduledAt).getTime() >= now)
+              .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+            const past = meetings
+              .filter((mtg) => new Date(mtg.scheduledAt).getTime() < now)
+              .sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime());
+            return [...upcoming, ...past];
+          })().map((mtg, index, sorted) => {
+            const isPast = new Date(mtg.scheduledAt).getTime() < Date.now();
+            const prevIsPast = index > 0 && new Date(sorted[index - 1].scheduledAt).getTime() < Date.now();
+            const showHistoryDivider = isPast && !prevIsPast;
+            return (
+              <li key={mtg.id}>
+                {showHistoryDivider && (
+                  <div className="my-2 flex items-center gap-3 px-1" role="separator">
+                    <span className="h-px flex-1 bg-outline-variant" />
+                    <span className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant">
+                      History
+                    </span>
+                    <span className="h-px flex-1 bg-outline-variant" />
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => onSelect(mtg.id)}
+                  className="flex w-full items-center gap-3 rounded-lg p-2.5 text-left transition-colors hover:bg-surface-container-low"
+                >
+                  <Icon name="event" size={22} className={`shrink-0 ${isPast ? "text-on-surface-variant" : "text-primary"}`} />
+                  <span className="min-w-0 flex-1">
+                    <span className={`block truncate text-sm font-semibold ${isPast ? "text-on-surface-variant" : "text-on-surface"}`}>
+                      {mtg.title}
+                    </span>
+                    <span className="block truncate text-xs text-on-surface-variant">{mtg.when}</span>
+                  </span>
+                  <Icon name="chevron_right" size={18} className="shrink-0 text-on-surface-variant" />
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </AsyncState>
     </Drawer>

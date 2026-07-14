@@ -139,7 +139,8 @@ export function ProfileGridCard({
 
       {/* ── Contact info row ── */}
       {(phone || match.company_email || match.company_website_url || match.linkedin_profile_url || match.linkedin_url) && (
-        <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 border-t border-outline-variant/30 pt-4">
+        <div className="mt-4 flex justify-between gap-x-5 gap-y-2 border-t border-outline-variant/30 pt-4">
+          <div className="flex gap-1.5">
           {phone && (
             <a
               href={`tel:${match.mobile_number}`}
@@ -180,28 +181,29 @@ export function ProfileGridCard({
               <span>LinkedIn</span>
             </a>
           )}
+          </div>
+          <div>
+            {/* ── Action ── */}
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => onViewProfile(match)}
+                  className="rounded-xl border border-outline-variant/50 px-5 py-2 text-xs font-bold text-on-surface transition-colors hover:bg-surface-container"
+                >
+                  View Full Profile
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onConnect(match)}
+                  className="flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2 text-xs font-bold text-on-primary transition-transform active:scale-95"
+                >
+                  <Icon name="person_add" size={15} />
+                  Connect
+                </button>
+              </div>
+          </div>
         </div>
       )}
-
-      {/* ── Action ── */}
-      <div className="mt-4 flex justify-end gap-2">
-        <button
-          type="button"
-          onClick={() => onViewProfile(match)}
-          className="rounded-xl border border-outline-variant/50 px-5 py-2 text-xs font-bold text-on-surface transition-colors hover:bg-surface-container"
-        >
-          View Full Profile
-        </button>
-        <button
-          type="button"
-          onClick={() => onConnect(match)}
-          className="flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2 text-xs font-bold text-on-primary transition-transform active:scale-95"
-        >
-          <Icon name="person_add" size={15} />
-          Connect
-        </button>
-      </div>
-
     </div>
   );
 }

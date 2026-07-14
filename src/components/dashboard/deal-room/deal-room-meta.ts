@@ -27,6 +27,19 @@ export const DEAL_STATUS_BADGE: Record<DealRoomStatus, { label: string; classNam
 
 /** The fixed 4-step deal pipeline rendered by the chat page's stage stepper. */
 export const DEAL_STAGES = ["Initial Connection", "Negotiation", "Due Diligence", "Closing"] as const;
+export const DEAL_STAGE_VALUES = ["Initial Connection", "Negotiation", "Due Diligence", "Closed"] as const;
+
+/** Map a backend stage string to its stepper index. Unknown/missing → 0 (first stage). */
+export function stageIndexFromValue(value: string | null | undefined): number {
+  const idx = value ? DEAL_STAGE_VALUES.indexOf(value as (typeof DEAL_STAGE_VALUES)[number]) : -1;
+  return idx === -1 ? 0 : idx;
+}
+
+/** The backend stage value for the step after `currentIndex`, or undefined if already
+ *  on the last stage (nothing further to request). */
+export function nextStageValue(currentIndex: number): string | undefined {
+  return DEAL_STAGE_VALUES[currentIndex + 1];
+}
 
 /** Tooltip copy shown on hover for each `DEAL_STAGES` entry (same order/index).
  *  TODO(content): placeholder text — swap in the real per-stage descriptions. */
@@ -36,6 +49,9 @@ export const DEAL_STAGE_INFO: string[] = [
   "Due Diligence: More info coming soon.",
   "Closing: More info coming soon.",
 ];
+
+/** Material Symbols icon name for each `DEAL_STAGES` entry (same order/index). */
+export const DEAL_STAGE_ICONS: string[] = ["handshake", "gavel", "fact_check", "flag_circle"];
 
 /** "2h ago" / "3d ago" style relative time for list rows + message meta. */
 export function relativeTime(iso: string): string {

@@ -167,6 +167,16 @@ body.modal-open main {
   overflow: hidden !important;
 }
 
+/* Soft breathing halo behind the deal-room stepper's "current stage" marker. */
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(12, 86, 208, 0.35);
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgba(12, 86, 208, 0);
+  }
+}
+
 /* Thin, subtle scrollbar — visible enough to signal scrollability without a bulky bar. */
 .thin-scrollbar {
   scrollbar-width: thin;

@@ -33,6 +33,17 @@ interface DealRoomChatProps {
    *  status-bar dot + label — sourced from the socket's `user_presence` event via the
    *  parent page. */
   counterpartyOnline?: boolean;
+  /** True once the room is on the final pipeline stage — nothing further to request. */
+  isLastStage: boolean;
+  /** Bumped whenever a `meeting_scheduled` socket event lands, so the side panel's
+   *  "Upcoming Meetings" list refetches live. Omit (demo page) to disable this. */
+  meetingsRefreshKey?: number;
+  /** Ask the counterparty to move to the next stage. */
+  onRequestNextStage: () => void;
+  /** Accept the counterparty's pending stage-update request. */
+  onAcceptStage: () => void;
+  /** Reject the counterparty's pending stage-update request. */
+  onRejectStage: () => void;
 }
 
 /** A file the user has picked but not sent yet (url is a local preview object URL). */
@@ -61,6 +72,11 @@ export function DealRoomChat({
   onTyping,
   onStopTyping,
   counterpartyOnline = false,
+  isLastStage,
+  meetingsRefreshKey,
+  onRequestNextStage,
+  onAcceptStage,
+  onRejectStage,
 }: DealRoomChatProps) {
   const router = useRouter();
   const { counterparty: cp } = room;
@@ -371,7 +387,16 @@ export function DealRoomChat({
             never pushes the chat around. */}
         {panelOpen && (
           <aside className="thin-scrollbar hidden w-72 shrink-0 overflow-y-auto md:block">
-            <DealSidePanel room={room} closed={closed} onPreview={openPreview} />
+            <DealSidePanel
+              room={room}
+              closed={closed}
+              isLastStage={isLastStage}
+              meetingsRefreshKey={meetingsRefreshKey}
+              onPreview={openPreview}
+              onRequestNextStage={onRequestNextStage}
+              onAcceptStage={onAcceptStage}
+              onRejectStage={onRejectStage}
+            />
           </aside>
         )}
       </div>

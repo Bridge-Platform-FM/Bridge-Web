@@ -12,6 +12,21 @@ import { ROLE_META, isUserRole, isStaffRole } from "@/lib/roles";
 /** Width of the collapsed rail (`w-20`), in px — used to place the fixed tooltip. */
 const COLLAPSED_WIDTH = 80;
 
+/** Nav-row label: animates open/closed instead of mounting/unmounting, so it never
+ * snaps out of sync with the rail's `width` transition (that mismatch is what made
+ * icons appear to jump on repeated collapse/expand). */
+function RowLabel({ collapsed, children }: { collapsed: boolean; children: React.ReactNode }) {
+  return (
+    <span
+      className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-200 ${
+        collapsed ? "max-w-0 opacity-0" : "max-w-[160px] opacity-100"
+      }`}
+    >
+      {children}
+    </span>
+  );
+}
+
 /**
  * Dynamic dashboard sidebar. Reads the current role from `useAuth()` and renders
  * `DASHBOARD_NAV[role]` (active route highlighted via usePathname). Profile + the
@@ -75,15 +90,13 @@ export function DashboardSidebar() {
                   onMouseEnter={(e) => showLabel(e, item.label)}
                   onMouseLeave={hideLabel}
                   className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
-                    collapsed ? "justify-center" : ""
-                  } ${
                     active
                       ? "bg-primary-container/50 text-primary"
                       : "text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface"
                   }`}
                 >
-                  <Icon name={item.icon} size={20} filled={active} />
-                  {!collapsed && item.label}
+                  <Icon name={item.icon} size={20} filled={active} className="shrink-0" />
+                  <RowLabel collapsed={collapsed}>{item.label}</RowLabel>
                 </Link>
               </li>
             );
@@ -99,31 +112,31 @@ export function DashboardSidebar() {
             onClick={() => setSwitchOpen(true)}
             onMouseEnter={(e) => showLabel(e, "Switch User")}
             onMouseLeave={hideLabel}
-            className={`mb-2 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-highest hover:text-on-surface ${
-              collapsed ? "justify-center" : ""
-            }`}
+            className="mb-2 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-highest hover:text-on-surface"
           >
-            <Icon name="swap_horiz" size={20} />
-            {!collapsed && "Switch User"}
+            <Icon name="swap_horiz" size={20} className="shrink-0" />
+            <RowLabel collapsed={collapsed}>Switch User</RowLabel>
           </button>
         )}
 
         <div
           onMouseEnter={(e) => showLabel(e, `${user?.name || user?.email || meta.label} · ${meta.label}`)}
           onMouseLeave={hideLabel}
-          className={`flex items-center gap-3 rounded-xl px-3 py-2 ${collapsed ? "justify-center" : ""}`}
+          className="flex items-center gap-3 rounded-xl px-3 py-2"
         >
           <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-container text-on-primary-container">
             <Icon name={meta.icon} size={20} />
           </div>
-          {!collapsed && (
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold text-on-surface">
-                {user?.name || user?.email || meta.label}
-              </p>
-              <p className="truncate text-xs text-on-surface-variant">{meta.label}</p>
-            </div>
-          )}
+          <div
+            className={`min-w-0 overflow-hidden transition-[max-width,opacity] duration-200 ${
+              collapsed ? "max-w-0 opacity-0" : "max-w-[160px] flex-1 opacity-100"
+            }`}
+          >
+            <p className="truncate text-sm font-bold text-on-surface">
+              {user?.name || user?.email || meta.label}
+            </p>
+            <p className="truncate text-xs text-on-surface-variant">{meta.label}</p>
+          </div>
         </div>
 
         {isStaffRole(role) && (
@@ -133,15 +146,13 @@ export function DashboardSidebar() {
             onMouseEnter={(e) => showLabel(e, SUPPORT_NAV.label)}
             onMouseLeave={hideLabel}
             className={`mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
-              collapsed ? "justify-center" : ""
-            } ${
               isActive(SUPPORT_NAV.route)
                 ? "bg-primary-container/50 text-primary"
                 : "text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface"
             }`}
           >
-            <Icon name={SUPPORT_NAV.icon} size={20} filled={isActive(SUPPORT_NAV.route)} />
-            {!collapsed && SUPPORT_NAV.label}
+            <Icon name={SUPPORT_NAV.icon} size={20} filled={isActive(SUPPORT_NAV.route)} className="shrink-0" />
+            <RowLabel collapsed={collapsed}>{SUPPORT_NAV.label}</RowLabel>
           </Link>
         )}
 
@@ -150,12 +161,10 @@ export function DashboardSidebar() {
           onClick={logout}
           onMouseEnter={(e) => showLabel(e, "Logout")}
           onMouseLeave={hideLabel}
-          className={`mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-error transition-colors hover:bg-error/10 ${
-            collapsed ? "justify-center" : ""
-          }`}
+          className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-error transition-colors hover:bg-error/10"
         >
-          <Icon name="logout" size={20} />
-          {!collapsed && "Logout"}
+          <Icon name="logout" size={20} className="shrink-0" />
+          <RowLabel collapsed={collapsed}>Logout</RowLabel>
         </button>
       </div>
 

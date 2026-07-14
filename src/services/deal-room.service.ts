@@ -19,7 +19,8 @@ import { api } from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/constant";
 import { normalizeRole } from "@/lib/roles";
 import { getCurrentUserId } from "@/lib/jwt";
-import type { DealAttachment, DealMessage, DealRoom, ScheduledMeeting } from "@/components/dashboard/deal-room/types";
+import { stageIndexFromValue } from "@/components/dashboard/deal-room/deal-room-meta";
+import type { DealAttachment, DealMessage, DealRoom, DealStageRequest, ScheduledMeeting } from "@/components/dashboard/deal-room/types";
 
 /** One flat deal-room row from `GET /deal-rooms` (snake_case, both participants inline). */
 interface RawRoom {
@@ -28,6 +29,7 @@ interface RawRoom {
   deal_room_id: number | string;
   title: string | null;
   deal_room_status: string; // "Active" | "Closed"
+  deal_room_stage?: string | null; // "Initial Connection" | "Negotiation" | "Due Diligence" | "Closed"
   deal_room_created_at: string;
   requester_user_id: number;
   requester_first_name?: string;
@@ -132,7 +134,7 @@ function toDealRoom(raw: RawRoom): DealRoom {
       role: normalizeRole(cp.role) ?? "startup",
     },
     status: raw.deal_room_status === "Closed" ? "CLOSED" : "ACTIVE",
-    stage: 0, // backend has no stage concept — default to the first step
+    stage: stageIndexFromValue(raw.deal_room_stage),
     lastActivityNote: "",
     lastActivityAt: raw.deal_room_created_at ?? "",
     unread: 0,
@@ -189,6 +191,25 @@ export async function fetchDealRoomMessages(id: string): Promise<DealMessage[]> 
 /** Close a deal room (both sides become read-only). PUT, optional reason. */
 export async function closeDealRoom(id: string, reason?: string): Promise<void> {
   await api.put(API_ENDPOINTS.DEAL_ROOM_CLOSE(id), reason ? { reason } : {});
+}
+
+/** Raw pending stage-request row (Bridge-Server `DealRoomStageRequest`). */
+interface RawStageRequest {
+  id: number | string;
+  requested_stage: string;
+  requested_by_user_id: number;
+}
+
+/** The room's currently pending stage-update request, if any. GET — used on load so a
+ *  refresh doesn't lose a request that's awaiting a response (the request/respond
+ *  themselves are socket-only, see useDealRoomSocket). */
+export async function fetchPendingStageRequest(dealRoomId: string): Promise<DealStageRequest | null> {
+  const { data } = await api.get<{ data?: RawStageRequest | null }>(
+    API_ENDPOINTS.DEAL_ROOM_STAGE_REQUEST_PENDING(dealRoomId),
+  );
+  const raw = data.data;
+  if (!raw) return null;
+  return { id: String(raw.id), requestedStage: raw.requested_stage, requestedByUserId: raw.requested_by_user_id };
 }
 
 /**
@@ -301,8 +322,10 @@ export interface UpdateMeetingPayload {
   duration?: string;
 }
 
-/** Raw meeting row as returned by the meetings endpoints (tolerant of naming variants). */
-interface RawMeeting {
+/** Raw meeting row as returned by the meetings endpoints (tolerant of naming variants).
+ *  Also matches the `meeting_scheduled` socket broadcast payload — exported for the
+ *  socket handler to reuse via `toScheduledMeeting`. */
+export interface RawMeeting {
   id?: number | string;
   meeting_id?: number | string;
   meetingId?: number | string;
@@ -338,8 +361,9 @@ function extractMeetingsArray(body: unknown): RawMeeting[] {
 }
 
 /** Map a raw meeting row into the UI shape. `fallback` fills in gaps for a POST/PUT
- *  response that only echoes back a partial row. */
-function toScheduledMeeting(
+ *  response that only echoes back a partial row. Exported so the socket handler can
+ *  reuse it for the `meeting_scheduled` broadcast (same shape as the REST responses). */
+export function toScheduledMeeting(
   raw: RawMeeting,
   fallback: Partial<ScheduleMeetingPayload> & { createdByMe?: boolean } = {}
 ): ScheduledMeeting {
