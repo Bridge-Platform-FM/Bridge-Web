@@ -33,6 +33,7 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
   const [room, setRoom] = useState<DealRoom | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const toastedStageRequestRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (isLoaded && !isUserRole(role)) router.replace("/dashboard");
@@ -129,7 +130,21 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
   // it in the side panel (Accept/Reject for them, "Request Pending…" for me).
   const onStageRequested = useCallback((request: DealStageRequest) => {
     setRoom((prev) => (prev ? { ...prev, pendingStageRequest: request } : prev));
+    if (request.requestedByUserId === getCurrentUserId()) {
+      toast.success("Your request to move to the next stage has been sent.");
+    }
   }, []);
+  useEffect(() => {
+    const pending = room?.pendingStageRequest;
+    if (
+      pending &&
+      pending.requestedByUserId !== getCurrentUserId() &&
+      toastedStageRequestRef.current !== pending.id
+    ) {
+      toastedStageRequestRef.current = pending.id;
+      toast("You have a pending stage-change request awaiting your response.");
+    }
+  }, [room?.pendingStageRequest]);
 
   // The pending request was accepted/rejected — clear it, and on accept advance the
   // stepper to the room's new stage.

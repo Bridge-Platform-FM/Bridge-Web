@@ -46,7 +46,7 @@ export const CLOSE_DEAL_REASONS = [
   { value: "Not relevant", label: "Not relevant" },
   { value: "Profile incomplete", label: "Profile incomplete" },
   { value: "No longer interested", label: "No longer interested" },
-  { value: "Terms not agreed", Label: "Terms not agreed" },
+  { value: "Terms not agreed", label: "Terms not agreed" },
   { value: "Deal completed", label: "Deal completed" },
   { value: "Deal Completed elsewhere", label: "Deal Completed elsewhere" },
   { value: "Deal Cancelled", label: "Deal Cancelled" },
