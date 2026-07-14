@@ -605,6 +605,7 @@ export interface ConnectionRequest {
   role: Role;
   intent: string;
   message?: string;
+  productServiceDetails?: string;
   status: ConnectionStatus;
   createdAt: string;
   updatedAt: string;

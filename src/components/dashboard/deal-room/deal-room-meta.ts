@@ -45,6 +45,14 @@ export function nextStageValue(currentIndex: number): string | undefined {
 export const CLOSE_DEAL_REASONS = [
   { value: "Not relevant", label: "Not relevant" },
   { value: "Profile incomplete", label: "Profile incomplete" },
+  { value: "No longer interested", label: "No longer interested" },
+  { value: "Terms not agreed", Label: "Terms not agreed" },
+  { value: "Deal completed", label: "Deal completed" },
+  { value: "Deal Completed elsewhere", label: "Deal Completed elsewhere" },
+  { value: "Deal Cancelled", label: "Deal Cancelled" },
+  { value: "No response from counterparty", label: "No response from counterparty" },
+  { value: "Budget or timeline constraints", label: "Budget or timeline constraints" },
+  { value: "Other", label: "Other" }
 ];
 
 /** Tooltip copy shown on hover for each `DEAL_STAGES` entry (same order/index).

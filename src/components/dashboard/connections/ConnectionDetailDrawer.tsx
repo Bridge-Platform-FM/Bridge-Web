@@ -108,6 +108,14 @@ export function ConnectionDetailDrawer({ request, onClose, onAction }: Connectio
               </p>
             </div>
             <div>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-on-surface-variant/70">Product / Service Details</p>
+              {request.productServiceDetails ? (
+                <p className="mt-1 text-sm leading-relaxed text-on-surface-variant">{request.productServiceDetails}</p>
+              ) : (
+                <p className="mt-1 text-sm italic text-on-surface-variant/70">Not provided.</p>
+              )}
+            </div>
+            <div>
               <p className="text-[11px] font-bold uppercase tracking-wide text-on-surface-variant/70">Message</p>
               {request.message ? (
                 <p className="mt-1 text-sm leading-relaxed text-on-surface-variant">“{request.message}”</p>
