@@ -24,6 +24,10 @@ export interface DealCounterparty {
   /** Job title, e.g. "Managing Partner". */
   title: string;
   company: string;
+  /** No `state`/province column exists in Bridge-Server's schema today (only per-user
+   *  `country`) — always blank until the backend adds one; formatLocation() skips it. */
+  state?: string;
+  country?: string;
   role: Role;
 }
 

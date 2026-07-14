@@ -23,7 +23,9 @@ import type { DealAttachment, DealMessage, DealRoom, ScheduledMeeting } from "@/
 
 /** One flat deal-room row from `GET /deal-rooms` (snake_case, both participants inline). */
 interface RawRoom {
-  deal_room_id: string;
+  // The backend's `id` column is a Postgres INTEGER, so this actually arrives as a
+  // number, not a string — `toDealRoom` coerces it with `String(...)`.
+  deal_room_id: number | string;
   title: string | null;
   deal_room_status: string; // "Active" | "Closed"
   deal_room_created_at: string;
@@ -32,11 +34,19 @@ interface RawRoom {
   requester_last_name?: string;
   requester_role_code?: string;
   requester_company_name?: string;
+  // `*_country` comes from the `user` table (GET /deal-rooms now joins it). `*_state`
+  // doesn't exist anywhere in Bridge-Server's schema — no state/province column on
+  // `user` or `company` — so it's always undefined; kept only so formatLocation() still
+  // renders a state if that column is ever added.
+  requester_state?: string;
+  requester_country?: string;
   recipient_user_id: number;
   recipient_first_name?: string;
   recipient_last_name?: string;
   recipient_role_code?: string;
   recipient_company_name?: string;
+  recipient_state?: string;
+  recipient_country?: string;
 }
 
 /** One message row from `GET /deal-rooms/:id/messages` (+ nested sender in history). */
@@ -93,23 +103,32 @@ function toDealRoom(raw: RawRoom): DealRoom {
         userId: raw.recipient_user_id,
         name: fullName(raw.recipient_first_name, raw.recipient_last_name),
         company: raw.recipient_company_name ?? "",
+        state: raw.recipient_state ?? "",
+        country: raw.recipient_country ?? "",
         role: raw.recipient_role_code,
       }
     : {
         userId: raw.requester_user_id,
         name: fullName(raw.requester_first_name, raw.requester_last_name),
         company: raw.requester_company_name ?? "",
+        state: raw.requester_state ?? "",
+        country: raw.requester_country ?? "",
         role: raw.requester_role_code,
       };
 
   return {
-    id: raw.deal_room_id,
+    // `deal_room_id` comes back as a Postgres integer (deserialized to a JS number), but
+    // callers (route params, `fetchDealRoom`) always compare against a string — coerce so
+    // `r.id === id` doesn't silently fail.
+    id: String(raw.deal_room_id),
     title: raw.title || cp.company || "Deal Room",
     counterparty: {
       userId: cp.userId,
       name: cp.name || cp.company || "—",
       title: "", // backend has no designation field
       company: cp.company,
+      state: cp.state,
+      country: cp.country,
       role: normalizeRole(cp.role) ?? "startup",
     },
     status: raw.deal_room_status === "Closed" ? "CLOSED" : "ACTIVE",

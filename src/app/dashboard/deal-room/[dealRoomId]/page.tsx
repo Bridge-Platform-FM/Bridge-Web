@@ -61,6 +61,9 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
   const [counterpartyTyping, setCounterpartyTyping] = useState(false);
   const typingClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Whether the counterparty currently has this deal room open (see onPresenceChange below).
+  const [counterpartyOnline, setCounterpartyOnline] = useState(false);
+
   // Append inbound (and self-echoed) socket messages, de-duplicated by id. A fresh
   // message of mine is delivered-but-unread (single tick) until a `messages_read` arrives.
   const onNewMessage = useCallback((msg: DealMessage) => {
@@ -97,10 +100,24 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
     }
   }, []);
 
+  // The counterparty opened/closed this deal room (server sends the current status right
+  // after we join, then pushes updates as they join/leave/disconnect).
+  const onPresenceChange = useCallback((payload: { userId: number; online: boolean }) => {
+    if (payload.userId === getCurrentUserId()) return;
+    setCounterpartyOnline(payload.online);
+  }, []);
+
+  // A fresh room (or a disconnect) starts from a clean "offline" slate — the server will
+  // re-announce the real status once the socket (re)joins.
+  useEffect(() => {
+    setCounterpartyOnline(false);
+  }, [dealRoomId]);
+
   const { sendMessage, notifyTyping, stopTyping } = useDealRoomSocket(room ? dealRoomId : "", {
     onNewMessage,
     onMessagesRead,
     onUserTyping,
+    onPresenceChange,
   });
 
   if (!isLoaded || !isUserRole(role)) return null;
@@ -158,6 +175,7 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
       counterpartyTyping={counterpartyTyping}
       onTyping={notifyTyping}
       onStopTyping={stopTyping}
+      counterpartyOnline={counterpartyOnline}
     />
   );
 }

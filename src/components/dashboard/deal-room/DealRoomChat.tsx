@@ -7,7 +7,7 @@ import { ROLE_AVATAR_GRADIENT } from "@/lib/connections";
 import { MessageBubble } from "./MessageBubble";
 import { DealStageStepper } from "./DealStageStepper";
 import { DealSidePanel } from "./DealSidePanel";
-import { dayLabel, initials } from "./deal-room-meta";
+import { dayLabel, formatLocation, initials } from "./deal-room-meta";
 import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewModal";
 import type { DealAttachment, DealRoom, PreviewableFile } from "./types";
 
@@ -29,6 +29,10 @@ interface DealRoomChatProps {
   onTyping?: () => void;
   /** Call when the draft is sent/cleared (emits `stop_typing`). */
   onStopTyping?: () => void;
+  /** Is the counterparty currently online (has this deal room open)? Drives the
+   *  status-bar dot + label — sourced from the socket's `user_presence` event via the
+   *  parent page. */
+  counterpartyOnline?: boolean;
 }
 
 /** A file the user has picked but not sent yet (url is a local preview object URL). */
@@ -56,11 +60,13 @@ export function DealRoomChat({
   counterpartyTyping = false,
   onTyping,
   onStopTyping,
+  counterpartyOnline = false,
 }: DealRoomChatProps) {
   const router = useRouter();
   const { counterparty: cp } = room;
   const messages = room.messages;
   const closed = room.status === "CLOSED";
+  const location = formatLocation(cp.state, cp.country);
 
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState<PendingFile | null>(null);
@@ -144,11 +150,11 @@ export function DealRoomChat({
 
         <div className="min-w-0 flex-1">
           <p className="truncate font-headline text-lg font-extrabold tracking-[-0.01em] text-on-surface md:text-xl">
-            {room.title}
+            {cp.company || room.title}
           </p>
-          <p className="truncate text-sm text-on-surface-variant">
-            with {cp.name}
-          </p>
+          {location && (
+            <p className="truncate text-sm text-on-surface-variant">{location}</p>
+          )}
         </div>
 
         {/* Close Deal / Closed badge */}
@@ -187,11 +193,14 @@ export function DealRoomChat({
         <div className="flex shrink-0 items-center gap-2 border-b border-outline-variant/30 px-4 py-3">
           <span
             aria-hidden
-            className={`size-2 rounded-full ${closed ? "bg-outline-variant" : "bg-[#16a34a]"}`}
+            className={`size-2 shrink-0 rounded-full ${!closed && counterpartyOnline ? "bg-[#16a34a]" : "bg-outline-variant"}`}
           />
-          <span className="flex-1 text-sm font-medium text-on-surface">
-            {closed ? "Chat is closed" : "Chat is active"}
-          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-on-surface">{cp.name}</p>
+            <p className="truncate text-xs text-on-surface-variant">
+              {closed ? "Chat closed" : counterpartyOnline ? "Online" : "Offline"}
+            </p>
+          </div>
           {/* Expand / collapse the side panel — a plain arrow toggle (collapsing gives the
               chat full width). Wrapped in `hidden md:block` (a confirmed-generated utility)
               because this Tailwind setup doesn't generate `md:inline-flex`/`md:flex`. */}

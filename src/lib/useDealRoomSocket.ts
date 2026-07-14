@@ -18,12 +18,21 @@ export interface UserTypingPayload {
   userId: number;
   typing: boolean;
 }
+/** Payload for the server's `user_presence` broadcast. `online` means that user currently
+ *  has this deal room open in another tab/socket — presence is scoped to this room, not a
+ *  global "logged in anywhere" signal. */
+export interface UserPresencePayload {
+  userId: number;
+  online: boolean;
+}
 interface DealRoomSocketHandlers {
   onNewMessage: (msg: DealMessage) => void;
   /** Fired when someone marks the room read (used for "Seen" receipts). */
   onMessagesRead?: (payload: MessagesReadPayload) => void;
   /** Fired when the other participant starts/stops typing. */
   onUserTyping?: (payload: UserTypingPayload) => void;
+  /** Fired when the other participant opens/closes this deal room. */
+  onPresenceChange?: (payload: UserPresencePayload) => void;
 }
 
 /** How long after the LAST keystroke we auto-emit `stop_typing` (indicator lingers this
@@ -42,6 +51,9 @@ const TYPING_HEARTBEAT_MS = 2000;
  *   the other side while the tab is visible, so they get read receipts);
  * - inbound `messages_read` → `onMessagesRead` (drives our "Seen" indicator);
  * - inbound `user_typing` → `onUserTyping` (drives the "typing…" indicator);
+ * - inbound `user_presence` → `onPresenceChange` (drives the online/offline dot — the
+ *   server sends the counterparty's current status right after `join_deal_room`, then
+ *   pushes updates as they join/leave/disconnect from this room);
  * - `sendMessage(text)` emits `send_message`;
  * - `notifyTyping()` / `stopTyping()` emit `typing` / `stop_typing` (throttled — one
  *   `typing` per burst, auto `stop_typing` after {@link TYPING_IDLE_MS} idle).
@@ -90,6 +102,7 @@ export function useDealRoomSocket(dealRoomId: string, handlers: DealRoomSocketHa
 
     socket.on("messages_read", (payload: MessagesReadPayload) => handlersRef.current.onMessagesRead?.(payload));
     socket.on("user_typing", (payload: UserTypingPayload) => handlersRef.current.onUserTyping?.(payload));
+    socket.on("user_presence", (payload: UserPresencePayload) => handlersRef.current.onPresenceChange?.(payload));
 
     socket.on("error", (err: { message?: string }) =>
       toast.error(err?.message ?? "Deal room connection error."),
