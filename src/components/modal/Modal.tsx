@@ -19,6 +19,7 @@ interface ModalProps {
    *  for a small, fixed-content dialog (like a confirm prompt) that should never scroll.
    *  Defaults to the standard scrollable body. */
   bodyClassName?: string;
+  headerExtra?: React.ReactNode;
 }
 
 /**
@@ -27,7 +28,7 @@ interface ModalProps {
  * so it escapes any parent stacking/overflow context. Closes on ✕, the default
  * Close button, backdrop click and Escape; locks page scroll while open.
  */
-export function Modal({ open, onClose, title, children, footer, maxWidthClass = "max-w-2xl", onBodyScroll, bodyClassName }: ModalProps) {
+export function Modal({ open, onClose, title, children, footer, maxWidthClass = "max-w-2xl", onBodyScroll, bodyClassName, headerExtra }: ModalProps) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -58,7 +59,8 @@ export function Modal({ open, onClose, title, children, footer, maxWidthClass = 
       >
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between gap-4 border-b border-outline/10 p-5">
-          <h2 className="font-headline text-xl font-bold text-on-surface">{title}</h2>
+          <h2 className="min-w-0 flex-1 truncate font-headline text-xl font-bold text-on-surface">{title}</h2>
+          {headerExtra}
           <button
             type="button"
             onClick={onClose}
