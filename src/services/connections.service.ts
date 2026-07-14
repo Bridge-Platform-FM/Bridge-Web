@@ -33,6 +33,7 @@ export async function sendConnectionRequest(
 interface RawConnection {
   connection_id?: number | string;
   connection_message?: string;
+  product_service_details?: string;
   connection_status?: string;
   connection_requested_at?: string;
   connection_updated_at?: string;
@@ -78,6 +79,7 @@ function toConnectionRequest(raw: RawConnection, direction: ConnectionDirection)
     role: normalizeRole(other.role) ?? "startup",
     intent,
     message: raw.connection_message ?? "",
+    productServiceDetails: raw.product_service_details ?? "",
     status: ((raw.connection_status ?? "PENDING").toUpperCase() as ConnectionStatus),
     createdAt: raw.connection_requested_at ?? "",
     updatedAt: raw.connection_updated_at ?? raw.connection_requested_at ?? "",

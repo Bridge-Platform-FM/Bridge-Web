@@ -3,13 +3,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Icon } from "@/components/ui/Icon";
+import { Modal } from "@/components/modal/Modal";
 import { SharedFilesDrawer } from "./SharedFilesDrawer";
 import { ScheduleMeetingDrawer, type ScheduleMeetingFormValues } from "./ScheduleMeetingDrawer";
 import { MeetingsDrawer } from "./MeetingsDrawer";
 import { MeetingDetailsModal } from "./MeetingDetailsModal";
 import { fetchUpcomingMeetings, scheduleMeeting } from "@/services/deal-room.service";
+import { getCurrentUserId } from "@/lib/jwt";
 import type { ApiError } from "@/lib/axios";
 import type { DealRoom, PreviewableFile, ScheduledMeeting } from "./types";
+import { DEAL_STAGES, DEAL_STAGE_ICONS } from "./deal-room-meta";
 
 /** A file shared in the deal room (top-N preview, derived from the chat thread). */
 interface SharedFile {
@@ -50,8 +53,19 @@ interface DealSidePanelProps {
   room: DealRoom;
   /** When the deal is closed the scheduling/actions are disabled. */
   closed: boolean;
+  /** True once the room is on the final pipeline stage — nothing further to request. */
+  isLastStage: boolean;
+  /** Bumped whenever a `meeting_scheduled` socket event lands (own or counterparty's),
+   *  so the "Upcoming Meetings" preview refetches live. */
+  meetingsRefreshKey?: number;
   /** Open the watermarked preview modal for a shared file. */
   onPreview: (file: PreviewableFile) => void;
+  /** Ask the counterparty to move to the next stage (`request_stage_update` socket). */
+  onRequestNextStage: () => void;
+  /** Accept the counterparty's pending stage-update request. */
+  onAcceptStage: () => void;
+  /** Reject the counterparty's pending stage-update request. */
+  onRejectStage: () => void;
 }
 
 /**
@@ -59,8 +73,23 @@ interface DealSidePanelProps {
  * Shared Files (top-N inline + a "View All" drawer backed by the files API), and
  * Active Participants.
  */
-export function DealSidePanel({ room, closed, onPreview }: DealSidePanelProps) {
+export function DealSidePanel({
+  room,
+  closed,
+  isLastStage,
+  meetingsRefreshKey,
+  onPreview,
+  onRequestNextStage,
+  onAcceptStage,
+  onRejectStage,
+}: DealSidePanelProps) {
   const { counterparty: cp } = room;
+  // Live stage name + icon — updates whenever room.stage changes (stage-update socket flow).
+  const stageLabel = DEAL_STAGES[room.stage] ?? DEAL_STAGES[0];
+  const stageIcon = DEAL_STAGE_ICONS[room.stage] ?? DEAL_STAGE_ICONS[0];
+  const pendingStageRequest = room.pendingStageRequest;
+  // Is the pending request mine (waiting on them) or theirs (I can accept/reject)?
+  const iRequestedStage = pendingStageRequest != null && pendingStageRequest.requestedByUserId === getCurrentUserId();
 
   // Inline preview — loaded from GET /meetings/upcoming; refetched after scheduling.
   const [meetings, setMeetings] = useState<ScheduledMeeting[]>([]);
@@ -69,6 +98,8 @@ export function DealSidePanel({ room, closed, onPreview }: DealSidePanelProps) {
   const [meetingsOpen, setMeetingsOpen] = useState(false);
   /** Id of the meeting whose details modal is open; null = closed. */
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
+  /** Confirmation modal for "Request Next Stage" — asks before firing the socket event. */
+  const [confirmStageOpen, setConfirmStageOpen] = useState(false);
 
   const loadUpcomingMeetings = useCallback(() => {
     fetchUpcomingMeetings(room.id)
@@ -80,7 +111,9 @@ export function DealSidePanel({ room, closed, onPreview }: DealSidePanelProps) {
 
   useEffect(() => {
     loadUpcomingMeetings();
-  }, [loadUpcomingMeetings]);
+    // meetingsRefreshKey deliberately included: a `meeting_scheduled` socket event (mine
+    // or the counterparty's) bumps it so this refetches live, without polling.
+  }, [loadUpcomingMeetings, meetingsRefreshKey]);
 
   // Inline top-4 preview is derived from the chat thread's attachments; the full list
   // lives behind "View All Files" (SharedFilesDrawer, backed by the files API).
@@ -173,12 +206,21 @@ export function DealSidePanel({ room, closed, onPreview }: DealSidePanelProps) {
 
         {/* ---- Shared Files ---- */}
         <PanelCard
-          icon="folder_open"
-          title="Shared Files"
+          icon={stageIcon}
+          title={stageLabel}
           action={
-            <span className="rounded-full bg-secondary-container px-2 py-0.5 text-[10px] font-bold text-on-surface-variant">
-              {files.length}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="rounded-full bg-secondary-container px-2 py-0.5 text-[10px] font-bold text-on-surface-variant">
+                {files.length}
+              </span>
+              <button
+                type="button"
+                onClick={() => setFilesOpen(true)}
+                className="rounded-full bg-secondary-container px-2 py-0.5 text-[10px] font-bold text-on-surface-variant transition-colors hover:bg-secondary-container/70"
+              >
+                View All
+              </button>
+            </div>
           }
         >
           {files.length === 0 ? (
@@ -205,16 +247,74 @@ export function DealSidePanel({ room, closed, onPreview }: DealSidePanelProps) {
             </ul>
           )}
 
-          <button
-            type="button"
-            onClick={() => setFilesOpen(true)}
-            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-outline-variant/50 py-2 text-xs font-bold text-on-surface-variant transition-colors hover:border-primary/50 hover:text-primary"
-          >
-            <Icon name="folder_open" size={16} />
-            View All Files
-          </button>
+          {pendingStageRequest && !iRequestedStage ? (
+            // Their request is pending — I can accept or reject it.
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={onRejectStage}
+                disabled={closed}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-outline-variant/50 py-2 text-xs font-bold text-on-surface-variant transition-colors hover:border-error/50 hover:text-error disabled:opacity-50"
+              >
+                <Icon name="close" size={16} />
+                Reject
+              </button>
+              <button
+                type="button"
+                onClick={onAcceptStage}
+                disabled={closed}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg cta-gradient py-2 text-xs font-bold text-on-primary disabled:opacity-50"
+              >
+                <Icon name="check" size={16} />
+                Accept
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmStageOpen(true)}
+              disabled={closed || isLastStage || iRequestedStage}
+              className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-outline-variant/50 py-2 text-xs font-bold text-on-surface-variant transition-colors hover:border-primary/50 hover:text-primary disabled:opacity-50"
+            >
+              {iRequestedStage ? "Request Pending…" : "Request Next Stage"}
+              <Icon name="arrow_forward" size={16} />
+            </button>
+          )}
         </PanelCard>
       </div>
+
+      {/* Confirm before firing the request_stage_update socket event */}
+      <Modal
+        open={confirmStageOpen}
+        onClose={() => setConfirmStageOpen(false)}
+        title="Move to Next Stage?"
+        maxWidthClass="max-w-sm"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setConfirmStageOpen(false)}
+              className="flex h-11 flex-1 items-center justify-center rounded-xl border border-outline-variant/50 font-bold text-on-surface-variant transition-colors hover:bg-surface-container"
+            >
+              No
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onRequestNextStage();
+                setConfirmStageOpen(false);
+              }}
+              className="flex h-11 flex-1 items-center justify-center rounded-xl cta-gradient font-bold text-on-primary"
+            >
+              Yes
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm text-on-surface-variant">
+          Do you want to request {cp.name} to move this deal to the next stage?
+        </p>
+      </Modal>
 
       {/* All shared files (API-backed) */}
       <SharedFilesDrawer

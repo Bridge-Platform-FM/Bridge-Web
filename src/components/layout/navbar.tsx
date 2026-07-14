@@ -28,11 +28,17 @@ export function BridgeMark({ className = "size-8 text-blue-600" }: { className?:
 }
 
 /** Bridge Platform logo lockup (glyph + wordmark), shared by the navbar and sidebar. */
-export function BrandLockup({ className = "" }: { className?: string }) {
+export function BrandLockup({ className = "", showLabel = true }: { className?: string; showLabel?: boolean }) {
     return (
         <span className={`flex items-center gap-3 ${className}`}>
             <BridgeMark />
-            <span className="font-bold text-xl tracking-tight">Bridge Platform</span>
+            <span
+                className={`overflow-hidden whitespace-nowrap font-bold text-xl tracking-tight transition-[max-width,opacity] duration-200 ${
+                    showLabel ? "max-w-[200px] opacity-100" : "max-w-0 opacity-0"
+                }`}
+            >
+                Bridge Platform
+            </span>
         </span>
     );
 }

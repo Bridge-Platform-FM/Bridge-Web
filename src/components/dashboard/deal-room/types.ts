@@ -80,6 +80,8 @@ export interface DealMessage {
 /** A meeting scheduled inside a deal room (`POST /meetings`, normalized for display). */
 export interface ScheduledMeeting {
   id: string;
+  /** True if the logged-in user is the one who scheduled this meeting — only they're allowed to edit it (enforced server-side too). */
+  createdByMe: boolean;
   title: string;
   /** Friendly when-label, e.g. "Oct 24, 10:30 AM". */
   when: string;
@@ -88,6 +90,18 @@ export interface ScheduledMeeting {
   duration: string;
   link: string;
   agenda: string;
+}
+
+/** A pending "move to the next stage" request awaiting the counterparty's decision
+ *  (`request_stage_update` / `respond_stage_update` sockets). Null/undefined = no
+ *  outstanding request for this room. */
+export interface DealStageRequest {
+  id: string;
+  /** Backend stage enum value being requested, e.g. "Negotiation" (see DEAL_STAGE_VALUES). */
+  requestedStage: string;
+  /** Who asked — compare against the logged-in user id to tell "I requested" from
+   *  "they requested, I can accept/reject". */
+  requestedByUserId: number;
 }
 
 /** One deal room = an accepted connection the two parties are progressing. */
@@ -99,6 +113,8 @@ export interface DealRoom {
   status: DealRoomStatus;
   /** 0-based index into DEAL_STAGES of the stage the deal is currently in. */
   stage: number;
+  /** The room's currently pending stage-update request, if any. */
+  pendingStageRequest?: DealStageRequest | null;
   /** Short summary of the latest event, e.g. "Term sheet revised by Legal". */
   lastActivityNote: string;
   /** Count of unread messages for the current user. */

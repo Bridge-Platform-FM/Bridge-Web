@@ -6,16 +6,19 @@
  */
 export function CompatibilityRing({
   value,
+  max = 100,
   size = 54,
   stroke = 4,
   className = "",
 }: {
   value: number;
+  /** Value that represents a full ring. Defaults to 100 (`value` is already a percentage). */
+  max?: number;
   size?: number;
   stroke?: number;
   className?: string;
 }) {
-  const pct = Math.min(100, Math.max(0, value));
+  const pct = Math.min(100, Math.max(0, (value / max) * 100));
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (pct / 100) * circumference;

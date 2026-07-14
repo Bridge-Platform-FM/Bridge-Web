@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
 import { TimePicker } from "@/components/ui/TimePicker";
+import { todayLocalDateStr, nowLocalTimeStr } from "@/lib/utils";
 
 /** The scheduled meeting form values handed back on Confirm. */
 export interface ScheduleMeetingFormValues {
@@ -51,6 +52,13 @@ export function ScheduleMeetingDrawer({ open, onClose, onConfirm }: ScheduleMeet
   const [submitting, setSubmitting] = useState(false);
 
   const canConfirm = title.trim().length > 0 && date.length > 0 && time.length > 0;
+  const today = todayLocalDateStr();
+  const minTime = date === today ? nowLocalTimeStr() : undefined;
+
+  const handleDateChange = (nextDate: string) => {
+    setDate(nextDate);
+    if (nextDate === today && time && time < nowLocalTimeStr()) setTime("");
+  };
 
   const reset = () => {
     setTitle("");
@@ -124,8 +132,8 @@ export function ScheduleMeetingDrawer({ open, onClose, onConfirm }: ScheduleMeet
 
         {/* Date + Time */}
         <div className="grid grid-cols-2 gap-3">
-          <Input label="Date" required type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          <TimePicker label="Time" required value={time} onChange={setTime} />
+          <Input label="Date" required type="date" min={today} value={date} onChange={(e) => handleDateChange(e.target.value)} />
+          <TimePicker label="Time" required value={time} onChange={setTime} minTime={minTime} />
         </div>
 
         {/* Duration */}

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
+import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { Loader } from "@/components/common/loader";
 import { getUserProfile, saveUserProfile, type ProfileField } from "@/services/user.service";
 import {
@@ -183,37 +184,6 @@ function buildPayload(
     }
   }
   return out;
-}
-
-// ─── Toggle Switch ────────────────────────────────────────────────────────────
-
-function ToggleSwitch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
-  return (
-    <button
-      type="button"
-      id="profile-edit-toggle"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      onClick={() => onChange(!checked)}
-      className="group flex items-center gap-2.5 select-none focus:outline-none"
-    >
-      <span className="text-sm font-semibold text-on-surface-variant">{label}</span>
-      {/* Track */}
-      <span
-        className={`relative flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 ${
-          checked ? "bg-primary" : "bg-outline-variant/60"
-        }`}
-      >
-        {/* Thumb */}
-        <span
-          className={`absolute left-0.5 size-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
-            checked ? "translate-x-5" : "translate-x-0"
-          }`}
-        />
-      </span>
-    </button>
-  );
 }
 
 // ─── individual field ─────────────────────────────────────────────────────────
@@ -755,6 +725,7 @@ export default function ProfilePage() {
         {/* Edit toggle in top-right */}
         {!loading && fields.length > 0 && (
           <ToggleSwitch
+            id="profile-edit-toggle"
             checked={editMode}
             onChange={handleToggleEdit}
             label={editMode ? "Editing" : "Edit"}

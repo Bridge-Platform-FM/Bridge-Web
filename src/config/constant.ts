@@ -117,7 +117,10 @@ export const API_ENDPOINTS = {
   DEAL_ROOM_FILES: (id: string) => `${DEAL_ROOMS}/${id}/messages/media`,
   // Deferred: authenticated media download GET `.../messages/{messageId}/media`,
   //           read receipts PUT `${DEAL_ROOMS}/${id}/messages/read`.
-  
+  // The currently pending stage-update request for a room, if any (survives refresh —
+  // request/respond themselves go over the socket, see useDealRoomSocket). GET.
+  DEAL_ROOM_STAGE_REQUEST_PENDING: (id: string) => `${DEAL_ROOMS}/${id}/stage-request/pending`,
+
   
   // ----- Meetings -----
   // Schedule a meeting inside a deal room. POST.

@@ -37,3 +37,17 @@ export function formatDateTime(isoString: string): string {
     hour12: true,
   });
 }
+
+/** Today's date as `YYYY-MM-DD` in local time (not UTC, unlike `toISOString`). */
+export function todayLocalDateStr(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** Current time as `HH:mm` in local time. */
+export function nowLocalTimeStr(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}

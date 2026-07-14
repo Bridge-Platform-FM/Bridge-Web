@@ -26,7 +26,46 @@ export const DEAL_STATUS_BADGE: Record<DealRoomStatus, { label: string; classNam
 };
 
 /** The fixed 4-step deal pipeline rendered by the chat page's stage stepper. */
-export const DEAL_STAGES = ["LOI Signed", "Due Diligence", "Term Sheet", "Closing"] as const;
+export const DEAL_STAGES = ["Initial Connection", "Negotiation", "Due Diligence", "Closing"] as const;
+export const DEAL_STAGE_VALUES = ["Initial Connection", "Negotiation", "Due Diligence", "Closed"] as const;
+
+/** Map a backend stage string to its stepper index. Unknown/missing → 0 (first stage). */
+export function stageIndexFromValue(value: string | null | undefined): number {
+  const idx = value ? DEAL_STAGE_VALUES.indexOf(value as (typeof DEAL_STAGE_VALUES)[number]) : -1;
+  return idx === -1 ? 0 : idx;
+}
+
+/** The backend stage value for the step after `currentIndex`, or undefined if already
+ *  on the last stage (nothing further to request). */
+export function nextStageValue(currentIndex: number): string | undefined {
+  return DEAL_STAGE_VALUES[currentIndex + 1];
+}
+
+/** Fixed reason options for the "Close Deal" confirmation dropdown. */
+export const CLOSE_DEAL_REASONS = [
+  { value: "Not relevant", label: "Not relevant" },
+  { value: "Profile incomplete", label: "Profile incomplete" },
+  { value: "No longer interested", label: "No longer interested" },
+  { value: "Terms not agreed", label: "Terms not agreed" },
+  { value: "Deal completed", label: "Deal completed" },
+  { value: "Deal Completed elsewhere", label: "Deal Completed elsewhere" },
+  { value: "Deal Cancelled", label: "Deal Cancelled" },
+  { value: "No response from counterparty", label: "No response from counterparty" },
+  { value: "Budget or timeline constraints", label: "Budget or timeline constraints" },
+  { value: "Other", label: "Other" }
+];
+
+/** Tooltip copy shown on hover for each `DEAL_STAGES` entry (same order/index).
+ *  TODO(content): placeholder text — swap in the real per-stage descriptions. */
+export const DEAL_STAGE_INFO: string[] = [
+  "Initial Connection: Secure messaging is activated after the connection is accepted. Introduce yourselves, exchange contact details, and schedule an initial meeting if needed.",
+  "Negotiation: Discuss commercial terms such as pricing, equity, valuation, or supply agreements. Track offers, counter-offers, and term sheet updates.",
+  "Due Diligence: Securely share confidential documents with role-based access. Downloaded files are watermarked to protect sensitive information.",
+  "Closing: Finalize legal documents, confirm the transaction, and close the deal. Download a complete summary of the Deal Room activity."
+];
+
+/** Material Symbols icon name for each `DEAL_STAGES` entry (same order/index). */
+export const DEAL_STAGE_ICONS: string[] = ["handshake", "gavel", "fact_check", "flag_circle"];
 
 /** "2h ago" / "3d ago" style relative time for list rows + message meta. */
 export function relativeTime(iso: string): string {

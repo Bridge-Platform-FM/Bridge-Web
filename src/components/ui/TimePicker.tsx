@@ -11,6 +11,8 @@ interface TimePickerProps {
   error?: string;
   /** Minutes between options. Defaults to 15. */
   stepMinutes?: number;
+  /** If set (24h "HH:mm"), options before this time are hidden — used to block past times when the selected date is today. */
+  minTime?: string;
 }
 
 /** Build every "HH:mm" of the day at the given step, labeled in 12h form (e.g. "2:30 PM"). */
@@ -35,13 +37,14 @@ function buildTimeOptions(stepMinutes: number) {
  * Reuses the shared `Select`, so it gets the same search box + keyboard/outside-click
  * handling for free.
  */
-export function TimePicker({ label = "Time", required, value, onChange, error, stepMinutes = 15 }: TimePickerProps) {
+export function TimePicker({ label = "Time", required, value, onChange, error, stepMinutes = 15, minTime }: TimePickerProps) {
+  const options = buildTimeOptions(stepMinutes).filter((o) => !minTime || o.value >= minTime);
   return (
     <Select
       label={label}
       required={required}
       placeholder="Select time…"
-      options={buildTimeOptions(stepMinutes)}
+      options={options}
       value={value}
       onChange={onChange}
       error={error}
