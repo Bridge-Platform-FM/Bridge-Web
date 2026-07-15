@@ -26,11 +26,6 @@ import type {
 /** Which login portal a request targets — selects the endpoint group below. */
 export type Portal = "user" | "admin" | "superadmin";
 
-/**
- * Resolve the login + MFA endpoints for a portal from API_ENDPOINTS (the single
- * source of the path strings). All three portals share identical request/response
- * shapes and differ only by path.
- */
 const AUTH_BY_PORTAL: Record<Portal, { LOGIN: string; MFA_SELECT_CHANNEL: string; MFA_VERIFY_OTP: string }> = {
   user: {
     LOGIN: API_ENDPOINTS.LOGIN,
