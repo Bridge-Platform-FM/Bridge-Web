@@ -20,7 +20,16 @@ import { API_ENDPOINTS } from "@/config/constant";
 import { normalizeRole } from "@/lib/roles";
 import { getCurrentUserId } from "@/lib/jwt";
 import { stageIndexFromValue } from "@/components/dashboard/deal-room/deal-room-meta";
-import type { DealAttachment, DealMessage, DealRoom, DealStageRequest, ScheduledMeeting } from "@/components/dashboard/deal-room/types";
+import type {
+  DealAttachment,
+  DealFundingOffer,
+  DealMessage,
+  DealRoom,
+  DealStageRequest,
+  FundingOfferStatus,
+  ScheduledMeeting,
+  ValuationType,
+} from "@/components/dashboard/deal-room/types";
 
 /** One flat deal-room row from `GET /deal-rooms` (snake_case, both participants inline). */
 interface RawRoom {
@@ -415,4 +424,74 @@ export async function fetchMeetingDetail(meetingId: string): Promise<ScheduledMe
 export async function updateMeeting(meetingId: string, payload: UpdateMeetingPayload): Promise<ScheduledMeeting> {
   const { data } = await api.put<{ data?: RawMeeting }>(API_ENDPOINTS.MEETING_UPDATE(meetingId), payload);
   return toScheduledMeeting(data.data ?? {}, { ...payload, createdByMe: true });
+}
+
+// ---- Funding Offer (Stage 2: Negotiation) ----------------------------------------
+// Backend does not exist yet — fetchCurrentFundingOffer is a placeholder GET that
+// fails soft (returns null) until Bridge-Server implements it. Create/Accept/Reject/
+// Counter are socket-only (see useDealRoomSocket.ts) — never REST POSTs.
+
+/** Raw funding-offer row — the same shape as the `funding_offer_created` socket
+ *  broadcast, reused here so normalizeFundingOffer serves both. */
+export interface RawFundingOffer {
+  id: number | string;
+  status: FundingOfferStatus;
+  created_by_user_id: number;
+  recipient_user_id: number;
+  amount: number;
+  currency: string;
+  equity_percent: number;
+  valuation_type: ValuationType;
+  valid_until: string;
+  terms?: string | null;
+  notes?: string | null;
+  parent_offer_id?: number | string | null;
+  version: number;
+  created_at: string;
+}
+
+/** Normalize a raw offer row — exported so useDealRoomSocket.ts's broadcast handler reuses it. */
+export function normalizeFundingOffer(raw: RawFundingOffer): DealFundingOffer {
+  return {
+    id: String(raw.id),
+    status: raw.status,
+    createdByUserId: raw.created_by_user_id,
+    recipientUserId: raw.recipient_user_id,
+    amount: raw.amount,
+    currency: raw.currency,
+    equityPercent: raw.equity_percent,
+    valuationType: raw.valuation_type,
+    validUntil: raw.valid_until,
+    ...(raw.terms ? { terms: raw.terms } : {}),
+    ...(raw.notes ? { notes: raw.notes } : {}),
+    parentOfferId: raw.parent_offer_id != null ? String(raw.parent_offer_id) : null,
+    version: raw.version,
+    createdAt: raw.created_at,
+  };
+}
+
+/** TODO(api): the currently pending/most-recent funding offer for a room, if any.
+ *  Guessed contract: GET /api/v1/deal-rooms/:id/funding-offer/current. */
+export async function fetchCurrentFundingOffer(dealRoomId: string): Promise<DealFundingOffer | null> {
+  try {
+    const { data } = await api.get<{ data?: RawFundingOffer | null }>(
+      API_ENDPOINTS.DEAL_ROOM_FUNDING_OFFER_CURRENT(dealRoomId),
+    );
+    return data.data ? normalizeFundingOffer(data.data) : null;
+  } catch {
+    return null; // no backend yet — fail soft
+  }
+}
+
+/** TODO(api): the full negotiation history (every offer + counter-offer) for a room —
+ *  "View All" drawer. Guessed contract: GET /api/v1/deal-rooms/:id/funding-offer/history. */
+export async function fetchFundingOfferHistory(dealRoomId: string): Promise<DealFundingOffer[]> {
+  try {
+    const { data } = await api.get<{ data?: RawFundingOffer[] }>(
+      API_ENDPOINTS.DEAL_ROOM_FUNDING_OFFER_HISTORY(dealRoomId),
+    );
+    return (data.data ?? []).map(normalizeFundingOffer);
+  } catch {
+    return []; // no backend yet — fail soft
+  }
 }

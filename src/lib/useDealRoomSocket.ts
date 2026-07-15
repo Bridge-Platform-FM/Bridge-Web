@@ -4,9 +4,16 @@ import { useEffect, useRef } from "react";
 import { io, type Socket } from "socket.io-client";
 import { toast } from "sonner";
 import { getAccessToken } from "@/lib/auth-tokens";
-import { normalizeMessage, toScheduledMeeting, type RawMessage } from "@/services/deal-room.service";
+import { normalizeFundingOffer, normalizeMessage, toScheduledMeeting, type RawMessage } from "@/services/deal-room.service";
 import { stageIndexFromValue } from "@/components/dashboard/deal-room/deal-room-meta";
-import type { DealMessage, DealStageRequest, ScheduledMeeting } from "@/components/dashboard/deal-room/types";
+import type {
+  DealFundingOffer,
+  DealMessage,
+  DealStageRequest,
+  FundingOfferStatus,
+  ScheduledMeeting,
+  ValuationType,
+} from "@/components/dashboard/deal-room/types";
 
 /** Payload for the server's `messages_read` broadcast. */
 export interface MessagesReadPayload {
@@ -41,6 +48,39 @@ interface RawStageResponded {
 /** Decision passed to `respondStageUpdate`. */
 export type StageDecision = "Accepted" | "Rejected";
 
+/** Raw `funding_offer_created` broadcast (also fired for a counter — same event, a new row). */
+export interface RawFundingOffer {
+  id: number | string;
+  status: FundingOfferStatus;
+  created_by_user_id: number;
+  recipient_user_id: number;
+  amount: number;
+  currency: string;
+  equity_percent: number;
+  valuation_type: ValuationType;
+  valid_until: string;
+  terms?: string | null;
+  notes?: string | null;
+  parent_offer_id?: number | string | null;
+  version: number;
+  created_at: string;
+}
+/** Raw `funding_offer_responded` broadcast. */
+interface RawFundingOfferResponded {
+  offer: { id: number | string; status: "Accepted" | "Rejected" };
+}
+/** Payload for creating or countering a funding offer (counter adds `parentOfferId`). */
+export interface FundingOfferEmitPayload {
+  amount: number;
+  currency: string;
+  equityPercent: number;
+  valuationType: ValuationType;
+  validUntil: string;
+  terms?: string;
+  notes?: string;
+  recipientUserId: number;
+}
+
 interface DealRoomSocketHandlers {
   onNewMessage: (msg: DealMessage) => void;
   /** Fired when someone marks the room read (used for "Seen" receipts). */
@@ -57,6 +97,10 @@ interface DealRoomSocketHandlers {
   /** Fired when either side schedules a meeting — including my own echoed back, so
    *  every open tab (mine and the counterparty's) can refresh the meetings list live. */
   onMeetingScheduled?: (meeting: ScheduledMeeting) => void;
+  /** Fired when either side sends/counters a funding offer — including my own, echoed back. */
+  onFundingOfferCreated?: (offer: DealFundingOffer) => void;
+  /** Fired once a pending funding offer is accepted/rejected. */
+  onFundingOfferResponded?: (payload: { offerId: string; decision: "Accepted" | "Rejected" }) => void;
 }
 
 /** How long after the LAST keystroke we auto-emit `stop_typing` (indicator lingers this
@@ -151,6 +195,13 @@ export function useDealRoomSocket(dealRoomId: string, handlers: DealRoomSocketHa
       handlersRef.current.onMeetingScheduled?.(toScheduledMeeting(raw));
     });
 
+    socket.on("funding_offer_created", (raw: RawFundingOffer) => {
+      handlersRef.current.onFundingOfferCreated?.(normalizeFundingOffer(raw));
+    });
+    socket.on("funding_offer_responded", (raw: RawFundingOfferResponded) => {
+      handlersRef.current.onFundingOfferResponded?.({ offerId: String(raw.offer.id), decision: raw.offer.status });
+    });
+
     socket.on("error", (err: { message?: string }) =>
       toast.error(err?.message ?? "Deal room connection error."),
     );
@@ -215,5 +266,34 @@ export function useDealRoomSocket(dealRoomId: string, handlers: DealRoomSocketHa
     socketRef.current?.emit("respond_stage_update", { dealRoomId, requestId, decision });
   };
 
-  return { sendMessage, markRead, notifyTyping, stopTyping, requestNextStage, respondStageUpdate };
+  /** Send a NEW funding offer (investor → founder). No optimistic state — the server
+   *  broadcasts `funding_offer_created` back to the room. */
+  const createFundingOffer = (payload: FundingOfferEmitPayload) => {
+    socketRef.current?.emit("create_funding_offer", { dealRoomId, ...payload });
+  };
+
+  /** Accept/reject a pending funding offer (only the recipient may call this —
+   *  enforced server-side too). */
+  const respondFundingOffer = (offerId: string, decision: "Accepted" | "Rejected") => {
+    socketRef.current?.emit("respond_funding_offer", { dealRoomId, offerId, decision });
+  };
+
+  /** Submit a counter-offer against `parentOfferId` — creates a new pending version
+   *  sent back to the original sender. Same event as create, distinguished by
+   *  `parentOfferId`, so the server can link the chain and flip the parent to "Countered". */
+  const counterFundingOffer = (parentOfferId: string, payload: FundingOfferEmitPayload) => {
+    socketRef.current?.emit("create_funding_offer", { dealRoomId, parentOfferId, ...payload });
+  };
+
+  return {
+    sendMessage,
+    markRead,
+    notifyTyping,
+    stopTyping,
+    requestNextStage,
+    respondStageUpdate,
+    createFundingOffer,
+    respondFundingOffer,
+    counterFundingOffer,
+  };
 }

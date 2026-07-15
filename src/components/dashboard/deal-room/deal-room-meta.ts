@@ -3,7 +3,8 @@
  * pipeline, formatting). Local to the deal-room folder so the demo deletes cleanly.
  */
 
-import type { DealRoom, DealRoomStatus, DealRoomTab } from "./types";
+import type { StatusMeta } from "@/components/dashboard/kyc-status";
+import type { DealRoom, DealRoomStatus, DealRoomTab, FundingOfferStatus } from "./types";
 
 /** The list toggle buckets — ACTIVE also includes PAUSED rooms. */
 export const DEAL_TABS: { key: DealRoomTab; label: string }[] = [
@@ -23,6 +24,16 @@ export const DEAL_STATUS_BADGE: Record<DealRoomStatus, { label: string; classNam
   ACTIVE: { label: "Active", className: "bg-[#15803d] text-white" },
   PAUSED: { label: "Paused", className: "bg-secondary text-on-secondary" },
   CLOSED: { label: "Closed", className: "bg-surface-container-highest text-on-surface-variant" },
+};
+
+/** Monochrome status pill meta for a funding offer, reusing the platform-wide
+ *  StatusPill convention from kyc-status.tsx (no status colors, per theme). */
+export const FUNDING_OFFER_STATUS_META: Record<FundingOfferStatus, StatusMeta> = {
+  Draft: { label: "Draft", icon: "edit_note" },
+  Pending: { label: "Pending", icon: "schedule" },
+  Accepted: { label: "Accepted", icon: "task_alt" },
+  Rejected: { label: "Rejected", icon: "cancel" },
+  Countered: { label: "Countered", icon: "swap_horiz" },
 };
 
 /** The fixed 4-step deal pipeline rendered by the chat page's stage stepper. */

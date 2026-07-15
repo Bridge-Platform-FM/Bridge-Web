@@ -12,7 +12,7 @@ import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewMod
 import { Modal } from "@/components/modal/Modal";
 import { Loader } from "@/components/common/loader";
 import { Select } from "@/components/ui/Select";
-import type { DealAttachment, DealRoom, PreviewableFile } from "./types";
+import type { DealAttachment, DealRoom, FundingOfferFormValues, PreviewableFile } from "./types";
 
 interface DealRoomChatProps {
   /** The room to render, including its message thread. The parent owns the data source
@@ -48,6 +48,17 @@ interface DealRoomChatProps {
   onAcceptStage: () => void;
   /** Reject the counterparty's pending stage-update request. */
   onRejectStage: () => void;
+  /** Bumped whenever a funding_offer_created/_responded socket event lands, so the side
+   *  panel's Funding Offer card refetches live. Omit (demo page) to disable this. */
+  fundingOfferRefreshKey?: number;
+  /** Send a brand-new funding offer (investor only). */
+  onSendFundingOffer: (values: FundingOfferFormValues) => void | Promise<void>;
+  /** Accept the given pending funding offer (recipient only). */
+  onAcceptFundingOffer: (offerId: string) => void;
+  /** Reject the given pending funding offer (recipient only). */
+  onRejectFundingOffer: (offerId: string) => void;
+  /** Submit a counter against the given funding offer (recipient only). */
+  onCounterFundingOffer: (offerId: string, values: FundingOfferFormValues) => void | Promise<void>;
 }
 
 
@@ -81,6 +92,11 @@ export function DealRoomChat({
   onRequestNextStage,
   onAcceptStage,
   onRejectStage,
+  fundingOfferRefreshKey,
+  onSendFundingOffer,
+  onAcceptFundingOffer,
+  onRejectFundingOffer,
+  onCounterFundingOffer,
 }: DealRoomChatProps) {
   const router = useRouter();
   const { counterparty: cp } = room;
@@ -419,6 +435,11 @@ export function DealRoomChat({
               onRequestNextStage={onRequestNextStage}
               onAcceptStage={onAcceptStage}
               onRejectStage={onRejectStage}
+              fundingOfferRefreshKey={fundingOfferRefreshKey}
+              onSendFundingOffer={onSendFundingOffer}
+              onAcceptFundingOffer={onAcceptFundingOffer}
+              onRejectFundingOffer={onRejectFundingOffer}
+              onCounterFundingOffer={onCounterFundingOffer}
             />
           </aside>
         )}

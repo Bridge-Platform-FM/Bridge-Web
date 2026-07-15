@@ -13,7 +13,15 @@ import { closeDealRoom, fetchDealRoom, fetchDealRoomMessages, fetchPendingStageR
 import { DEAL_STAGES, nextStageValue } from "@/components/dashboard/deal-room/deal-room-meta";
 import { useDealRoomSocket } from "@/lib/useDealRoomSocket";
 import { getCurrentUserId } from "@/lib/jwt";
-import type { DealMessage, DealRoom, DealStageRequest, ScheduledMeeting } from "@/components/dashboard/deal-room/types";
+import type {
+  DealFundingOffer,
+  DealMessage,
+  DealRoom,
+  DealStageRequest,
+  FundingOfferFormValues,
+  ScheduledMeeting,
+  ValuationType,
+} from "@/components/dashboard/deal-room/types";
 import type { ApiError } from "@/lib/axios";
 
 /**
@@ -173,10 +181,41 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
     if (!meeting.createdByMe) toast.success(`New meeting scheduled: ${meeting.title}`);
   }, []);
 
-  const { sendMessage, notifyTyping, stopTyping, requestNextStage, respondStageUpdate } = useDealRoomSocket(
-    room ? dealRoomId : "",
-    { onNewMessage, onMessagesRead, onUserTyping, onStageRequested, onStageResponded, onPresenceChange, onMeetingScheduled }
-  );
+  // Either side sends/counters a funding offer (including my own, echoed back) — bump a
+  // counter so the side panel's Funding Offer card refetches live.
+  const [fundingOfferRefreshKey, setFundingOfferRefreshKey] = useState(0);
+  const onFundingOfferCreated = useCallback((offer: DealFundingOffer) => {
+    setFundingOfferRefreshKey((k) => k + 1);
+    if (offer.createdByUserId !== getCurrentUserId()) {
+      toast.success(offer.parentOfferId ? "You received a counter-offer." : "You received a new funding offer.");
+    }
+  }, []);
+  const onFundingOfferResponded = useCallback((payload: { offerId: string; decision: "Accepted" | "Rejected" }) => {
+    setFundingOfferRefreshKey((k) => k + 1);
+    if (payload.decision === "Accepted") toast.success("Funding offer accepted.");
+    else toast.error("Funding offer rejected.");
+  }, []);
+
+  const {
+    sendMessage,
+    notifyTyping,
+    stopTyping,
+    requestNextStage,
+    respondStageUpdate,
+    createFundingOffer,
+    respondFundingOffer,
+    counterFundingOffer,
+  } = useDealRoomSocket(room ? dealRoomId : "", {
+    onNewMessage,
+    onMessagesRead,
+    onUserTyping,
+    onStageRequested,
+    onStageResponded,
+    onPresenceChange,
+    onMeetingScheduled,
+    onFundingOfferCreated,
+    onFundingOfferResponded,
+  });
 
   if (!isLoaded || !isUserRole(role)) return null;
 
@@ -245,6 +284,23 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
     if (room.pendingStageRequest) respondStageUpdate(room.pendingStageRequest.id, "Rejected");
   };
 
+  const fundingOfferPayload = (values: FundingOfferFormValues) => ({
+    amount: Number(values.amount),
+    currency: values.currency,
+    equityPercent: Number(values.equityPercent),
+    valuationType: values.valuationType as ValuationType,
+    validUntil: values.validUntil,
+    ...(values.terms.trim() ? { terms: values.terms.trim() } : {}),
+    ...(values.notes.trim() ? { notes: values.notes.trim() } : {}),
+    recipientUserId: room.counterparty.userId,
+  });
+
+  const onSendFundingOffer = (values: FundingOfferFormValues) => createFundingOffer(fundingOfferPayload(values));
+  const onAcceptFundingOffer = (offerId: string) => respondFundingOffer(offerId, "Accepted");
+  const onRejectFundingOffer = (offerId: string) => respondFundingOffer(offerId, "Rejected");
+  const onCounterFundingOffer = (offerId: string, values: FundingOfferFormValues) =>
+    counterFundingOffer(offerId, fundingOfferPayload(values));
+
   return (
     <DealRoomChat
       room={room}
@@ -260,6 +316,11 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
       onRequestNextStage={onRequestNextStage}
       onAcceptStage={onAcceptStage}
       onRejectStage={onRejectStage}
+      fundingOfferRefreshKey={fundingOfferRefreshKey}
+      onSendFundingOffer={onSendFundingOffer}
+      onAcceptFundingOffer={onAcceptFundingOffer}
+      onRejectFundingOffer={onRejectFundingOffer}
+      onCounterFundingOffer={onCounterFundingOffer}
     />
   );
 }

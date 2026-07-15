@@ -104,6 +104,47 @@ export interface DealStageRequest {
   requestedByUserId: number;
 }
 
+export type FundingOfferStatus = "Draft" | "Pending" | "Accepted" | "Rejected" | "Countered";
+export type ValuationType = "Pre-money" | "Post-money";
+
+/** A structured funding offer exchanged during Stage 2: Negotiation
+ *  (`create_funding_offer` / `respond_funding_offer` sockets). Countering creates a NEW
+ *  row linked via `parentOfferId`, forming a negotiation chain; `version` is the
+ *  1-based position in that chain. */
+export interface DealFundingOffer {
+  id: string;
+  status: FundingOfferStatus;
+  /** Who sent THIS version — compare to getCurrentUserId() for "mine vs theirs". */
+  createdByUserId: number;
+  /** Who this version is addressed to (flips on each counter). */
+  recipientUserId: number;
+  amount: number;
+  currency: string;
+  /** (0, 100) exclusive. */
+  equityPercent: number;
+  valuationType: ValuationType;
+  /** ISO date — must be a future date at creation time. */
+  validUntil: string;
+  terms?: string;
+  notes?: string;
+  /** Previous offer's id, if this is a counter; null/undefined on the first offer. */
+  parentOfferId?: string | null;
+  version: number;
+  createdAt: string;
+}
+
+/** Create/counter funding-offer form values (FundingOfferDrawer). */
+export interface FundingOfferFormValues {
+  amount: string;
+  currency: string;
+  equityPercent: string;
+  valuationType: ValuationType | "";
+  /** yyyy-mm-dd. */
+  validUntil: string;
+  terms: string;
+  notes: string;
+}
+
 /** One deal room = an accepted connection the two parties are progressing. */
 export interface DealRoom {
   id: string;
