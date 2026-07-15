@@ -42,10 +42,10 @@ next-env.d.ts
 
 *.md
 *.html
-# Claude Code agent definitions must be shared with the team despite the
-# global *.md ignore above. Review reports/approval markers stay local.
-!.claude/agents/*.md
-.claude/review-reports/
+
+# Claude PR-review reports (scripts/pr-analysis) stay local — the review
+# itself is posted to the PR as a comment.
+.claude-reports/
 
 # Deal Room — real feature is now tracked. Only the walkthrough /demo route stays
 # ignored (its dummy data + in-memory store live under demo/ and the store/dummy files).
