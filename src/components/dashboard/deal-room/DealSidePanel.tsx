@@ -8,13 +8,13 @@ import { SharedFilesDrawer } from "./SharedFilesDrawer";
 import { ScheduleMeetingDrawer, type ScheduleMeetingFormValues } from "./ScheduleMeetingDrawer";
 import { MeetingsDrawer } from "./MeetingsDrawer";
 import { MeetingDetailsModal } from "./MeetingDetailsModal";
-import { fetchUpcomingMeetings, scheduleMeeting } from "@/services/deal-room.service";
+import { fetchDealRoomFiles, fetchUpcomingMeetings, scheduleMeeting, type SharedFileItem } from "@/services/deal-room.service";
 import { getCurrentUserId } from "@/lib/jwt";
 import type { ApiError } from "@/lib/axios";
 import type { DealRoom, PreviewableFile, ScheduledMeeting } from "./types";
-import { DEAL_STAGES, DEAL_STAGE_ICONS } from "./deal-room-meta";
+import { DEAL_STAGES, DEAL_STAGE_ICONS, stageIndexFromValue } from "./deal-room-meta";
 
-/** A file shared in the deal room (top-N preview, derived from the chat thread). */
+/** A file shared in the deal room (top-N preview, scoped to the current stage). */
 interface SharedFile {
   id: string;
   name: string;
@@ -115,24 +115,32 @@ export function DealSidePanel({
     // or the counterparty's) bumps it so this refetches live, without polling.
   }, [loadUpcomingMeetings, meetingsRefreshKey]);
 
-  // Inline top-4 preview is derived from the chat thread's attachments; the full list
-  // lives behind "View All Files" (SharedFilesDrawer, backed by the files API).
+  // Inline top-2 preview is scoped to the CURRENT stage only (unlike "View All", which
+  // shows every stage) — loaded from the files API and filtered by `room.stage`, since
+  // each file row carries the stage it was shared under.
+  const [stageFiles, setStageFiles] = useState<SharedFileItem[]>([]);
+
+  useEffect(() => {
+    fetchDealRoomFiles(room.id)
+      .then((all) => {
+        setStageFiles(all.filter((f) => stageIndexFromValue(f.stage) === room.stage));
+      })
+      .catch(() => {
+        setStageFiles([]);
+      });
+  }, [room.id, room.stage]);
+
   const files = useMemo<SharedFile[]>(
     () =>
-      room.messages
-        .filter((m) => m.attachment)
-        .map((m) => {
-          const a = m.attachment!;
-          return {
-            id: m.id,
-            name: a.name,
-            size: `${(a.size / 1024).toFixed(0)} KB`,
-            by: m.sender === "me" ? "You" : cp.name,
-            icon: a.kind === "image" ? "image" : "description",
-            preview: { name: a.name, s3Key: a.s3Key, mimeType: a.mimeType, downloadAllowed: a.downloadAllowed },
-          };
-        }),
-    [room.messages, cp.name],
+      stageFiles.map((f) => ({
+        id: f.messageId,
+        name: f.name,
+        size: `${(f.size / 1024).toFixed(0)} KB`,
+        by: f.by,
+        icon: f.kind === "image" ? "image" : "description",
+        preview: { name: f.name, s3Key: f.s3Key, mimeType: f.mimeType, downloadAllowed: f.downloadAllowed },
+      })),
+    [stageFiles],
   );
 
   const handleScheduleMeeting = async (values: ScheduleMeetingFormValues) => {
@@ -321,6 +329,7 @@ export function DealSidePanel({
         open={filesOpen}
         onClose={() => setFilesOpen(false)}
         dealRoomId={room.id}
+        currentStage={room.stage}
         onPreview={onPreview}
       />
 

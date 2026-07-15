@@ -43,8 +43,15 @@ export function ExploreView() {
           {target.label}
         </button>
 
-        <div title={`${limit.remaining} of ${limit.total} connection requests left today`}>
+        <div className="group relative">
           <CompatibilityRing value={limit.remaining} max={limit.total} size={40} className="text-primary" />
+          {/* Themed hover flyout (replaces the native `title` tooltip, which ignores app theming). */}
+          <span
+            role="tooltip"
+            className="pointer-events-none absolute right-0 top-full z-20 mt-2 w-max max-w-[220px] scale-95 rounded-lg bg-surface-container-highest px-3 py-2 text-center text-xs font-medium text-on-surface opacity-0 shadow-lg transition-all duration-150 group-hover:scale-100 group-hover:opacity-100"
+          >
+            {limit.remaining} of {limit.total} connection requests left today
+          </span>
         </div>
       </div>
 

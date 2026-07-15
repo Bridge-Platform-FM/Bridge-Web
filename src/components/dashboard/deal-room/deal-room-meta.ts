@@ -29,10 +29,16 @@ export const DEAL_STATUS_BADGE: Record<DealRoomStatus, { label: string; classNam
 export const DEAL_STAGES = ["Initial Connection", "Negotiation", "Due Diligence", "Closing"] as const;
 export const DEAL_STAGE_VALUES = ["Initial Connection", "Negotiation", "Due Diligence", "Closed"] as const;
 
-/** Map a backend stage string to its stepper index. Unknown/missing → 0 (first stage). */
+/** Map a backend stage string to its stepper index. Tries the room-stage enum
+ *  (`DEAL_STAGE_VALUES`) first, then falls back to the display label (`DEAL_STAGES`) —
+ *  the shared-files API returns the label form (e.g. "Initial Connection") on each file
+ *  row instead of the room's enum value. Unknown/missing → 0 (first stage). */
 export function stageIndexFromValue(value: string | null | undefined): number {
-  const idx = value ? DEAL_STAGE_VALUES.indexOf(value as (typeof DEAL_STAGE_VALUES)[number]) : -1;
-  return idx === -1 ? 0 : idx;
+  if (!value) return 0;
+  const enumIdx = DEAL_STAGE_VALUES.indexOf(value as (typeof DEAL_STAGE_VALUES)[number]);
+  if (enumIdx !== -1) return enumIdx;
+  const labelIdx = DEAL_STAGES.indexOf(value as (typeof DEAL_STAGES)[number]);
+  return labelIdx === -1 ? 0 : labelIdx;
 }
 
 /** The backend stage value for the step after `currentIndex`, or undefined if already

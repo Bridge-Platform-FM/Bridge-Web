@@ -253,6 +253,7 @@ export interface SharedFileItem {
   by: string;
   /** ISO timestamp. */
   at: string;
+  stage?: string;
 }
 
 /** One raw file row from the files-list endpoint (tolerant shape — the list endpoint may
@@ -273,6 +274,7 @@ interface RawSharedFile {
   view_only?: boolean | string | null;
   created_at?: string;
   sender?: { id?: number; first_name?: string; last_name?: string } | null;
+  stage?: string | null;
 }
 
 /** Map a raw files-list row into a UI SharedFileItem. */
@@ -291,6 +293,7 @@ function toSharedFile(raw: RawSharedFile): SharedFileItem {
     downloadAllowed: readDownloadAllowed(raw as unknown as Record<string, unknown>),
     by: mine ? "You" : fullName(raw.sender?.first_name, raw.sender?.last_name) || "—",
     at: raw.created_at ?? "",
+    ...(raw.stage ? { stage: raw.stage } : {}),
   };
 }
 
