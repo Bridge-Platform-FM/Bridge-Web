@@ -373,11 +373,14 @@ export type KycStatus = "VERIFIED" | "PENDING" | "REJECTED";
 
 /**
  * One row in the User Management table, normalized from the `get-user-list`
- * response. The backend has no per-user id yet, so we key rows by `company_email`.
+ * response. Keyed by `company_email`; `userId` carries the numeric PK needed
+ * for per-user admin operations (e.g. limit-config).
  */
 export interface AdminUserListItem {
-  /** Stable identifier — `company_email` for now (no backend id field). */
+  /** Stable identifier — `company_email`. */
   id: string;
+  /** Numeric PK from the `user` table — used for admin per-user API calls. */
+  userId?: number;
   /** `first_name + last_name`, falling back to company name / email. */
   name: string;
   /** `company_email`. */
@@ -637,4 +640,33 @@ export interface ConnectionsListResponse {
   success: boolean;
   message: string;
   data: ConnectionRequest[];
+}
+
+/* ===========================================================================
+ * User Limit Config — admin-configurable per-user connection limits.
+ * Managed via GET/PUT /api/v1/admin/users/:userId/limit-config.
+ * ======================================================================== */
+
+/**
+ * Per-user limit configuration returned by the admin limit-config endpoint.
+ * `is_custom` is true when an admin has saved custom values; false means the
+ * values shown are the system-wide defaults.
+ */
+export interface UserLimitConfig {
+  user_id: number;
+  allowed_connections: number;
+  allowed_free_trial_days: number;
+  allowed_premium_days: number;
+  /** False when no custom config has been saved yet (defaults are returned). */
+  is_custom: boolean;
+}
+
+/**
+ * Payload for PUT /api/v1/admin/users/:userId/limit-config.
+ * All fields are optional — at least one must be provided (enforced by the backend).
+ */
+export interface UpdateUserLimitConfigPayload {
+  allowed_connections?: number;
+  allowed_free_trial_days?: number;
+  allowed_premium_days?: number;
 }
