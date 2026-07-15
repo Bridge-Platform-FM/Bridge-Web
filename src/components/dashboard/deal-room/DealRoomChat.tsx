@@ -50,7 +50,7 @@ interface DealRoomChatProps {
   onRejectStage: () => void;
 }
 
-/** A file the user has picked but not sent yet (url is a local preview object URL). */
+
 interface PendingFile {
   name: string;
   size: number;
