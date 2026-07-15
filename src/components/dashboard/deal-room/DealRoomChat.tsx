@@ -12,7 +12,7 @@ import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewMod
 import { Modal } from "@/components/modal/Modal";
 import { Loader } from "@/components/common/loader";
 import { Select } from "@/components/ui/Select";
-import type { DealAttachment, DealRoom, FundingOfferFormValues, PreviewableFile } from "./types";
+import type { DealAttachment, DealRoom, FundingOfferFormValues, PreviewableFile, TermSheetFormValues } from "./types";
 
 interface DealRoomChatProps {
   /** The room to render, including its message thread. The parent owns the data source
@@ -59,6 +59,13 @@ interface DealRoomChatProps {
   onRejectFundingOffer: (offerId: string) => void;
   /** Submit a counter against the given funding offer (recipient only). */
   onCounterFundingOffer: (offerId: string, values: FundingOfferFormValues) => void | Promise<void>;
+  /** Bumped whenever a term_sheet_updated socket event lands, so the side panel's
+   *  B2B Term Sheet card refetches live. Omit (demo page) to disable this. */
+  termSheetRefreshKey?: number;
+  /** Save an edit to the B2B term sheet (either party). */
+  onSaveTermSheet: (values: TermSheetFormValues) => void | Promise<void>;
+  /** Confirm readiness to move Negotiation → Due Diligence (B2B mutual-confirm flow). */
+  onConfirmB2BStageTransition: () => void;
 }
 
 
@@ -97,6 +104,9 @@ export function DealRoomChat({
   onAcceptFundingOffer,
   onRejectFundingOffer,
   onCounterFundingOffer,
+  termSheetRefreshKey,
+  onSaveTermSheet,
+  onConfirmB2BStageTransition,
 }: DealRoomChatProps) {
   const router = useRouter();
   const { counterparty: cp } = room;
@@ -440,6 +450,9 @@ export function DealRoomChat({
               onAcceptFundingOffer={onAcceptFundingOffer}
               onRejectFundingOffer={onRejectFundingOffer}
               onCounterFundingOffer={onCounterFundingOffer}
+              termSheetRefreshKey={termSheetRefreshKey}
+              onSaveTermSheet={onSaveTermSheet}
+              onConfirmB2BStageTransition={onConfirmB2BStageTransition}
             />
           </aside>
         )}

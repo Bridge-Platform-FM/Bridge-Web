@@ -1,10 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Icon } from "@/components/ui/Icon";
 import { Modal } from "@/components/modal/Modal";
+import { Drawer } from "@/components/ui/Drawer";
+import { AsyncState } from "@/components/ui/AsyncState";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/Select";
+import { Textarea } from "@/components/ui/Textarea";
 import { StatusPill } from "@/components/dashboard/kyc-status";
+import { CURRENCIES } from "@/lib/startup-profile-options";
+import { daysRemaining } from "@/lib/utils";
 import { SharedFilesDrawer } from "./SharedFilesDrawer";
 import { ScheduleMeetingDrawer, type ScheduleMeetingFormValues } from "./ScheduleMeetingDrawer";
 import { MeetingsDrawer } from "./MeetingsDrawer";
@@ -14,7 +22,9 @@ import { FundingOfferDetailModal } from "./FundingOfferDetailModal";
 import { FundingOffersDrawer } from "./FundingOffersDrawer";
 import {
   fetchCurrentFundingOffer,
+  fetchCurrentTermSheet,
   fetchDealRoomFiles,
+  fetchTermSheetHistory,
   fetchUpcomingMeetings,
   scheduleMeeting,
   type SharedFileItem,
@@ -22,8 +32,23 @@ import {
 import { getCurrentUserId } from "@/lib/jwt";
 import { useAuth } from "@/components/auth/AuthProvider";
 import type { ApiError } from "@/lib/axios";
-import type { DealFundingOffer, DealRoom, FundingOfferFormValues, PreviewableFile, ScheduledMeeting } from "./types";
-import { DEAL_STAGES, DEAL_STAGE_ICONS, FUNDING_OFFER_STATUS_META, stageIndexFromValue } from "./deal-room-meta";
+import type {
+  B2BStageConfirmation,
+  B2BTermSheet,
+  DealFundingOffer,
+  DealRoom,
+  FundingOfferFormValues,
+  PreviewableFile,
+  ScheduledMeeting,
+  TermSheetFormValues,
+} from "./types";
+import {
+  DEAL_STAGES,
+  DEAL_STAGE_ICONS,
+  FUNDING_OFFER_STATUS_META,
+  relativeTime,
+  stageIndexFromValue,
+} from "./deal-room-meta";
 
 /** A file shared in the deal room (top-N preview, scoped to the current stage). */
 interface SharedFile {
@@ -60,6 +85,300 @@ function PanelCard({
   );
 }
 
+const termSheetDefaults: TermSheetFormValues = {
+  moqQuantity: "",
+  moqUnit: "",
+  unitPrice: "",
+  currency: "INR",
+  paymentTerms: "",
+  supplyLogisticsTerms: "",
+};
+
+function valuesFromTermSheet(sheet: B2BTermSheet): TermSheetFormValues {
+  return {
+    moqQuantity: String(sheet.moqQuantity),
+    moqUnit: sheet.moqUnit,
+    unitPrice: String(sheet.unitPrice),
+    currency: sheet.currency,
+    paymentTerms: sheet.paymentTerms,
+    supplyLogisticsTerms: sheet.supplyLogisticsTerms,
+  };
+}
+
+interface TermSheetDrawerProps {
+  open: boolean;
+  onClose: () => void;
+  current: B2BTermSheet | null;
+  onConfirm: (values: TermSheetFormValues) => Promise<void> | void;
+}
+
+/**
+ * Edit form for the collaborative B2B term sheet — reused by either party (no
+ * propose/accept step, per the "shared editable form" decision). Local to
+ * DealSidePanel rather than its own file: it's one more consumer of the same shared
+ * primitives (`Drawer`/`Input`/`Select`/`Textarea`/react-hook-form) FundingOfferDrawer
+ * uses, and doesn't warrant a parallel file split for a single-form, single-card feature.
+ */
+function TermSheetDrawer({ open, onClose, current, onConfirm }: TermSheetDrawerProps) {
+  const {
+    control,
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<TermSheetFormValues>({
+    defaultValues: current ? valuesFromTermSheet(current) : termSheetDefaults,
+  });
+
+  // Re-populate from the latest snapshot each time the drawer is (re)opened — not on
+  // every `current` change while it's open, so an in-progress edit isn't clobbered if
+  // the counterparty saves concurrently.
+  const wasOpenRef = useRef(false);
+  useEffect(() => {
+    if (open && !wasOpenRef.current) {
+      reset(current ? valuesFromTermSheet(current) : termSheetDefaults);
+    }
+    wasOpenRef.current = open;
+  }, [open, current, reset]);
+
+  const onSubmit = async (values: TermSheetFormValues) => {
+    await onConfirm(values);
+  };
+
+  return (
+    <Drawer
+      open={open}
+      onClose={onClose}
+      title="B2B Term Sheet"
+      subtitle="Either party can edit — saved changes are visible to both"
+      widthClass="max-w-md"
+      footer={
+        <>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-11 items-center rounded-xl border border-dashed border-outline-variant/60 px-5 font-bold text-on-surface-variant transition-colors hover:bg-surface-container"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="term-sheet-form"
+            disabled={isSubmitting}
+            className="flex h-11 items-center gap-2 rounded-xl bg-primary px-6 font-bold text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Icon name="save" size={18} />
+            {isSubmitting ? "Saving…" : "Save Term Sheet"}
+          </button>
+        </>
+      }
+    >
+      <form id="term-sheet-form" onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
+        <div className="flex flex-col gap-2">
+          <span className="px-1 font-label text-xs font-bold tracking-wide text-on-surface-variant">
+            Minimum Order Quantity<span className="align-middle text-base leading-none text-error"> *</span>
+          </span>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_8rem]">
+            <Input
+              type="number"
+              min={0}
+              step="any"
+              placeholder="Quantity"
+              error={errors.moqQuantity?.message}
+              {...register("moqQuantity", {
+                required: "MOQ is required.",
+                validate: (v) => Number(v) > 0 || "Enter a quantity greater than 0.",
+              })}
+            />
+            <Input
+              placeholder="Unit (e.g. Units)"
+              error={errors.moqUnit?.message}
+              {...register("moqUnit", { required: "Unit is required." })}
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <span className="px-1 font-label text-xs font-bold tracking-wide text-on-surface-variant">
+            Unit Price<span className="align-middle text-base leading-none text-error"> *</span>
+          </span>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[8rem_1fr]">
+            <Controller
+              control={control}
+              name="currency"
+              render={({ field }) => (
+                <Select aria-label="Currency" options={CURRENCIES} value={field.value} onChange={field.onChange} searchable={false} />
+              )}
+            />
+            <Input
+              type="number"
+              min={0}
+              step="any"
+              placeholder="Price per unit"
+              error={errors.unitPrice?.message}
+              {...register("unitPrice", {
+                required: "Unit price is required.",
+                validate: (v) => Number(v) > 0 || "Enter a price greater than 0.",
+              })}
+            />
+          </div>
+        </div>
+
+        <Textarea
+          label="Payment Terms"
+          required
+          rows={3}
+          placeholder="e.g. 50% advance, 50% on delivery, Net 30"
+          error={errors.paymentTerms?.message}
+          {...register("paymentTerms", { required: "Payment terms are required." })}
+        />
+
+        <Textarea
+          label="Supply / Logistics / Delivery Terms"
+          required
+          rows={3}
+          placeholder="e.g. FOB Mumbai, 4-week lead time"
+          error={errors.supplyLogisticsTerms?.message}
+          {...register("supplyLogisticsTerms", { required: "Supply/logistics/delivery terms are required." })}
+        />
+      </form>
+    </Drawer>
+  );
+}
+
+/** Field-by-field diff lines between two consecutive term-sheet snapshots. `prev` is
+ *  null for the very first version, so every field shows as "set" rather than a diff. */
+function diffTermSheetFields(prev: B2BTermSheet | null, next: B2BTermSheet): { label: string; value: string }[] {
+  const rows: { label: string; value: string }[] = [];
+
+  const moq = `${next.moqQuantity.toLocaleString()} ${next.moqUnit}`;
+  const prevMoq = prev ? `${prev.moqQuantity.toLocaleString()} ${prev.moqUnit}` : null;
+  if (!prev || prevMoq !== moq) rows.push({ label: "MOQ", value: prev ? `${prevMoq} → ${moq}` : moq });
+
+  const price = `${next.currency} ${next.unitPrice.toLocaleString()}`;
+  const prevPrice = prev ? `${prev.currency} ${prev.unitPrice.toLocaleString()}` : null;
+  if (!prev || prevPrice !== price) rows.push({ label: "Unit Price", value: prev ? `${prevPrice} → ${price}` : price });
+
+  if (!prev || prev.paymentTerms !== next.paymentTerms) rows.push({ label: "Payment Terms", value: next.paymentTerms });
+  if (!prev || prev.supplyLogisticsTerms !== next.supplyLogisticsTerms) {
+    rows.push({ label: "Supply/Logistics/Delivery Terms", value: next.supplyLogisticsTerms });
+  }
+
+  return rows;
+}
+
+interface TermSheetHistoryDrawerProps {
+  open: boolean;
+  onClose: () => void;
+  dealRoomId: string;
+  refreshKey?: number;
+}
+
+/**
+ * Every saved term sheet version, newest first, each with a diff summary against the
+ * previous version ("View All"). Local to DealSidePanel for the same reason as
+ * TermSheetDrawer above — reuses `Drawer`/`AsyncState` exactly as `FundingOffersDrawer`
+ * does, just without a separate file, since a version row IS its own detail (a diff
+ * line), unlike an offer row which opens into a bigger, actionable detail view.
+ */
+function TermSheetHistoryDrawer({ open, onClose, dealRoomId, refreshKey }: TermSheetHistoryDrawerProps) {
+  const [versions, setVersions] = useState<B2BTermSheet[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setVersions(await fetchTermSheetHistory(dealRoomId));
+    } catch (err) {
+      setError((err as ApiError).message ?? "Couldn't load the term sheet history.");
+    } finally {
+      setLoading(false);
+    }
+  }, [dealRoomId]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- state lives in load()
+    if (open) load();
+  }, [open, load, refreshKey]);
+
+  const oldestFirst = [...versions].sort((a, b) => a.version - b.version);
+  const newestFirst = [...oldestFirst].reverse();
+
+  return (
+    <Drawer open={open} onClose={onClose} title="Term Sheet History" subtitle="Every saved version of the term sheet" footer={null}>
+      <AsyncState
+        loading={loading}
+        error={error}
+        isEmpty={versions.length === 0}
+        emptyIcon="history"
+        emptyText="No term sheet versions yet."
+        onRetry={load}
+      >
+        <ul className="flex flex-col gap-3 p-1">
+          {newestFirst.map((v) => {
+            const prevIndex = oldestFirst.findIndex((s) => s.id === v.id) - 1;
+            const prev = prevIndex >= 0 ? oldestFirst[prevIndex] : null;
+            const diffs = diffTermSheetFields(prev, v);
+            return (
+              <li key={v.id} className="rounded-lg bg-surface-container-low p-3">
+                <p className="text-xs font-bold text-on-surface">
+                  Version {v.version} · {v.updatedByUserId === getCurrentUserId() ? "You" : "Counterparty"} · {relativeTime(v.updatedAt)}
+                </p>
+                <ul className="mt-1.5 flex flex-col gap-0.5">
+                  {diffs.map((d) => (
+                    <li key={d.label} className="text-xs text-on-surface-variant">
+                      <span className="font-semibold text-on-surface">{d.label}:</span> {d.value}
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            );
+          })}
+        </ul>
+      </AsyncState>
+    </Drawer>
+  );
+}
+
+interface B2BStageConfirmBlockProps {
+  confirmation: B2BStageConfirmation | null | undefined;
+  counterpartyName: string;
+  closed: boolean;
+  onConfirm: () => void;
+}
+
+/** Mutual-confirm control for the B2B Negotiation → Due Diligence transition — swapped
+ *  in for the generic Accept/Reject/Request-Next-Stage block ONLY on B2B rooms while on
+ *  the Negotiation stage (see `useB2BConfirmFlow` below). */
+function B2BStageConfirmBlock({ confirmation, counterpartyName, closed, onConfirm }: B2BStageConfirmBlockProps) {
+  const me = getCurrentUserId();
+  const confirmedByMe = !!confirmation && me != null && confirmation.confirmedUserIds.includes(me);
+  const confirmedByThem = !!confirmation && confirmation.confirmedUserIds.some((id) => id !== me);
+  const daysLeft = confirmation?.expiresAt ? daysRemaining(confirmation.expiresAt) : null;
+
+  return (
+    <div className="mt-3 flex flex-col gap-1.5">
+      <button
+        type="button"
+        onClick={onConfirm}
+        disabled={closed || confirmedByMe}
+        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-outline-variant/50 py-2 text-xs font-bold text-on-surface-variant transition-colors hover:border-primary/50 hover:text-primary disabled:opacity-50"
+      >
+        <Icon name={confirmedByMe ? "hourglass_empty" : "task_alt"} size={16} />
+        {confirmedByMe ? `Waiting for ${counterpartyName}…` : "Confirm Ready for Due Diligence"}
+      </button>
+      {daysLeft != null && (
+        <p className="text-center text-[11px] text-on-surface-variant">
+          {confirmedByThem && !confirmedByMe ? `${counterpartyName} confirmed — ` : ""}
+          {daysLeft > 0 ? `${daysLeft} day${daysLeft === 1 ? "" : "s"} left to confirm` : "Confirmation window expired"}
+        </p>
+      )}
+    </div>
+  );
+}
+
 interface DealSidePanelProps {
   room: DealRoom;
   /** When the deal is closed the scheduling/actions are disabled. */
@@ -88,6 +407,13 @@ interface DealSidePanelProps {
   onRejectFundingOffer: (offerId: string) => void;
   /** Submit a counter against the given funding offer (recipient only). */
   onCounterFundingOffer: (offerId: string, values: FundingOfferFormValues) => void | Promise<void>;
+  /** Bumped whenever a term_sheet_updated socket event lands, so the card + any open
+   *  history drawer refetch live (mirrors fundingOfferRefreshKey). */
+  termSheetRefreshKey?: number;
+  /** Save an edit to the B2B term sheet (either party). */
+  onSaveTermSheet: (values: TermSheetFormValues) => void | Promise<void>;
+  /** Confirm readiness to move Negotiation → Due Diligence (B2B mutual-confirm flow). */
+  onConfirmB2BStageTransition: () => void;
 }
 
 /**
@@ -109,6 +435,9 @@ export function DealSidePanel({
   onAcceptFundingOffer,
   onRejectFundingOffer,
   onCounterFundingOffer,
+  termSheetRefreshKey,
+  onSaveTermSheet,
+  onConfirmB2BStageTransition,
 }: DealSidePanelProps) {
   const { counterparty: cp } = room;
   const { role } = useAuth();
@@ -217,6 +546,27 @@ export function DealSidePanel({
   const canShowFundingOffer = role === "startup" || role === "investor";
   const offerPending = !!currentOffer && currentOffer.status === "Pending";
 
+  // B2B Term Sheet card — visible only to b2b_enterprise. Same load/refresh-key
+  // pattern as Funding Offer above.
+  const [termSheet, setTermSheet] = useState<B2BTermSheet | null>(null);
+  const [termSheetDrawerOpen, setTermSheetDrawerOpen] = useState(false);
+  const [termSheetHistoryOpen, setTermSheetHistoryOpen] = useState(false);
+
+  const loadTermSheet = useCallback(() => {
+    fetchCurrentTermSheet(room.id)
+      .then(setTermSheet)
+      .catch(() => setTermSheet(null));
+  }, [room.id]);
+
+  useEffect(() => {
+    loadTermSheet();
+  }, [loadTermSheet, termSheetRefreshKey]);
+
+  const canShowTermSheet = role === "b2b_enterprise";
+  const isB2BRoom = role === "b2b_enterprise" && cp.role === "b2b_enterprise";
+  // DEAL_STAGES index 1 = "Negotiation" — the ONLY transition the mutual-confirm flow covers.
+  const useB2BConfirmFlow = isB2BRoom && room.stage === 1;
+
   return (
     <>
       <div className="flex flex-col gap-4">
@@ -310,7 +660,16 @@ export function DealSidePanel({
             </ul>
           )}
 
-          {pendingStageRequest && !iRequestedStage ? (
+          {useB2BConfirmFlow ? (
+            // B2B rooms on Negotiation use mutual-confirm + a 7-day window instead of
+            // the generic instant Accept/Reject/Request-Next-Stage flow below.
+            <B2BStageConfirmBlock
+              confirmation={room.b2bStageConfirmation}
+              counterpartyName={cp.name}
+              closed={closed}
+              onConfirm={onConfirmB2BStageTransition}
+            />
+          ) : pendingStageRequest && !iRequestedStage ? (
             // Their request is pending — I can accept or reject it.
             <div className="mt-3 flex gap-2">
               <button
@@ -399,6 +758,55 @@ export function DealSidePanel({
                 </span>
               )}
             </div>
+          </PanelCard>
+        )}
+
+        {/* ---- B2B Term Sheet (Stage 2: Negotiation) — b2b_enterprise only ---- */}
+        {canShowTermSheet && (
+          <PanelCard
+            icon="description"
+            title="B2B Term Sheet"
+            action={
+              <button
+                type="button"
+                onClick={() => setTermSheetHistoryOpen(true)}
+                className="rounded-full bg-secondary-container px-2 py-0.5 text-[10px] font-bold text-on-surface-variant transition-colors hover:bg-secondary-container/70"
+              >
+                View All
+              </button>
+            }
+          >
+            {!termSheet ? (
+              <p className="py-2 text-xs text-on-surface-variant">No term sheet yet.</p>
+            ) : (
+              <div className="flex flex-col gap-1.5 rounded-lg bg-surface-container-low p-2.5 text-xs">
+                <p className="text-on-surface">
+                  <span className="font-semibold">MOQ:</span> {termSheet.moqQuantity.toLocaleString()} {termSheet.moqUnit}
+                </p>
+                <p className="text-on-surface">
+                  <span className="font-semibold">Unit Price:</span> {termSheet.currency} {termSheet.unitPrice.toLocaleString()}
+                </p>
+                <p className="truncate text-on-surface">
+                  <span className="font-semibold">Payment:</span> {termSheet.paymentTerms}
+                </p>
+                <p className="truncate text-on-surface">
+                  <span className="font-semibold">Supply/Logistics:</span> {termSheet.supplyLogisticsTerms}
+                </p>
+                <p className="text-[11px] text-on-surface-variant">
+                  Version {termSheet.version} · updated {relativeTime(termSheet.updatedAt)}
+                </p>
+              </div>
+            )}
+
+            <button
+              type="button"
+              disabled={closed}
+              onClick={() => setTermSheetDrawerOpen(true)}
+              className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-outline-variant/50 py-2 text-xs font-bold text-on-surface-variant transition-colors hover:border-primary/50 hover:text-primary disabled:opacity-50"
+            >
+              <Icon name="edit" size={16} />
+              Edit Term Sheet
+            </button>
           </PanelCard>
         )}
       </div>
@@ -517,6 +925,25 @@ export function DealSidePanel({
           setOfferDrawerOpen(true);
           setSelectedOffer(null);
         }}
+      />
+
+      {/* Edit the B2B term sheet — either party may open this */}
+      <TermSheetDrawer
+        open={termSheetDrawerOpen}
+        onClose={() => setTermSheetDrawerOpen(false)}
+        current={termSheet}
+        onConfirm={async (values) => {
+          await onSaveTermSheet(values);
+          setTermSheetDrawerOpen(false);
+        }}
+      />
+
+      {/* Every saved term sheet version, with field-level diffs ("View All") */}
+      <TermSheetHistoryDrawer
+        open={termSheetHistoryOpen}
+        onClose={() => setTermSheetHistoryOpen(false)}
+        dealRoomId={room.id}
+        refreshKey={termSheetRefreshKey}
       />
     </>
   );
