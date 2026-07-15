@@ -24,7 +24,7 @@ import type {
  * access token is attached automatically by the axios interceptor.
  */
 
-/* ----- User Management ----- */
+
 
 /**
  * Map the backend `kyc_status` column (title-case, e.g. "Approved"/"Rejected"/
