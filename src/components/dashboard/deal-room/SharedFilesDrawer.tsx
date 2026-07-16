@@ -151,6 +151,11 @@ export function SharedFilesDrawer({ open, onClose, dealRoomId, currentStage, onP
                               <span className="block truncate text-xs text-on-surface-variant">
                                 {formatSize(f.size)} · {f.by}
                               </span>
+                              {f.atLabel && (
+                                <span className="block truncate text-[11px] text-on-surface-variant/70">
+                                  Created {f.atLabel}
+                                </span>
+                              )}
                             </span>
                             <Icon
                               name={f.downloadAllowed ? "download" : "visibility"}
