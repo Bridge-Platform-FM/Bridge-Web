@@ -349,7 +349,6 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
     validUntil: values.validUntil,
     ...(values.terms.trim() ? { terms: values.terms.trim() } : {}),
     ...(values.notes.trim() ? { notes: values.notes.trim() } : {}),
-    recipientUserId: room.counterparty.userId,
   });
 
   const onSendFundingOffer = (values: FundingOfferFormValues) => createFundingOffer(fundingOfferPayload(values));

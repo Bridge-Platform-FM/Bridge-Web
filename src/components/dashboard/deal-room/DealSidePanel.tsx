@@ -18,7 +18,6 @@ import { ScheduleMeetingDrawer, type ScheduleMeetingFormValues } from "./Schedul
 import { MeetingsDrawer } from "./MeetingsDrawer";
 import { MeetingDetailsModal } from "./MeetingDetailsModal";
 import { FundingOfferDrawer } from "./FundingOfferDrawer";
-import { FundingOfferDetailModal } from "./FundingOfferDetailModal";
 import { FundingOffersDrawer } from "./FundingOffersDrawer";
 import {
   fetchCurrentFundingOffer,
@@ -526,11 +525,8 @@ export function DealSidePanel({
   const [offerDrawerOpen, setOfferDrawerOpen] = useState(false);
   const [offerDrawerMode, setOfferDrawerMode] = useState<"create" | "counter">("create");
   const [offersListOpen, setOffersListOpen] = useState(false);
-  /** The offer shown in the detail modal — either the current one (inline row) or any
-   *  past version picked from the "View All" history drawer; null = modal closed. */
-  const [selectedOffer, setSelectedOffer] = useState<DealFundingOffer | null>(null);
-  /** Snapshot of the offer being countered — kept separately from `selectedOffer` so
-   *  the drawer still has it to prefill after the detail modal closes. */
+  /** Snapshot of the offer being countered — set from the offers drawer's Counter
+   *  button so FundingOfferDrawer (the create/counter form) has it to prefill. */
   const [offerToCounter, setOfferToCounter] = useState<DealFundingOffer | null>(null);
 
   const loadCurrentOffer = useCallback(() => {
@@ -724,7 +720,7 @@ export function DealSidePanel({
             ) : (
               <button
                 type="button"
-                onClick={() => setSelectedOffer(currentOffer)}
+                onClick={() => setOffersListOpen(true)}
                 className="flex w-full items-center justify-between gap-2 rounded-lg p-2 text-left transition-colors hover:bg-surface-container-low"
               >
                 <span className="min-w-0 flex-1">
@@ -876,7 +872,7 @@ export function DealSidePanel({
         onUpdated={loadUpcomingMeetings}
       />
 
-      {/* Create a new offer (investor) or submit a counter (founder, opened from the detail modal) */}
+      {/* Create a new offer (investor) or submit a counter (founder, opened from the offers drawer) */}
       <FundingOfferDrawer
         open={offerDrawerOpen}
         onClose={() => setOfferDrawerOpen(false)}
@@ -893,37 +889,21 @@ export function DealSidePanel({
         }}
       />
 
-      {/* Every offer + counter-offer exchanged in this negotiation ("View All") */}
+      {/* The current actionable offer (Accept/Reject/Counter, role-gated to the offer's
+          recipient) plus the full negotiation thread ("Counter History") below it. */}
       <FundingOffersDrawer
         open={offersListOpen}
         onClose={() => setOffersListOpen(false)}
         dealRoomId={room.id}
         refreshKey={fundingOfferRefreshKey}
-        onSelect={(offer) => {
-          setSelectedOffer(offer);
-          setOffersListOpen(false);
-        }}
-      />
-
-      {/* Offer detail — Accept/Reject/Counter, role-gated to the offer's recipient. Opened
-          from either the inline preview row (currentOffer) or the "View All" history drawer. */}
-      <FundingOfferDetailModal
-        offer={selectedOffer}
-        onClose={() => setSelectedOffer(null)}
         closed={closed}
-        onAccept={() => {
-          if (selectedOffer) onAcceptFundingOffer(selectedOffer.id);
-          setSelectedOffer(null);
-        }}
-        onReject={() => {
-          if (selectedOffer) onRejectFundingOffer(selectedOffer.id);
-          setSelectedOffer(null);
-        }}
-        onCounter={() => {
-          setOfferToCounter(selectedOffer);
+        onAccept={(offerId) => onAcceptFundingOffer(offerId)}
+        onReject={(offerId) => onRejectFundingOffer(offerId)}
+        onCounter={(offer) => {
+          setOfferToCounter(offer);
           setOfferDrawerMode("counter");
           setOfferDrawerOpen(true);
-          setSelectedOffer(null);
+          setOffersListOpen(false);
         }}
       />
 
