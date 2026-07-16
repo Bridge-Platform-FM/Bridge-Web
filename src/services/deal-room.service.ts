@@ -264,6 +264,8 @@ export interface SharedFileItem {
   by: string;
   /** ISO timestamp. */
   at: string;
+  /** Friendly created-at label, e.g. "Jul 10, 9:36 AM". */
+  atLabel: string;
   stage?: string;
 }
 
@@ -304,6 +306,9 @@ function toSharedFile(raw: RawSharedFile): SharedFileItem {
     downloadAllowed: readDownloadAllowed(raw as unknown as Record<string, unknown>),
     by: mine ? "You" : fullName(raw.sender?.first_name, raw.sender?.last_name) || "—",
     at: raw.created_at ?? "",
+    atLabel: raw.created_at
+      ? new Date(raw.created_at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+      : "",
     ...(raw.stage ? { stage: raw.stage } : {}),
   };
 }
@@ -352,6 +357,12 @@ export interface RawMeeting {
   duration?: string;
   created_by?: number;
   createdBy?: number;
+  created_at?: string;
+  createdAt?: string;
+  requester_user_first_name?: string;
+  requester_user_last_name?: string;
+  requesterUserFirstName?: string;
+  requesterUserLastName?: string;
 }
 
 /** Pull the meeting array out of a response body, tolerant of the exact envelope shape:
@@ -382,8 +393,16 @@ export function toScheduledMeeting(
   fallback: Partial<ScheduleMeetingPayload> & { createdByMe?: boolean } = {}
 ): ScheduledMeeting {
   const scheduledAt = raw.scheduled_at ?? raw.scheduledAt ?? fallback.scheduledAt ?? "";
+  const createdAt = raw.created_at ?? raw.createdAt ?? "";
   const createdBy = raw.created_by ?? raw.createdBy;
   const createdByMe = createdBy != null ? createdBy === getCurrentUserId() : (fallback.createdByMe ?? false);
+  const requesterName = [
+    raw.requester_user_first_name ?? raw.requesterUserFirstName,
+    raw.requester_user_last_name ?? raw.requesterUserLastName,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
   return {
     id: String(raw.id ?? raw.meeting_id ?? raw.meetingId ?? `m-${Date.now()}`),
     title: raw.title ?? fallback.title ?? "",
@@ -391,6 +410,11 @@ export function toScheduledMeeting(
       ? new Date(scheduledAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
       : "",
     scheduledAt,
+    createdAtLabel: createdAt
+      ? new Date(createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+      : "",
+    createdAt,
+    requesterName,
     duration: raw.duration ?? fallback.duration ?? "",
     link: raw.meeting_link ?? raw.meetingLink ?? fallback.meetingLink ?? "",
     agenda: raw.agenda ?? fallback.agenda ?? "",

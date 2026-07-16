@@ -108,7 +108,15 @@ export function MeetingsDrawer({ open, onClose, dealRoomId, onSelect, onSchedule
                     <span className={`block truncate text-sm font-semibold ${isPast ? "text-on-surface-variant" : "text-on-surface"}`}>
                       {mtg.title}
                     </span>
-                    <span className="block truncate text-xs text-on-surface-variant">{mtg.when}</span>
+                    <span className="block truncate text-xs text-on-surface-variant">
+                      {mtg.when}
+                      {mtg.requesterName && ` · ${mtg.requesterName}`}
+                    </span>
+                    {mtg.createdAtLabel && (
+                      <span className="block truncate text-[11px] text-on-surface-variant/70">
+                        Created {mtg.createdAtLabel}
+                      </span>
+                    )}
                   </span>
                   <Icon name="chevron_right" size={18} className="shrink-0 text-on-surface-variant" />
                 </button>

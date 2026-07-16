@@ -566,6 +566,25 @@ export interface ExploreMatchesResponse {
   message: string;
 }
 
+/* ------------------------------------------------------------------ *
+ * Navbar search — GET /api/v1/users/search
+ * (the paired GET /api/v1/users/role-details returns the same `ProfileField[]`
+ * shape as GET /api/v1/users/profile — see services/user.service.ts)
+ * ------------------------------------------------------------------ */
+/** One suggestion row returned by GET /api/v1/users/search?q=. */
+export interface UserSearchResult {
+  user_id: number;
+  role_id: number;
+  company_id: number;
+  first_name: string;
+  last_name: string;
+  company_name: string;
+  email: string;
+  mobile_number: string;
+  country: string;
+  continent: string;
+}
+
 /** A swipe decision on a match card. */
 export type ExploreDecision = "reject" | "skip" | "send";
 

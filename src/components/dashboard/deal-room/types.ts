@@ -87,6 +87,12 @@ export interface ScheduledMeeting {
   when: string;
   /** ISO timestamp of the scheduled time. */
   scheduledAt: string;
+  /** Friendly created-at label, e.g. "Jul 10, 9:36 AM". */
+  createdAtLabel: string;
+  /** ISO timestamp of when the meeting was created. */
+  createdAt: string;
+  /** First + last name of the deal-room participant who requested the meeting. */
+  requesterName: string;
   duration: string;
   link: string;
   agenda: string;
