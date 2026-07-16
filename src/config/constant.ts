@@ -120,8 +120,20 @@ export const API_ENDPOINTS = {
   // The currently pending stage-update request for a room, if any (survives refresh —
   // request/respond themselves go over the socket, see useDealRoomSocket). GET.
   DEAL_ROOM_STAGE_REQUEST_PENDING: (id: string) => `${DEAL_ROOMS}/${id}/stage-request/pending`,
+  // Funding Offer (Stage 2: Negotiation) — PLACEHOLDER, backend not yet built.
+  // Create/Accept/Reject/Counter go over the socket (create_funding_offer/
+  // respond_funding_offer); these are reads only, mirroring the stage-request pattern.
+  DEAL_ROOM_FUNDING_OFFER_CURRENT: (id: string) => `${DEAL_ROOMS}/${id}/funding-offer/current`,
+  // Full negotiation history (chain of offer → counter → counter …) for the "View All" drawer.
+  DEAL_ROOM_FUNDING_OFFER_HISTORY: (id: string) => `${DEAL_ROOMS}/${id}/funding-offer/history`,
+  // B2B Term Sheet (Stage 2: Negotiation, B2B ↔ B2B only) — PLACEHOLDER, backend not
+  // yet built. Update/Confirm go over the socket (update_term_sheet/
+  // confirm_b2b_stage_transition); these are reads only.
+  DEAL_ROOM_TERM_SHEET_CURRENT: (id: string) => `${DEAL_ROOMS}/${id}/term-sheet/current`,
+  DEAL_ROOM_TERM_SHEET_HISTORY: (id: string) => `${DEAL_ROOMS}/${id}/term-sheet/history`,
+  DEAL_ROOM_B2B_STAGE_CONFIRMATION: (id: string) => `${DEAL_ROOMS}/${id}/stage-confirmation`,
 
-  
+
   // ----- Meetings -----
   // Schedule a meeting inside a deal room. POST.
   MEETING_CREATE: MEETINGS,

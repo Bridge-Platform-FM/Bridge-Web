@@ -51,3 +51,8 @@ export function nowLocalTimeStr(): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+
+/** Whole days remaining until an ISO deadline, floored at 0 (never negative). */
+export function daysRemaining(deadlineIso: string): number {
+  return Math.max(0, Math.ceil((new Date(deadlineIso).getTime() - Date.now()) / 86_400_000));
+}

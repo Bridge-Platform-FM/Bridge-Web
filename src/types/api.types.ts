@@ -553,11 +553,12 @@ export interface ExploreMatchesResponse {
     /** The id of the profile these matches were computed for. */
     profileId: number;
     matches: ExploreMatch[];
-    /** Daily connection-request cap for the current profile. Not yet returned by the
-     *  backend — TODO(api): drop the 50 fallback in explore.service.ts once this ships. */
-    connectionRequestLimit?: number;
-    /** Requests still available today. Same TODO as above. */
-    connectionRequestsRemaining?: number;
+    /** Daily connection-request cap for the current profile. */
+    requestLimit?: number;
+    /** Requests still available today. */
+    requestsRemaining?: number;
+    /** Requests already sent within the current window. */
+    requestsSentInWindow?: number;
   };
   message: string;
 }

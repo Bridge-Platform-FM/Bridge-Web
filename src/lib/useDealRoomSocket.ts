@@ -4,9 +4,23 @@ import { useEffect, useRef } from "react";
 import { io, type Socket } from "socket.io-client";
 import { toast } from "sonner";
 import { getAccessToken } from "@/lib/auth-tokens";
-import { normalizeMessage, toScheduledMeeting, type RawMessage } from "@/services/deal-room.service";
+import {
+  normalizeFundingOffer,
+  normalizeMessage,
+  normalizeTermSheet,
+  toScheduledMeeting,
+  type RawMessage,
+} from "@/services/deal-room.service";
 import { stageIndexFromValue } from "@/components/dashboard/deal-room/deal-room-meta";
-import type { DealMessage, DealStageRequest, ScheduledMeeting } from "@/components/dashboard/deal-room/types";
+import type {
+  B2BTermSheet,
+  DealFundingOffer,
+  DealMessage,
+  DealStageRequest,
+  FundingOfferStatus,
+  ScheduledMeeting,
+  ValuationType,
+} from "@/components/dashboard/deal-room/types";
 
 /** Payload for the server's `messages_read` broadcast. */
 export interface MessagesReadPayload {
@@ -41,6 +55,72 @@ interface RawStageResponded {
 /** Decision passed to `respondStageUpdate`. */
 export type StageDecision = "Accepted" | "Rejected";
 
+/** Raw `funding_offer_created` broadcast (also fired for a counter — same event, a new row). */
+export interface RawFundingOffer {
+  id: number | string;
+  status: FundingOfferStatus;
+  created_by_user_id: number;
+  recipient_user_id: number;
+  amount: number;
+  currency: string;
+  equity_percent: number;
+  valuation_type: ValuationType;
+  valid_until: string;
+  terms?: string | null;
+  notes?: string | null;
+  parent_offer_id?: number | string | null;
+  version: number;
+  created_at: string;
+}
+/** Raw `funding_offer_responded` broadcast. */
+interface RawFundingOfferResponded {
+  offer: { id: number | string; status: "Accepted" | "Rejected" };
+}
+/** Payload for creating or countering a funding offer (counter adds `parentOfferId`). */
+export interface FundingOfferEmitPayload {
+  amount: number;
+  currency: string;
+  equityPercent: number;
+  valuationType: ValuationType;
+  validUntil: string;
+  terms?: string;
+  notes?: string;
+  recipientUserId: number;
+}
+
+/** Raw `term_sheet_updated` broadcast (B2B collaborative term sheet — no accept/reject,
+ *  a save just broadcasts the new snapshot to both sides). */
+export interface RawB2BTermSheet {
+  id: number | string;
+  version: number;
+  moq_quantity: number;
+  moq_unit: string;
+  unit_price: number;
+  currency: string;
+  payment_terms: string;
+  supply_logistics_terms: string;
+  updated_by_user_id: number;
+  updated_at: string;
+}
+/** Payload for saving a term sheet edit (either B2B party may call this). */
+export interface TermSheetEmitPayload {
+  moqQuantity: number;
+  moqUnit: string;
+  unitPrice: number;
+  currency: string;
+  paymentTerms: string;
+  supplyLogisticsTerms: string;
+}
+
+/** Raw `b2b_stage_transition_confirmed` broadcast. */
+interface RawB2BStageConfirmation {
+  confirmed_user_ids: number[];
+  window_started_at: string | null;
+  expires_at: string | null;
+  /** Only present once BOTH have confirmed — the room's new stage. */
+  new_stage_index?: number;
+}
+
 interface DealRoomSocketHandlers {
   onNewMessage: (msg: DealMessage) => void;
   /** Fired when someone marks the room read (used for "Seen" receipts). */
@@ -57,6 +137,24 @@ interface DealRoomSocketHandlers {
   /** Fired when either side schedules a meeting — including my own echoed back, so
    *  every open tab (mine and the counterparty's) can refresh the meetings list live. */
   onMeetingScheduled?: (meeting: ScheduledMeeting) => void;
+  /** Fired when either side sends/counters a funding offer — including my own, echoed back. */
+  onFundingOfferCreated?: (offer: DealFundingOffer) => void;
+  /** Fired once a pending funding offer is accepted/rejected. */
+  onFundingOfferResponded?: (payload: { offerId: string; decision: "Accepted" | "Rejected" }) => void;
+  /** Fired whenever either side saves an edit to the B2B term sheet — including my
+   *  own, echoed back, so every open tab shows the latest version live. */
+  onTermSheetUpdated?: (sheet: B2BTermSheet) => void;
+  /** Fired whenever either side confirms readiness to move Negotiation → Due
+   *  Diligence (B2B mutual-confirm flow), including my own echoed back.
+   *  `newStageIndex` is only set once BOTH parties have confirmed. */
+  onB2BStageConfirmed?: (payload: {
+    confirmedUserIds: number[];
+    windowStartedAt: string | null;
+    expiresAt: string | null;
+    newStageIndex?: number;
+  }) => void;
+  /** Fired when the 7-day confirmation window lapses without mutual consent. */
+  onB2BStageConfirmationExpired?: () => void;
 }
 
 /** How long after the LAST keystroke we auto-emit `stop_typing` (indicator lingers this
@@ -151,6 +249,29 @@ export function useDealRoomSocket(dealRoomId: string, handlers: DealRoomSocketHa
       handlersRef.current.onMeetingScheduled?.(toScheduledMeeting(raw));
     });
 
+    socket.on("funding_offer_created", (raw: RawFundingOffer) => {
+      handlersRef.current.onFundingOfferCreated?.(normalizeFundingOffer(raw));
+    });
+    socket.on("funding_offer_responded", (raw: RawFundingOfferResponded) => {
+      handlersRef.current.onFundingOfferResponded?.({ offerId: String(raw.offer.id), decision: raw.offer.status });
+    });
+
+    socket.on("term_sheet_updated", (raw: RawB2BTermSheet) => {
+      handlersRef.current.onTermSheetUpdated?.(normalizeTermSheet(raw));
+    });
+
+    socket.on("b2b_stage_transition_confirmed", (raw: RawB2BStageConfirmation) => {
+      handlersRef.current.onB2BStageConfirmed?.({
+        confirmedUserIds: raw.confirmed_user_ids,
+        windowStartedAt: raw.window_started_at,
+        expiresAt: raw.expires_at,
+        ...(raw.new_stage_index != null ? { newStageIndex: raw.new_stage_index } : {}),
+      });
+    });
+    socket.on("b2b_stage_transition_expired", () => {
+      handlersRef.current.onB2BStageConfirmationExpired?.();
+    });
+
     socket.on("error", (err: { message?: string }) =>
       toast.error(err?.message ?? "Deal room connection error."),
     );
@@ -215,5 +336,49 @@ export function useDealRoomSocket(dealRoomId: string, handlers: DealRoomSocketHa
     socketRef.current?.emit("respond_stage_update", { dealRoomId, requestId, decision });
   };
 
-  return { sendMessage, markRead, notifyTyping, stopTyping, requestNextStage, respondStageUpdate };
+  /** Send a NEW funding offer (investor → founder). No optimistic state — the server
+   *  broadcasts `funding_offer_created` back to the room. */
+  const createFundingOffer = (payload: FundingOfferEmitPayload) => {
+    socketRef.current?.emit("create_funding_offer", { dealRoomId, ...payload });
+  };
+
+  /** Accept/reject a pending funding offer (only the recipient may call this —
+   *  enforced server-side too). */
+  const respondFundingOffer = (offerId: string, decision: "Accepted" | "Rejected") => {
+    socketRef.current?.emit("respond_funding_offer", { dealRoomId, offerId, decision });
+  };
+
+  /** Submit a counter-offer against `parentOfferId` — creates a new pending version
+   *  sent back to the original sender. Same event as create, distinguished by
+   *  `parentOfferId`, so the server can link the chain and flip the parent to "Countered". */
+  const counterFundingOffer = (parentOfferId: string, payload: FundingOfferEmitPayload) => {
+    socketRef.current?.emit("create_funding_offer", { dealRoomId, parentOfferId, ...payload });
+  };
+
+  /** Save an edit to the B2B term sheet (either party). No optimistic state — the
+   *  server broadcasts `term_sheet_updated` back to the room. */
+  const updateTermSheet = (payload: TermSheetEmitPayload) => {
+    socketRef.current?.emit("update_term_sheet", { dealRoomId, ...payload });
+  };
+
+  /** Confirm I'm ready to move Negotiation → Due Diligence (B2B mutual-confirm
+   *  flow). No optimistic state — the server broadcasts
+   *  `b2b_stage_transition_confirmed` back to the room. */
+  const confirmB2BStageTransition = () => {
+    socketRef.current?.emit("confirm_b2b_stage_transition", { dealRoomId });
+  };
+
+  return {
+    sendMessage,
+    markRead,
+    notifyTyping,
+    stopTyping,
+    requestNextStage,
+    respondStageUpdate,
+    createFundingOffer,
+    respondFundingOffer,
+    counterFundingOffer,
+    updateTermSheet,
+    confirmB2BStageTransition,
+  };
 }

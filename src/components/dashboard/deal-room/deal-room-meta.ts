@@ -3,7 +3,8 @@
  * pipeline, formatting). Local to the deal-room folder so the demo deletes cleanly.
  */
 
-import type { DealRoom, DealRoomStatus, DealRoomTab } from "./types";
+import type { StatusMeta } from "@/components/dashboard/kyc-status";
+import type { DealRoom, DealRoomStatus, DealRoomTab, FundingOfferStatus } from "./types";
 
 /** The list toggle buckets — ACTIVE also includes PAUSED rooms. */
 export const DEAL_TABS: { key: DealRoomTab; label: string }[] = [
@@ -25,14 +26,30 @@ export const DEAL_STATUS_BADGE: Record<DealRoomStatus, { label: string; classNam
   CLOSED: { label: "Closed", className: "bg-surface-container-highest text-on-surface-variant" },
 };
 
+/** Monochrome status pill meta for a funding offer, reusing the platform-wide
+ *  StatusPill convention from kyc-status.tsx (no status colors, per theme). */
+export const FUNDING_OFFER_STATUS_META: Record<FundingOfferStatus, StatusMeta> = {
+  Draft: { label: "Draft", icon: "edit_note" },
+  Pending: { label: "Pending", icon: "schedule" },
+  Accepted: { label: "Accepted", icon: "task_alt" },
+  Rejected: { label: "Rejected", icon: "cancel" },
+  Countered: { label: "Countered", icon: "swap_horiz" },
+};
+
 /** The fixed 4-step deal pipeline rendered by the chat page's stage stepper. */
 export const DEAL_STAGES = ["Initial Connection", "Negotiation", "Due Diligence", "Closing"] as const;
 export const DEAL_STAGE_VALUES = ["Initial Connection", "Negotiation", "Due Diligence", "Closed"] as const;
 
-/** Map a backend stage string to its stepper index. Unknown/missing → 0 (first stage). */
+/** Map a backend stage string to its stepper index. Tries the room-stage enum
+ *  (`DEAL_STAGE_VALUES`) first, then falls back to the display label (`DEAL_STAGES`) —
+ *  the shared-files API returns the label form (e.g. "Initial Connection") on each file
+ *  row instead of the room's enum value. Unknown/missing → 0 (first stage). */
 export function stageIndexFromValue(value: string | null | undefined): number {
-  const idx = value ? DEAL_STAGE_VALUES.indexOf(value as (typeof DEAL_STAGE_VALUES)[number]) : -1;
-  return idx === -1 ? 0 : idx;
+  if (!value) return 0;
+  const enumIdx = DEAL_STAGE_VALUES.indexOf(value as (typeof DEAL_STAGE_VALUES)[number]);
+  if (enumIdx !== -1) return enumIdx;
+  const labelIdx = DEAL_STAGES.indexOf(value as (typeof DEAL_STAGES)[number]);
+  return labelIdx === -1 ? 0 : labelIdx;
 }
 
 /** The backend stage value for the step after `currentIndex`, or undefined if already

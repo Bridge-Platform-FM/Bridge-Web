@@ -20,7 +20,18 @@ import { API_ENDPOINTS } from "@/config/constant";
 import { normalizeRole } from "@/lib/roles";
 import { getCurrentUserId } from "@/lib/jwt";
 import { stageIndexFromValue } from "@/components/dashboard/deal-room/deal-room-meta";
-import type { DealAttachment, DealMessage, DealRoom, DealStageRequest, ScheduledMeeting } from "@/components/dashboard/deal-room/types";
+import type {
+  B2BStageConfirmation,
+  B2BTermSheet,
+  DealAttachment,
+  DealFundingOffer,
+  DealMessage,
+  DealRoom,
+  DealStageRequest,
+  FundingOfferStatus,
+  ScheduledMeeting,
+  ValuationType,
+} from "@/components/dashboard/deal-room/types";
 
 /** One flat deal-room row from `GET /deal-rooms` (snake_case, both participants inline). */
 interface RawRoom {
@@ -253,6 +264,7 @@ export interface SharedFileItem {
   by: string;
   /** ISO timestamp. */
   at: string;
+  stage?: string;
 }
 
 /** One raw file row from the files-list endpoint (tolerant shape — the list endpoint may
@@ -273,6 +285,7 @@ interface RawSharedFile {
   view_only?: boolean | string | null;
   created_at?: string;
   sender?: { id?: number; first_name?: string; last_name?: string } | null;
+  stage?: string | null;
 }
 
 /** Map a raw files-list row into a UI SharedFileItem. */
@@ -291,6 +304,7 @@ function toSharedFile(raw: RawSharedFile): SharedFileItem {
     downloadAllowed: readDownloadAllowed(raw as unknown as Record<string, unknown>),
     by: mine ? "You" : fullName(raw.sender?.first_name, raw.sender?.last_name) || "—",
     at: raw.created_at ?? "",
+    ...(raw.stage ? { stage: raw.stage } : {}),
   };
 }
 
@@ -412,4 +426,160 @@ export async function fetchMeetingDetail(meetingId: string): Promise<ScheduledMe
 export async function updateMeeting(meetingId: string, payload: UpdateMeetingPayload): Promise<ScheduledMeeting> {
   const { data } = await api.put<{ data?: RawMeeting }>(API_ENDPOINTS.MEETING_UPDATE(meetingId), payload);
   return toScheduledMeeting(data.data ?? {}, { ...payload, createdByMe: true });
+}
+
+// ---- Funding Offer (Stage 2: Negotiation) ----------------------------------------
+// Backend does not exist yet — fetchCurrentFundingOffer is a placeholder GET that
+// fails soft (returns null) until Bridge-Server implements it. Create/Accept/Reject/
+// Counter are socket-only (see useDealRoomSocket.ts) — never REST POSTs.
+
+/** Raw funding-offer row — the same shape as the `funding_offer_created` socket
+ *  broadcast, reused here so normalizeFundingOffer serves both. */
+export interface RawFundingOffer {
+  id: number | string;
+  status: FundingOfferStatus;
+  created_by_user_id: number;
+  recipient_user_id: number;
+  amount: number;
+  currency: string;
+  equity_percent: number;
+  valuation_type: ValuationType;
+  valid_until: string;
+  terms?: string | null;
+  notes?: string | null;
+  parent_offer_id?: number | string | null;
+  version: number;
+  created_at: string;
+}
+
+/** Normalize a raw offer row — exported so useDealRoomSocket.ts's broadcast handler reuses it. */
+export function normalizeFundingOffer(raw: RawFundingOffer): DealFundingOffer {
+  return {
+    id: String(raw.id),
+    status: raw.status,
+    createdByUserId: raw.created_by_user_id,
+    recipientUserId: raw.recipient_user_id,
+    amount: raw.amount,
+    currency: raw.currency,
+    equityPercent: raw.equity_percent,
+    valuationType: raw.valuation_type,
+    validUntil: raw.valid_until,
+    ...(raw.terms ? { terms: raw.terms } : {}),
+    ...(raw.notes ? { notes: raw.notes } : {}),
+    parentOfferId: raw.parent_offer_id != null ? String(raw.parent_offer_id) : null,
+    version: raw.version,
+    createdAt: raw.created_at,
+  };
+}
+
+/** TODO(api): the currently pending/most-recent funding offer for a room, if any.
+ *  Guessed contract: GET /api/v1/deal-rooms/:id/funding-offer/current. */
+export async function fetchCurrentFundingOffer(dealRoomId: string): Promise<DealFundingOffer | null> {
+  try {
+    const { data } = await api.get<{ data?: RawFundingOffer | null }>(
+      API_ENDPOINTS.DEAL_ROOM_FUNDING_OFFER_CURRENT(dealRoomId),
+    );
+    return data.data ? normalizeFundingOffer(data.data) : null;
+  } catch {
+    return null; // no backend yet — fail soft
+  }
+}
+
+/** TODO(api): the full negotiation history (every offer + counter-offer) for a room —
+ *  "View All" drawer. Guessed contract: GET /api/v1/deal-rooms/:id/funding-offer/history. */
+export async function fetchFundingOfferHistory(dealRoomId: string): Promise<DealFundingOffer[]> {
+  try {
+    const { data } = await api.get<{ data?: RawFundingOffer[] }>(
+      API_ENDPOINTS.DEAL_ROOM_FUNDING_OFFER_HISTORY(dealRoomId),
+    );
+    return (data.data ?? []).map(normalizeFundingOffer);
+  } catch {
+    return []; // no backend yet — fail soft
+  }
+}
+
+// ---- B2B Term Sheet (Stage 2: Negotiation, B2B ↔ B2B only) -----------------------
+// Backend does not exist yet. Update/Confirm are socket-only (see useDealRoomSocket.ts)
+// — never REST POSTs. Reads below fail soft, same convention as Funding Offer above.
+
+/** Raw term-sheet row — the same shape as the `term_sheet_updated` socket broadcast. */
+export interface RawB2BTermSheet {
+  id: number | string;
+  version: number;
+  moq_quantity: number;
+  moq_unit: string;
+  unit_price: number;
+  currency: string;
+  payment_terms: string;
+  supply_logistics_terms: string;
+  updated_by_user_id: number;
+  updated_at: string;
+}
+
+/** Normalize a raw term-sheet row — exported so useDealRoomSocket.ts's broadcast handler reuses it. */
+export function normalizeTermSheet(raw: RawB2BTermSheet): B2BTermSheet {
+  return {
+    id: String(raw.id),
+    version: raw.version,
+    moqQuantity: raw.moq_quantity,
+    moqUnit: raw.moq_unit,
+    unitPrice: raw.unit_price,
+    currency: raw.currency,
+    paymentTerms: raw.payment_terms,
+    supplyLogisticsTerms: raw.supply_logistics_terms,
+    updatedByUserId: raw.updated_by_user_id,
+    updatedAt: raw.updated_at,
+  };
+}
+
+/** TODO(api): the current term sheet for a room, if any.
+ *  Guessed contract: GET /api/v1/deal-rooms/:id/term-sheet/current. */
+export async function fetchCurrentTermSheet(dealRoomId: string): Promise<B2BTermSheet | null> {
+  try {
+    const { data } = await api.get<{ data?: RawB2BTermSheet | null }>(
+      API_ENDPOINTS.DEAL_ROOM_TERM_SHEET_CURRENT(dealRoomId),
+    );
+    return data.data ? normalizeTermSheet(data.data) : null;
+  } catch {
+    return null; // no backend yet — fail soft
+  }
+}
+
+/** TODO(api): every saved version, newest first ("View All" history drawer).
+ *  Guessed contract: GET /api/v1/deal-rooms/:id/term-sheet/history. */
+export async function fetchTermSheetHistory(dealRoomId: string): Promise<B2BTermSheet[]> {
+  try {
+    const { data } = await api.get<{ data?: RawB2BTermSheet[] }>(
+      API_ENDPOINTS.DEAL_ROOM_TERM_SHEET_HISTORY(dealRoomId),
+    );
+    return (data.data ?? []).map(normalizeTermSheet);
+  } catch {
+    return []; // no backend yet — fail soft
+  }
+}
+
+/** Raw B2B stage-confirmation row — same shape as the socket broadcast minus `new_stage_index`. */
+interface RawB2BStageConfirmation {
+  confirmed_user_ids: number[];
+  window_started_at: string | null;
+  expires_at: string | null;
+}
+
+/** TODO(api): the room's current B2B mutual-confirmation state for the Negotiation →
+ *  Due Diligence transition, if any — survives refresh (confirm itself is socket-only).
+ *  Guessed contract: GET /api/v1/deal-rooms/:id/stage-confirmation. */
+export async function fetchB2BStageConfirmation(dealRoomId: string): Promise<B2BStageConfirmation | null> {
+  try {
+    const { data } = await api.get<{ data?: RawB2BStageConfirmation | null }>(
+      API_ENDPOINTS.DEAL_ROOM_B2B_STAGE_CONFIRMATION(dealRoomId),
+    );
+    if (!data.data) return null;
+    return {
+      confirmedUserIds: data.data.confirmed_user_ids,
+      windowStartedAt: data.data.window_started_at,
+      expiresAt: data.data.expires_at,
+    };
+  } catch {
+    return null; // no backend yet — fail soft
+  }
 }

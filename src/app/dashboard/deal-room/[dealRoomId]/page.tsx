@@ -9,11 +9,28 @@ import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
 import { Loader } from "@/components/common/loader";
 import { DealRoomChat } from "@/components/dashboard/deal-room/DealRoomChat";
-import { closeDealRoom, fetchDealRoom, fetchDealRoomMessages, fetchPendingStageRequest, sendDealMedia } from "@/services/deal-room.service";
+import {
+  closeDealRoom,
+  fetchB2BStageConfirmation,
+  fetchDealRoom,
+  fetchDealRoomMessages,
+  fetchPendingStageRequest,
+  sendDealMedia,
+} from "@/services/deal-room.service";
 import { DEAL_STAGES, nextStageValue } from "@/components/dashboard/deal-room/deal-room-meta";
 import { useDealRoomSocket } from "@/lib/useDealRoomSocket";
 import { getCurrentUserId } from "@/lib/jwt";
-import type { DealMessage, DealRoom, DealStageRequest, ScheduledMeeting } from "@/components/dashboard/deal-room/types";
+import type {
+  B2BTermSheet,
+  DealFundingOffer,
+  DealMessage,
+  DealRoom,
+  DealStageRequest,
+  FundingOfferFormValues,
+  ScheduledMeeting,
+  TermSheetFormValues,
+  ValuationType,
+} from "@/components/dashboard/deal-room/types";
 import type { ApiError } from "@/lib/axios";
 
 /**
@@ -45,15 +62,16 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
     Promise.all([
       fetchDealRoom(dealRoomId),
       fetchDealRoomMessages(dealRoomId),
-      // Non-critical: don't fail the whole page load if this lookup errors.
+      // Non-critical: don't fail the whole page load if either lookup errors.
       fetchPendingStageRequest(dealRoomId).catch(() => null),
+      fetchB2BStageConfirmation(dealRoomId).catch(() => null),
     ])
-      .then(([meta, messages, pendingStageRequest]) => {
+      .then(([meta, messages, pendingStageRequest, b2bStageConfirmation]) => {
         if (!meta) {
           setError("This deal room doesn't exist.");
           return;
         }
-        setRoom({ ...meta, messages, pendingStageRequest });
+        setRoom({ ...meta, messages, pendingStageRequest, b2bStageConfirmation });
       })
       .catch(() => setError("Couldn't load this deal room. Please try again."))
       .finally(() => setLoading(false));
@@ -173,10 +191,88 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
     if (!meeting.createdByMe) toast.success(`New meeting scheduled: ${meeting.title}`);
   }, []);
 
-  const { sendMessage, notifyTyping, stopTyping, requestNextStage, respondStageUpdate } = useDealRoomSocket(
-    room ? dealRoomId : "",
-    { onNewMessage, onMessagesRead, onUserTyping, onStageRequested, onStageResponded, onPresenceChange, onMeetingScheduled }
+  // Either side sends/counters a funding offer (including my own, echoed back) — bump a
+  // counter so the side panel's Funding Offer card refetches live.
+  const [fundingOfferRefreshKey, setFundingOfferRefreshKey] = useState(0);
+  const onFundingOfferCreated = useCallback((offer: DealFundingOffer) => {
+    setFundingOfferRefreshKey((k) => k + 1);
+    if (offer.createdByUserId !== getCurrentUserId()) {
+      toast.success(offer.parentOfferId ? "You received a counter-offer." : "You received a new funding offer.");
+    }
+  }, []);
+  const onFundingOfferResponded = useCallback((payload: { offerId: string; decision: "Accepted" | "Rejected" }) => {
+    setFundingOfferRefreshKey((k) => k + 1);
+    if (payload.decision === "Accepted") toast.success("Funding offer accepted.");
+    else toast.error("Funding offer rejected.");
+  }, []);
+
+  // Either side saves an edit to the B2B term sheet (including my own, echoed back) —
+  // bump a counter so the side panel's B2B Term Sheet card refetches live.
+  const [termSheetRefreshKey, setTermSheetRefreshKey] = useState(0);
+  const onTermSheetUpdated = useCallback((sheet: B2BTermSheet) => {
+    setTermSheetRefreshKey((k) => k + 1);
+    if (sheet.updatedByUserId !== getCurrentUserId()) toast.success("The B2B term sheet was updated.");
+  }, []);
+
+  // Either side confirms readiness for Due Diligence (B2B mutual-confirm flow),
+  // including my own echoed back — `newStageIndex` is only set once BOTH have confirmed.
+  const onB2BStageConfirmed = useCallback(
+    (payload: { confirmedUserIds: number[]; windowStartedAt: string | null; expiresAt: string | null; newStageIndex?: number }) => {
+      setRoom((prev) =>
+        prev
+          ? {
+              ...prev,
+              b2bStageConfirmation: {
+                confirmedUserIds: payload.confirmedUserIds,
+                windowStartedAt: payload.windowStartedAt,
+                expiresAt: payload.expiresAt,
+              },
+              stage: payload.newStageIndex ?? prev.stage,
+            }
+          : prev,
+      );
+      if (payload.newStageIndex != null) {
+        toast.success("Both parties confirmed — deal moved to Due Diligence.");
+      } else if (payload.confirmedUserIds.includes(getCurrentUserId() ?? -1)) {
+        toast.success("Confirmation recorded. Waiting on the counterparty.");
+      } else {
+        toast("The counterparty confirmed readiness for Due Diligence.");
+      }
+    },
+    [],
   );
+
+  // The 7-day confirmation window lapsed without mutual consent — resets both flags.
+  const onB2BStageConfirmationExpired = useCallback(() => {
+    setRoom((prev) => (prev ? { ...prev, b2bStageConfirmation: null } : prev));
+    toast.error("The confirmation window expired — please confirm again.");
+  }, []);
+
+  const {
+    sendMessage,
+    notifyTyping,
+    stopTyping,
+    requestNextStage,
+    respondStageUpdate,
+    createFundingOffer,
+    respondFundingOffer,
+    counterFundingOffer,
+    updateTermSheet,
+    confirmB2BStageTransition,
+  } = useDealRoomSocket(room ? dealRoomId : "", {
+    onNewMessage,
+    onMessagesRead,
+    onUserTyping,
+    onStageRequested,
+    onStageResponded,
+    onPresenceChange,
+    onMeetingScheduled,
+    onFundingOfferCreated,
+    onFundingOfferResponded,
+    onTermSheetUpdated,
+    onB2BStageConfirmed,
+    onB2BStageConfirmationExpired,
+  });
 
   if (!isLoaded || !isUserRole(role)) return null;
 
@@ -245,6 +341,33 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
     if (room.pendingStageRequest) respondStageUpdate(room.pendingStageRequest.id, "Rejected");
   };
 
+  const fundingOfferPayload = (values: FundingOfferFormValues) => ({
+    amount: Number(values.amount),
+    currency: values.currency,
+    equityPercent: Number(values.equityPercent),
+    valuationType: values.valuationType as ValuationType,
+    validUntil: values.validUntil,
+    ...(values.terms.trim() ? { terms: values.terms.trim() } : {}),
+    ...(values.notes.trim() ? { notes: values.notes.trim() } : {}),
+    recipientUserId: room.counterparty.userId,
+  });
+
+  const onSendFundingOffer = (values: FundingOfferFormValues) => createFundingOffer(fundingOfferPayload(values));
+  const onAcceptFundingOffer = (offerId: string) => respondFundingOffer(offerId, "Accepted");
+  const onRejectFundingOffer = (offerId: string) => respondFundingOffer(offerId, "Rejected");
+  const onCounterFundingOffer = (offerId: string, values: FundingOfferFormValues) =>
+    counterFundingOffer(offerId, fundingOfferPayload(values));
+
+  const onSaveTermSheet = (values: TermSheetFormValues) =>
+    updateTermSheet({
+      moqQuantity: Number(values.moqQuantity),
+      moqUnit: values.moqUnit,
+      unitPrice: Number(values.unitPrice),
+      currency: values.currency,
+      paymentTerms: values.paymentTerms,
+      supplyLogisticsTerms: values.supplyLogisticsTerms,
+    });
+
   return (
     <DealRoomChat
       room={room}
@@ -260,6 +383,14 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
       onRequestNextStage={onRequestNextStage}
       onAcceptStage={onAcceptStage}
       onRejectStage={onRejectStage}
+      fundingOfferRefreshKey={fundingOfferRefreshKey}
+      onSendFundingOffer={onSendFundingOffer}
+      onAcceptFundingOffer={onAcceptFundingOffer}
+      onRejectFundingOffer={onRejectFundingOffer}
+      onCounterFundingOffer={onCounterFundingOffer}
+      termSheetRefreshKey={termSheetRefreshKey}
+      onSaveTermSheet={onSaveTermSheet}
+      onConfirmB2BStageTransition={confirmB2BStageTransition}
     />
   );
 }

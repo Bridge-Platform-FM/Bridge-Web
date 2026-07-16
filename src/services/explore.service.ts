@@ -33,13 +33,13 @@ export interface ExploreConnectionLimit {
   total: number;
 }
 
-/** Daily connection-request allowance, from the same GET /api/v1/matching response
- *  fetchExploreMatches uses. TODO(api): backend doesn't populate
- *  connectionRequestLimit/connectionRequestsRemaining yet — falls back to 50/50. */
+/** Daily connection-request allowance, from the same GET /api/v1/matching/profiles
+ *  response fetchExploreMatches uses. Falls back to 50/50 only if the backend omits
+ *  the fields entirely. */
 export async function fetchExploreConnectionLimit(): Promise<ExploreConnectionLimit> {
   const { data } = await api.get<ExploreMatchesResponse>(API_ENDPOINTS.MATCHING());
-  const total = data.data.connectionRequestLimit ?? 50;
-  const remaining = data.data.connectionRequestsRemaining ?? total;
+  const total = data.data.requestLimit ?? 50;
+  const remaining = data.data.requestsRemaining ?? total;
   return { remaining, total };
 }
 
