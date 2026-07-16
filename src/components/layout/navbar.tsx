@@ -1,9 +1,150 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/input";
+import { Loader } from "@/components/common/loader";
+import { searchUsers } from "@/services/user.service";
+import type { ApiError } from "@/lib/axios";
+import type { UserSearchResult } from "@/types/api.types";
+
+const SEARCH_MIN_QUERY_LENGTH = 2;
+const SEARCH_DEBOUNCE_MS = 300;
+
+/**
+ * Navbar typeahead: debounced GET /users/search as the user types, with a
+ * suggestions dropdown (outside-click / Escape to close). Picking a suggestion
+ * navigates straight to that user's read-only profile page — the dropdown never
+ * opens anything on its own, only on an explicit click.
+ */
+function NavbarSearch() {
+    const router = useRouter();
+    const [query, setQuery] = useState("");
+    const [debouncedQuery, setDebouncedQuery] = useState("");
+    const [open, setOpen] = useState(false);
+    const [results, setResults] = useState<UserSearchResult[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const rootRef = useRef<HTMLDivElement>(null);
+
+    // Debounce: only settle on a query after the user pauses typing for SEARCH_DEBOUNCE_MS.
+    useEffect(() => {
+        const t = setTimeout(() => setDebouncedQuery(query), SEARCH_DEBOUNCE_MS);
+        return () => clearTimeout(t);
+    }, [query]);
+
+    // Fire the search on the settled query; abort a stale in-flight request so a
+    // fast keystroke can never let an older response clobber a newer one.
+    useEffect(() => {
+        const trimmed = debouncedQuery.trim();
+        if (trimmed.length < SEARCH_MIN_QUERY_LENGTH) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- resets state when the query is cleared/too short
+            setResults([]);
+            setLoading(false);
+            setError(null);
+            return;
+        }
+
+        const controller = new AbortController();
+        setLoading(true);
+        setError(null);
+        searchUsers(trimmed, controller.signal)
+            .then((data) => {
+                setResults(data);
+                setOpen(true);
+            })
+            .catch((err) => {
+                if (controller.signal.aborted) return;
+                setError((err as ApiError).message ?? "Search failed. Please try again.");
+            })
+            .finally(() => {
+                if (!controller.signal.aborted) setLoading(false);
+            });
+
+        return () => controller.abort();
+    }, [debouncedQuery]);
+
+    useEffect(() => {
+        if (!open) return;
+        const onDown = (e: MouseEvent) => {
+            if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+        };
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") setOpen(false);
+        };
+        document.addEventListener("mousedown", onDown);
+        document.addEventListener("keydown", onKey);
+        return () => {
+            document.removeEventListener("mousedown", onDown);
+            document.removeEventListener("keydown", onKey);
+        };
+    }, [open]);
+
+    const pick = (u: UserSearchResult) => {
+        setOpen(false);
+        setQuery("");
+        setDebouncedQuery("");
+        setResults([]);
+        router.push(`/dashboard/profile/${u.user_id}?roleId=${u.role_id}&companyId=${u.company_id}`);
+    };
+
+    const showPanel = open && query.trim().length >= SEARCH_MIN_QUERY_LENGTH;
+
+    return (
+        <div ref={rootRef} className="relative w-full">
+            <Input
+                type="search"
+                placeholder="Search"
+                aria-label="Search"
+                adornment={<Icon name="search" size={18} />}
+                className="!rounded-full"
+                value={query}
+                onChange={(e) => {
+                    setQuery(e.target.value);
+                    setOpen(true);
+                }}
+                onFocus={() => {
+                    if (results.length > 0) setOpen(true);
+                }}
+            />
+
+            {showPanel && (
+                <div className="absolute z-20 mt-2 flex max-h-80 w-full flex-col overflow-hidden rounded-xl border border-outline-variant/30 bg-surface-container-lowest shadow-lg">
+                    <div className="overflow-auto p-1">
+                        {loading ? (
+                            <div className="flex justify-center py-6">
+                                <Loader size="small" />
+                            </div>
+                        ) : error ? (
+                            <div className="px-3 py-2 text-sm text-error">{error}</div>
+                        ) : results.length === 0 ? (
+                            <div className="px-3 py-2 text-sm text-on-surface-variant">No results</div>
+                        ) : (
+                            results.map((u) => {
+                                const name = [u.first_name, u.last_name].filter(Boolean).join(" ").trim() || u.company_name;
+                                return (
+                                    <button
+                                        key={`${u.user_id}-${u.role_id}-${u.company_id}`}
+                                        type="button"
+                                        onClick={() => pick(u)}
+                                        className="flex w-full flex-col items-start rounded-lg px-3 py-2 text-left transition-colors hover:bg-surface-container"
+                                    >
+                                        <span className="text-sm font-semibold text-on-surface">{name}</span>
+                                        <span className="truncate text-xs text-on-surface-variant">
+                                            {u.company_name} · {u.email}
+                                        </span>
+                                    </button>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
 
 /** The Bridge Platform glyph (no wordmark). The color is inherited (currentColor). */
 export function BridgeMark({ className = "size-8 text-blue-600" }: { className?: string }) {
@@ -54,13 +195,7 @@ export function DashboardNavbar() {
         <header className="grid h-16 shrink-0 grid-cols-[1fr_3fr_1fr] items-center gap-2 border-b border-outline-variant/30 bg-surface-container-lowest px-6">
             <div />
             <div className="w-full justify-self-center">
-                <Input
-                    type="search"
-                    placeholder="Search"
-                    aria-label="Search"
-                    adornment={<Icon name="search" size={18} />}
-                    className="!rounded-full"
-                />
+                <NavbarSearch />
             </div>
             <button
                 type="button"

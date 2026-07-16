@@ -39,7 +39,7 @@ const PHONE_CODE_COL = "country_code";
  * `funding_currency`, `funding_ask_amt_max`) are intentionally omitted — they're
  * rendered inside the phone / funding widgets at their anchor column.
  */
-const PROFILE_SECTIONS: { title: string; columns: string[] }[] = [
+export const PROFILE_SECTIONS: { title: string; columns: string[] }[] = [
   {
     title: "Account Details",
     columns: ["organization_name", "role", "company_email", "mobile_number", "gst_number", "cin_number"],
@@ -131,8 +131,11 @@ function toStringValue(value: string | string[]): string {
  * Normalize a field's API value into the shape the UI control expects. A field is
  * multi-select when its API `type` is "array" OR the registration registry says
  * so (so the choice list stays in sync with the registration flow).
+ *
+ * Exported so other read-only views (e.g. the navbar-search profile page) can
+ * reuse the exact same field rendering as My Profile.
  */
-function normalizeValue(field: ProfileField): string | string[] {
+export function normalizeValue(field: ProfileField): string | string[] {
   const cfg = getFieldOptionConfig(field.columnName);
   const isMulti = field.type === "array" || cfg?.multiple === true;
   return isMulti ? toArrayValue(field.value) : toStringValue(field.value);
@@ -400,7 +403,8 @@ function DocumentField({
   );
 }
 
-function ProfileFieldRow({ field, value, editMode, onChange }: FieldProps) {
+/** Exported so read-only profile views (navbar search result page) can reuse it. */
+export function ProfileFieldRow({ field, value, editMode, onChange }: FieldProps) {
   const id = `profile-field-${field.columnName}`;
   const locked = !field.isEditable;
   const disabled = !editMode || locked;

@@ -95,6 +95,12 @@ export const API_ENDPOINTS = {
   // Save/update the current user's profile fields (PUT). API is not yet live.
   SAVE_PROFILE: `${USERS}/profile`,
 
+  // ----- Navbar search -----
+  // Typeahead user search (GET ?q=<query>).
+  USERS_SEARCH: `${USERS}/search`,
+  // Full role-scoped profile for one search result (GET ?userId=&companyId=&roleId=).
+  USER_ROLE_DETAILS: `${USERS}/role-details`,
+
   // ----- Connections -----
   // Send a connection request (proposal) to a matched profile. POST.
   CONNECTION_CREATE: `${CONNECTIONS}/`,

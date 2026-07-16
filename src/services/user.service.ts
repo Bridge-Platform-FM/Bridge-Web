@@ -1,6 +1,6 @@
 import { api } from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/constant";
-import type { UserProfilePayload, BuildProfileResponse } from "@/types/api.types";
+import type { UserProfilePayload, BuildProfileResponse, UserSearchResult } from "@/types/api.types";
 
 /**
  * Create the user profile (complete-profile step).
@@ -56,4 +56,30 @@ export async function saveUserProfile(
 ): Promise<SaveProfileResponse> {
   const { data } = await api.put<SaveProfileResponse>(API_ENDPOINTS.SAVE_PROFILE, payload);
   return data;
+}
+
+/**
+ * Navbar typeahead search (GET /api/v1/users/search?q=). Pass an AbortSignal so the
+ * caller can cancel a stale in-flight request when the query changes again.
+ */
+export async function searchUsers(query: string, signal?: AbortSignal): Promise<UserSearchResult[]> {
+  const { data } = await api.get<{ data?: UserSearchResult[] }>(API_ENDPOINTS.USERS_SEARCH, {
+    params: { q: query },
+    signal,
+  });
+  return data.data ?? [];
+}
+
+/**
+ * Full role-scoped profile for one search result (GET /api/v1/users/role-details).
+ * Returns the same `ProfileField[]` shape as `getUserProfile` (label/columnName/
+ * value/isEditable/type), rendered read-only before sending a connection request.
+ */
+export async function getUserRoleDetails(params: {
+  userId: number;
+  companyId: number;
+  roleId: number;
+}): Promise<ProfileField[]> {
+  const { data } = await api.get<GetProfileResponse>(API_ENDPOINTS.USER_ROLE_DETAILS, { params });
+  return data.data ?? [];
 }
