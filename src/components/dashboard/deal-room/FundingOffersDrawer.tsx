@@ -112,7 +112,7 @@ export function FundingOffersDrawer({ open, onClose, dealRoomId, refreshKey, clo
                 {current.notes && <DetailRow icon="notes" label="Supporting Notes" value={current.notes} />}
               </div>
 
-              {canRespond && (
+              {canRespond ? (
                 <div className="flex flex-col gap-2">
                   <button
                     type="button"
@@ -141,7 +141,17 @@ export function FundingOffersDrawer({ open, onClose, dealRoomId, refreshKey, clo
                     </button>
                   </div>
                 </div>
-              )}
+              ) : current.status === "Pending" ? (
+                // Explain the missing actions instead of silently showing nothing — either
+                // I'm the one who sent this offer (only the recipient may respond), or the
+                // deal room has since closed.
+                <p className="flex items-center gap-2 rounded-lg bg-surface-container px-3 py-2 text-xs text-on-surface-variant">
+                  <Icon name="hourglass_empty" size={14} className="shrink-0" />
+                  {closed
+                    ? "This deal room is closed — no further action can be taken."
+                    : "Waiting for the other party to respond."}
+                </p>
+              ) : null}
             </section>
           )}
 
