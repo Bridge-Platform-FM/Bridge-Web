@@ -12,6 +12,8 @@ import type {
   KycSubmissionListResponse,
   ReviewKycPayload,
   ReviewKycResponse,
+  UserLimitConfig,
+  UpdateUserLimitConfigPayload,
 } from "@/types/api.types";
 
 /**
@@ -46,6 +48,7 @@ function toUserListItem(raw: Record<string, unknown>): AdminUserListItem {
   const name = [first, last].filter(Boolean).join(" ").trim() || (raw.company_name as string) || email || "—";
   return {
     id: email || String(raw.id ?? ""),
+    userId: raw.user_id != null ? Number(raw.user_id) : undefined,
     name,
     email,
     companyName: (raw.company_name as string | undefined) ?? undefined,
@@ -178,4 +181,27 @@ export async function reviewKycDocument(kycId: number, action: "APPROVE" | "REJE
     action: action.toLowerCase(),
   });
   return data;
+}
+
+/* ----- User Limit Config ----- */
+
+/**
+ * Fetch the connection limit config for a user. Returns system defaults when no
+ * custom config has been saved yet (`is_custom` will be false in that case).
+ */
+export async function fetchUserLimitConfig(userId: number): Promise<UserLimitConfig> {
+  const { data } = await api.get(API_ENDPOINTS.ADMIN_USER_LIMIT_CONFIG(String(userId)));
+  return data.data as UserLimitConfig;
+}
+
+/**
+ * Create or update the connection limit config for a user (upsert). All fields are
+ * optional — at least one must be provided (enforced server-side by Joi).
+ */
+export async function updateUserLimitConfig(
+  userId: number,
+  payload: UpdateUserLimitConfigPayload
+): Promise<UserLimitConfig> {
+  const { data } = await api.put(API_ENDPOINTS.ADMIN_USER_LIMIT_CONFIG(String(userId)), payload);
+  return data.data as UserLimitConfig;
 }

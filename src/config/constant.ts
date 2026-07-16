@@ -81,6 +81,8 @@ export const API_ENDPOINTS = {
   ADMIN_KYC_DOC_ACTION: `${ADMIN}/kyc/document-action`,
   // Approve / reject a whole submission (PUT, body: { company_id, action, rejection_reason? }).
   ADMIN_KYC_REVIEW_ACTION: `${ADMIN}/kyc/review-action`,
+  // Per-user connection limit config (GET to fetch, PUT to create/update).
+  ADMIN_USER_LIMIT_CONFIG: (id: string) => `${ADMIN}/users/${id}/limit-config`,
 
   // ----- Matching Engine (Explore) -----
   // Compatibility matches for a profile. TODO: switch to `${MATCHING}/me`
