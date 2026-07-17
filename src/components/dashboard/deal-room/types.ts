@@ -13,9 +13,9 @@ import type { Role } from "@/lib/roles";
 /** Room lifecycle. ACTIVE + PAUSED both show under the "Active Deals" tab. */
 export type DealRoomStatus = "ACTIVE" | "PAUSED" | "CLOSED";
 
-/** The list buckets the Active / Closed / Archived toggle switches between. ARCHIVED is
- *  a client-side-only bucket (localStorage, see lib/deal-room-archive.ts) — not a backend
- *  status like ACTIVE/CLOSED. */
+/** The list buckets the Active / Closed / Archived toggle switches between. The ARCHIVED
+ *  bucket is a UI placeholder for now — it stays empty until a backend archive API exists
+ *  (no room can actually be archived yet). */
 export type DealRoomTab = "ACTIVE" | "CLOSED" | "ARCHIVED";
 
 /** The other party in a deal room (derived from the accepted connection). */

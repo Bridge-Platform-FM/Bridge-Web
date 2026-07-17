@@ -11,7 +11,6 @@ import { DealSidePanel } from "./DealSidePanel";
 import { CLOSE_DEAL_REASONS, formatLocation, dayLabel, initials } from "./deal-room-meta";
 import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewModal";
 import { Modal } from "@/components/modal/Modal";
-import { archiveDealRoom } from "@/lib/deal-room-archive";
 import { Loader } from "@/components/common/loader";
 import { Select } from "@/components/ui/Select";
 import type { DealAttachment, DealRoom, FundingOfferFormValues, PreviewableFile, TermSheetFormValues } from "./types";
@@ -233,11 +232,7 @@ export function DealRoomChat({
           </button>
           <button
             type="button"
-            onClick={() => {
-              archiveDealRoom(room.id);
-              toast.success("Deal archived. Find it under the Archived tab.");
-              router.push(backHref);
-            }}
+            onClick={() => toast("Archive isn't wired up yet.")}
             className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/50 bg-surface-container px-4 py-2 text-sm font-bold text-on-surface-variant shadow-sm transition-colors hover:bg-surface-container-high"
           >
             <Icon name="archive" size={16} />

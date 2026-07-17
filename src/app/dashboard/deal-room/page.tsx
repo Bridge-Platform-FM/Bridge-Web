@@ -7,7 +7,6 @@ import { isUserRole } from "@/lib/roles";
 import { DealRoomScreen } from "@/components/dashboard/deal-room/DealRoomScreen";
 import { roomInTab } from "@/components/dashboard/deal-room/deal-room-meta";
 import { fetchDealRooms } from "@/services/deal-room.service";
-import { useArchivedDealRooms } from "@/lib/deal-room-archive";
 import type { DealRoom, DealRoomTab } from "@/components/dashboard/deal-room/types";
 
 /**
@@ -41,8 +40,7 @@ export default function DealRoomPage() {
     if (isLoaded && isUserRole(role)) load();
   }, [isLoaded, role, load]);
 
-  const archivedIds = useArchivedDealRooms();
-  const visible = useMemo(() => rooms.filter((r) => roomInTab(r, tab, archivedIds)), [rooms, tab, archivedIds]);
+  const visible = useMemo(() => rooms.filter((r) => roomInTab(r, tab)), [rooms, tab]);
 
   if (!isLoaded || !isUserRole(role)) return null;
 

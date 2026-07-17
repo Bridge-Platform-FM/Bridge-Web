@@ -13,13 +13,11 @@ export const DEAL_TABS: { key: DealRoomTab; label: string }[] = [
   { key: "ARCHIVED", label: "Archived Deals" },
 ];
 
-/** Does a room belong to a given tab? Archived rooms (client-side, see
- *  lib/deal-room-archive.ts) show ONLY under the Archived tab and are hidden from
- *  Active/Closed. Paused rooms live under Active Deals. */
-export function roomInTab(room: DealRoom, tab: DealRoomTab, archivedIds: ReadonlySet<string>): boolean {
-  const archived = archivedIds.has(room.id);
-  if (tab === "ARCHIVED") return archived;
-  if (archived) return false;
+/** Does a room belong to a given tab? (Paused rooms live under Active Deals.) The
+ *  Archived tab stays empty for now — archiving needs a backend API before a room can
+ *  actually move here. */
+export function roomInTab(room: DealRoom, tab: DealRoomTab): boolean {
+  if (tab === "ARCHIVED") return false;
   if (tab === "CLOSED") return room.status === "CLOSED";
   return room.status !== "CLOSED";
 }
