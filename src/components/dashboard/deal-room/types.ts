@@ -13,8 +13,10 @@ import type { Role } from "@/lib/roles";
 /** Room lifecycle. ACTIVE + PAUSED both show under the "Active Deals" tab. */
 export type DealRoomStatus = "ACTIVE" | "PAUSED" | "CLOSED";
 
-/** The two list buckets the Active Deals / Closed Deals toggle switches between. */
-export type DealRoomTab = "ACTIVE" | "CLOSED";
+/** The list buckets the Active / Closed / Archived toggle switches between. The ARCHIVED
+ *  bucket is a UI placeholder for now — it stays empty until a backend archive API exists
+ *  (no room can actually be archived yet). */
+export type DealRoomTab = "ACTIVE" | "CLOSED" | "ARCHIVED";
 
 /** The other party in a deal room (derived from the accepted connection). */
 export interface DealCounterparty {
@@ -122,8 +124,12 @@ export interface DealFundingOffer {
   status: FundingOfferStatus;
   /** Who sent THIS version — compare to getCurrentUserId() for "mine vs theirs". */
   createdByUserId: number;
+  /** First + last name of whoever sent this version. */
+  offeredByName: string;
   /** Who this version is addressed to (flips on each counter). */
   recipientUserId: number;
+  /** First + last name of the recipient of this version. */
+  recipientName: string;
   amount: number;
   currency: string;
   /** (0, 100) exclusive. */
@@ -135,8 +141,19 @@ export interface DealFundingOffer {
   notes?: string;
   /** Previous offer's id, if this is a counter; null/undefined on the first offer. */
   parentOfferId?: string | null;
+  /** True for every version except the original root offer. */
+  isCounterOffer: boolean;
+  /** Id of the root (version 1) offer of this negotiation thread. */
+  rootOfferId?: string | null;
   version: number;
   createdAt: string;
+  /** ISO timestamp this version was sent to the recipient. */
+  sentAt?: string;
+  /** Who accepted/rejected/countered this version, if it's been actioned yet. */
+  respondedByUserId?: number;
+  respondedByName?: string;
+  /** ISO timestamp this version was actioned; null/undefined while still Pending. */
+  respondedAt?: string | null;
 }
 
 /** Create/counter funding-offer form values (FundingOfferDrawer). */
@@ -164,6 +181,8 @@ export interface B2BTermSheet {
   paymentTerms: string;
   supplyLogisticsTerms: string;
   updatedByUserId: number;
+  /** First + last name of whoever saved this version. */
+  updatedByName: string;
   updatedAt: string;
 }
 
@@ -177,21 +196,6 @@ export interface TermSheetFormValues {
   supplyLogisticsTerms: string;
 }
 
-/** Mutual stage-confirmation state for the B2B Negotiation → Due Diligence
- *  transition ONLY (`confirm_b2b_stage_transition` socket). Distinct from the
- *  generic `DealStageRequest` used by every other transition/role — this one
- *  needs BOTH parties to independently confirm within a 7-day window of the
- *  first confirmation, or it resets. `confirmedUserIds` holds whichever of the
- *  two participants have confirmed so far (0, 1, or 2 entries). */
-export interface B2BStageConfirmation {
-  confirmedUserIds: number[];
-  /** ISO timestamp of the FIRST confirmation — starts the 7-day window. Null if
-   *  neither party has confirmed yet. */
-  windowStartedAt: string | null;
-  /** windowStartedAt + 7 days. Null if neither party has confirmed yet. */
-  expiresAt: string | null;
-}
-
 /** One deal room = an accepted connection the two parties are progressing. */
 export interface DealRoom {
   id: string;
@@ -203,9 +207,6 @@ export interface DealRoom {
   stage: number;
   /** The room's currently pending stage-update request, if any. */
   pendingStageRequest?: DealStageRequest | null;
-  /** B2B-only mutual-confirmation state for the Negotiation → Due Diligence
-   *  transition; unused/null for non-B2B rooms and for every other transition. */
-  b2bStageConfirmation?: B2BStageConfirmation | null;
   /** Short summary of the latest event, e.g. "Term sheet revised by Legal". */
   lastActivityNote: string;
   /** Count of unread messages for the current user. */

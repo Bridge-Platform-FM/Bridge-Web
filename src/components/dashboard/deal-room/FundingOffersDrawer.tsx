@@ -5,9 +5,11 @@ import { Icon } from "@/components/ui/Icon";
 import { Drawer } from "@/components/ui/Drawer";
 import { AsyncState } from "@/components/ui/AsyncState";
 import { StatusPill } from "@/components/dashboard/kyc-status";
-import { fetchCurrentFundingOffer, fetchFundingOfferHistory } from "@/services/deal-room.service";
+import { fetchCurrentFundingOffer, fetchAllFundingOfferThreads } from "@/services/deal-room.service";
 import { getCurrentUserId } from "@/lib/jwt";
+import { formatDateTime } from "@/lib/utils";
 import { FUNDING_OFFER_STATUS_META } from "./deal-room-meta";
+import { OfferNegotiationTree } from "./OfferNegotiationTree";
 import type { ApiError } from "@/lib/axios";
 import type { DealFundingOffer } from "./types";
 
@@ -24,6 +26,68 @@ function DetailRow({ icon, label, value }: { icon: string; label: string; value:
   );
 }
 
+/** One negotiation thread's rows, oldest (root) first. */
+interface OfferThreadGroup {
+  rootOfferId: string;
+  offers: DealFundingOffer[];
+}
+
+/** Group a flat, chronologically-ordered offer list into per-thread groups (keyed by
+ *  rootOfferId, falling back to the row's own id for a thread's root row — matching
+ *  backend semantics where a root offer's root_offer_id equals its own id). */
+function groupByThread(offers: DealFundingOffer[]): OfferThreadGroup[] {
+  const groups = new Map<string, DealFundingOffer[]>();
+  for (const offer of offers) {
+    const key = offer.rootOfferId ?? offer.id;
+    const group = groups.get(key);
+    if (group) {
+      group.push(offer);
+    } else {
+      groups.set(key, [offer]);
+    }
+  }
+  return Array.from(groups, ([rootOfferId, groupOffers]) => ({ rootOfferId, offers: groupOffers }));
+}
+
+interface NegotiationRoundProps {
+  round: OfferThreadGroup;
+  roundNumber: number;
+  defaultOpen: boolean;
+}
+
+/** One collapsible "Round N" section — collapsed by default except the latest round,
+ *  expands on click to reveal its connected offer tree. */
+function NegotiationRound({ round, roundNumber, defaultOpen }: NegotiationRoundProps) {
+  const [open, setOpen] = useState(defaultOpen);
+  const first = round.offers[0];
+  const last = round.offers[round.offers.length - 1];
+  const statusMeta = FUNDING_OFFER_STATUS_META[last.status];
+
+  return (
+    <div className="rounded-xl border border-outline-variant/30">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between gap-2 p-3.5 text-left"
+      >
+        <span className="flex min-w-0 flex-col">
+          <span className="font-headline text-sm font-bold text-on-surface">Offer {roundNumber}</span>
+          {first.sentAt && <span className="truncate text-xs text-on-surface-variant">Started {formatDateTime(first.sentAt)}</span>}
+        </span>
+        <span className="flex shrink-0 items-center gap-2">
+          <StatusPill icon={statusMeta.icon} label={statusMeta.label} />
+          <Icon name={open ? "expand_less" : "expand_more"} size={20} className="text-on-surface-variant" />
+        </span>
+      </button>
+      {open && (
+        <div className="border-t border-outline-variant/30 p-3.5 pt-4">
+          <OfferNegotiationTree offers={round.offers} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface FundingOffersDrawerProps {
   open: boolean;
   onClose: () => void;
@@ -34,6 +98,10 @@ interface FundingOffersDrawerProps {
   refreshKey?: number;
   /** True once the deal is closed — disables all response actions. */
   closed?: boolean;
+  /** "current" (default) shows just the actionable Current Offer card — opened by
+   *  clicking the panel's offer preview. "all" also loads and shows every past
+   *  negotiation round below it — opened via the "View All" button. */
+  view?: "current" | "all";
   onAccept: (offerId: string) => void;
   onReject: (offerId: string) => void;
   /** Hands the current offer up so the caller can open the counter-offer form prefilled. */
@@ -42,11 +110,20 @@ interface FundingOffersDrawerProps {
 
 /**
  * Right-side drawer for the deal room's funding-offer negotiation: the currently
- * actionable offer (with role-gated Accept/Reject/Counter) on top, and the full
- * negotiation thread ("Counter History") underneath — replaces the old separate
- * "View All" list + detail modal with one combined view.
+ * actionable offer (with role-gated Accept/Reject/Counter) always on top, and — only
+ * in "all" view — the full negotiation history (every past round) underneath.
  */
-export function FundingOffersDrawer({ open, onClose, dealRoomId, refreshKey, closed, onAccept, onReject, onCounter }: FundingOffersDrawerProps) {
+export function FundingOffersDrawer({
+  open,
+  onClose,
+  dealRoomId,
+  refreshKey,
+  closed,
+  view = "current",
+  onAccept,
+  onReject,
+  onCounter,
+}: FundingOffersDrawerProps) {
   const [current, setCurrent] = useState<DealFundingOffer | null>(null);
   const [history, setHistory] = useState<DealFundingOffer[]>([]);
   const [loading, setLoading] = useState(false);
@@ -56,27 +133,28 @@ export function FundingOffersDrawer({ open, onClose, dealRoomId, refreshKey, clo
     setLoading(true);
     setError(null);
     try {
-      const [currentOffer, allOffers] = await Promise.all([
-        fetchCurrentFundingOffer(dealRoomId),
-        fetchFundingOfferHistory(dealRoomId),
-      ]);
-      setCurrent(currentOffer);
-      setHistory(allOffers);
+      if (view === "all") {
+        const [currentOffer, allOffers] = await Promise.all([
+          fetchCurrentFundingOffer(dealRoomId),
+          fetchAllFundingOfferThreads(dealRoomId),
+        ]);
+        setCurrent(currentOffer);
+        setHistory(allOffers);
+      } else {
+        setCurrent(await fetchCurrentFundingOffer(dealRoomId));
+        setHistory([]);
+      }
     } catch (err) {
       setError((err as ApiError).message ?? "Couldn't load funding offers.");
     } finally {
       setLoading(false);
     }
-  }, [dealRoomId]);
+  }, [dealRoomId, view]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- state lives in load()
     if (open) load();
   }, [open, load, refreshKey]);
-
-  // "Counter History" = every past version, newest first, excluding whichever one is
-  // shown as the actionable Current Offer above.
-  const pastOffers = history.filter((o) => o.id !== current?.id).sort((a, b) => b.version - a.version);
 
   const isRecipient = !!current && current.recipientUserId === getCurrentUserId();
   const canRespond = isRecipient && current?.status === "Pending" && !closed;
@@ -155,29 +233,22 @@ export function FundingOffersDrawer({ open, onClose, dealRoomId, refreshKey, clo
             </section>
           )}
 
-          {pastOffers.length > 0 && (
-            <section className="flex flex-col gap-2">
-              <h4 className="font-headline text-sm font-bold text-on-surface">Counter History</h4>
-              <ul className="flex flex-col gap-1">
-                {pastOffers.map((offer) => {
-                  const statusMeta = FUNDING_OFFER_STATUS_META[offer.status];
-                  return (
-                    <li key={offer.id} className="flex items-center justify-between gap-3 rounded-lg p-2.5">
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold text-on-surface">
-                          {offer.currency} {offer.amount.toLocaleString()} · {offer.equityPercent}%
-                        </span>
-                        <span className="block truncate text-xs text-on-surface-variant">
-                          {offer.parentOfferId ? `Counter · Version ${offer.version}` : "Original offer"}
-                        </span>
-                      </span>
-                      <StatusPill icon={statusMeta.icon} label={statusMeta.label} />
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          )}
+          {history.length > 0 &&
+            (() => {
+              // Rows arrive oldest-overall-first, so the first group is Round 1 —
+              // render newest round first, expanded by default.
+              const rounds = groupByThread(history).reverse();
+              return (
+                <section className="flex flex-col gap-2">
+                  <h4 className="font-headline text-sm font-bold text-on-surface">Negotiation History</h4>
+                  <div className="flex flex-col gap-2">
+                    {rounds.map((round, i) => (
+                      <NegotiationRound key={round.rootOfferId} round={round} roundNumber={rounds.length - i} defaultOpen={i === 0} />
+                    ))}
+                  </div>
+                </section>
+              );
+            })()}
         </div>
       </AsyncState>
     </Drawer>

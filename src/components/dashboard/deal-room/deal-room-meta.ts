@@ -10,11 +10,16 @@ import type { DealRoom, DealRoomStatus, DealRoomTab, FundingOfferStatus } from "
 export const DEAL_TABS: { key: DealRoomTab; label: string }[] = [
   { key: "ACTIVE", label: "Active Deals" },
   { key: "CLOSED", label: "Closed Deals" },
+  { key: "ARCHIVED", label: "Archived Deals" },
 ];
 
-/** Does a room belong to a given tab? (Paused rooms live under Active Deals.) */
+/** Does a room belong to a given tab? (Paused rooms live under Active Deals.) The
+ *  Archived tab stays empty for now — archiving needs a backend API before a room can
+ *  actually move here. */
 export function roomInTab(room: DealRoom, tab: DealRoomTab): boolean {
-  return tab === "CLOSED" ? room.status === "CLOSED" : room.status !== "CLOSED";
+  if (tab === "ARCHIVED") return false;
+  if (tab === "CLOSED") return room.status === "CLOSED";
+  return room.status !== "CLOSED";
 }
 
 /** Status badge pill meta (label + colour classes) for the list cards. */

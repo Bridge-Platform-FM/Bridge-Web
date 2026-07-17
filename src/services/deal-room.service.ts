@@ -21,7 +21,6 @@ import { normalizeRole } from "@/lib/roles";
 import { getCurrentUserId } from "@/lib/jwt";
 import { stageIndexFromValue } from "@/components/dashboard/deal-room/deal-room-meta";
 import type {
-  B2BStageConfirmation,
   B2BTermSheet,
   DealAttachment,
   DealFundingOffer,
@@ -457,6 +456,13 @@ export async function updateMeeting(meetingId: string, payload: UpdateMeetingPay
 // fails soft (returns null) until Bridge-Server implements it. Create/Accept/Reject/
 // Counter are socket-only (see useDealRoomSocket.ts) — never REST POSTs.
 
+/** A joined user reference on an offer row (`offeredBy` / `recipient` / `respondedBy`). */
+interface RawOfferUser {
+  id: number;
+  first_name?: string;
+  last_name?: string;
+}
+
 /** Raw funding-offer row — the same shape as the `funding_offer_created` socket
  *  broadcast, reused here so normalizeFundingOffer serves both. */
 export interface RawFundingOffer {
@@ -472,8 +478,16 @@ export interface RawFundingOffer {
   terms_conditions?: string | null;
   supporting_notes?: string | null;
   parent_offer_id?: number | string | null;
+  root_offer_id?: number | string | null;
+  is_counter_offer?: boolean;
   version: number;
   created_at: string;
+  sent_at?: string;
+  responded_by_user_id?: number | null;
+  responded_at?: string | null;
+  offeredBy?: RawOfferUser | null;
+  recipient?: RawOfferUser | null;
+  respondedBy?: RawOfferUser | null;
 }
 
 /** Normalize a raw offer row — exported so useDealRoomSocket.ts's broadcast handlers reuse it. */
@@ -482,7 +496,9 @@ export function normalizeFundingOffer(raw: RawFundingOffer): DealFundingOffer {
     id: String(raw.id),
     status: raw.status,
     createdByUserId: raw.offered_by_user_id,
+    offeredByName: fullName(raw.offeredBy?.first_name, raw.offeredBy?.last_name),
     recipientUserId: raw.recipient_user_id,
+    recipientName: fullName(raw.recipient?.first_name, raw.recipient?.last_name),
     amount: Number(raw.investment_amount),
     currency: raw.currency,
     equityPercent: Number(raw.equity_percentage),
@@ -491,8 +507,14 @@ export function normalizeFundingOffer(raw: RawFundingOffer): DealFundingOffer {
     ...(raw.terms_conditions ? { terms: raw.terms_conditions } : {}),
     ...(raw.supporting_notes ? { notes: raw.supporting_notes } : {}),
     parentOfferId: raw.parent_offer_id != null ? String(raw.parent_offer_id) : null,
+    isCounterOffer: !!raw.is_counter_offer,
+    rootOfferId: raw.root_offer_id != null ? String(raw.root_offer_id) : null,
     version: raw.version,
     createdAt: raw.created_at,
+    sentAt: raw.sent_at,
+    ...(raw.responded_by_user_id != null ? { respondedByUserId: raw.responded_by_user_id } : {}),
+    ...(raw.respondedBy ? { respondedByName: fullName(raw.respondedBy.first_name, raw.respondedBy.last_name) } : {}),
+    respondedAt: raw.responded_at ?? null,
   };
 }
 
@@ -506,18 +528,27 @@ export async function fetchCurrentFundingOffer(dealRoomId: string): Promise<Deal
   return data.data ? normalizeFundingOffer(data.data) : null;
 }
 
-/** The full negotiation thread (every offer + counter-offer, oldest → newest) for a
- *  room — "View All" drawer. GET /deal-rooms/:id/offers. */
-export async function fetchFundingOfferHistory(dealRoomId: string): Promise<DealFundingOffer[]> {
+/** Every negotiation thread this room has ever had (oldest → newest overall), including
+ *  earlier resolved (Accepted/Rejected) rounds a later thread superseded — powers the
+ *  "Negotiation History" section of FundingOffersDrawer. GET /deal-rooms/:id/offers/all. */
+export async function fetchAllFundingOfferThreads(dealRoomId: string): Promise<DealFundingOffer[]> {
   const { data } = await api.get<{ data?: RawFundingOffer[] }>(
-    API_ENDPOINTS.DEAL_ROOM_FUNDING_OFFER_HISTORY(dealRoomId),
+    API_ENDPOINTS.DEAL_ROOM_FUNDING_OFFER_ALL_THREADS(dealRoomId),
   );
   return (data.data ?? []).map(normalizeFundingOffer);
 }
 
 // ---- B2B Term Sheet (Stage 2: Negotiation, B2B ↔ B2B only) -----------------------
-// Backend does not exist yet. Update/Confirm are socket-only (see useDealRoomSocket.ts)
-// — never REST POSTs. Reads below fail soft, same convention as Funding Offer above.
+// Same split as Funding Offer above: Save goes over the socket (see
+// useDealRoomSocket.ts's updateTermSheet) — never a REST POST — while these reads are
+// plain GETs.
+
+/** A joined user reference on a term-sheet row (`updatedBy`). */
+interface RawTermSheetUser {
+  id: number;
+  first_name?: string;
+  last_name?: string;
+}
 
 /** Raw term-sheet row — the same shape as the `term_sheet_updated` socket broadcast. */
 export interface RawB2BTermSheet {
@@ -531,9 +562,10 @@ export interface RawB2BTermSheet {
   supply_logistics_terms: string;
   updated_by_user_id: number;
   updated_at: string;
+  updatedBy?: RawTermSheetUser | null;
 }
 
-/** Normalize a raw term-sheet row — exported so useDealRoomSocket.ts's broadcast handler reuses it. */
+/** Normalize a raw term-sheet row — exported so useDealRoomSocket.ts's handlers reuse it. */
 export function normalizeTermSheet(raw: RawB2BTermSheet): B2BTermSheet {
   return {
     id: String(raw.id),
@@ -545,58 +577,25 @@ export function normalizeTermSheet(raw: RawB2BTermSheet): B2BTermSheet {
     paymentTerms: raw.payment_terms,
     supplyLogisticsTerms: raw.supply_logistics_terms,
     updatedByUserId: raw.updated_by_user_id,
+    updatedByName: fullName(raw.updatedBy?.first_name, raw.updatedBy?.last_name),
     updatedAt: raw.updated_at,
   };
 }
 
-/** TODO(api): the current term sheet for a room, if any.
- *  Guessed contract: GET /api/v1/deal-rooms/:id/term-sheet/current. */
+/** The current term sheet for a room, if any. GET /deal-rooms/:id/term-sheet/current. */
 export async function fetchCurrentTermSheet(dealRoomId: string): Promise<B2BTermSheet | null> {
-  try {
-    const { data } = await api.get<{ data?: RawB2BTermSheet | null }>(
-      API_ENDPOINTS.DEAL_ROOM_TERM_SHEET_CURRENT(dealRoomId),
-    );
-    return data.data ? normalizeTermSheet(data.data) : null;
-  } catch {
-    return null; // no backend yet — fail soft
-  }
+  const { data } = await api.get<{ data?: RawB2BTermSheet | null }>(
+    API_ENDPOINTS.DEAL_ROOM_TERM_SHEET_CURRENT(dealRoomId),
+  );
+  return data.data ? normalizeTermSheet(data.data) : null;
 }
 
-/** TODO(api): every saved version, newest first ("View All" history drawer).
- *  Guessed contract: GET /api/v1/deal-rooms/:id/term-sheet/history. */
+/** Every saved version, oldest → newest ("View All" history drawer).
+ *  GET /deal-rooms/:id/term-sheet/history. */
 export async function fetchTermSheetHistory(dealRoomId: string): Promise<B2BTermSheet[]> {
-  try {
-    const { data } = await api.get<{ data?: RawB2BTermSheet[] }>(
-      API_ENDPOINTS.DEAL_ROOM_TERM_SHEET_HISTORY(dealRoomId),
-    );
-    return (data.data ?? []).map(normalizeTermSheet);
-  } catch {
-    return []; // no backend yet — fail soft
-  }
+  const { data } = await api.get<{ data?: RawB2BTermSheet[] }>(
+    API_ENDPOINTS.DEAL_ROOM_TERM_SHEET_HISTORY(dealRoomId),
+  );
+  return (data.data ?? []).map(normalizeTermSheet);
 }
 
-/** Raw B2B stage-confirmation row — same shape as the socket broadcast minus `new_stage_index`. */
-interface RawB2BStageConfirmation {
-  confirmed_user_ids: number[];
-  window_started_at: string | null;
-  expires_at: string | null;
-}
-
-/** TODO(api): the room's current B2B mutual-confirmation state for the Negotiation →
- *  Due Diligence transition, if any — survives refresh (confirm itself is socket-only).
- *  Guessed contract: GET /api/v1/deal-rooms/:id/stage-confirmation. */
-export async function fetchB2BStageConfirmation(dealRoomId: string): Promise<B2BStageConfirmation | null> {
-  try {
-    const { data } = await api.get<{ data?: RawB2BStageConfirmation | null }>(
-      API_ENDPOINTS.DEAL_ROOM_B2B_STAGE_CONFIRMATION(dealRoomId),
-    );
-    if (!data.data) return null;
-    return {
-      confirmedUserIds: data.data.confirmed_user_ids,
-      windowStartedAt: data.data.window_started_at,
-      expiresAt: data.data.expires_at,
-    };
-  } catch {
-    return null; // no backend yet — fail soft
-  }
-}

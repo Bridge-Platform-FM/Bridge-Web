@@ -113,8 +113,8 @@ export function SignInScreen({
   basePath = "/login",
   portal = "user",
   badge = "Corporate Portal",
-  heading = "Sign in to portal",
-  subheading = "Enter your credentials to continue.",
+  heading = "Welcome",
+  subheading = "Enter your credentials to access your secure portal.",
   showRegister = true,
 }: SignInScreenProps) {
   const router = useRouter();
@@ -251,33 +251,40 @@ export function SignInScreen({
               })}
             />
 
-            <Input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              label="Password"
-              required
-              placeholder="••••••••••••"
-              error={errors.password?.message}
-              adornment={
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="flex h-full items-center justify-center text-on-surface-variant transition-colors hover:text-primary"
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between px-1">
+                <label
+                  htmlFor="password"
+                  className="font-label text-xs font-bold tracking-wide text-on-surface-variant"
                 >
-                  <Icon name={showPassword ? "visibility_off" : "visibility"} size={20} />
-                </button>
-              }
-              {...field("password", { required: "Password is required." })}
-            />
-
-            <div className="flex justify-end">
-              <Link
-                href={`/reset-password?from=${encodeURIComponent(basePath)}`}
-                className="text-sm font-bold text-primary hover:underline"
-              >
-                Forgot password?
-              </Link>
+                  Password
+                  <span className="align-middle text-base leading-none text-error"> *</span>
+                </label>
+                <Link
+                  href={`/reset-password?from=${encodeURIComponent(basePath)}`}
+                  className="text-xs font-bold text-primary hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••••••"
+                error={errors.password?.message}
+                adornment={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="flex h-full items-center justify-center text-on-surface-variant transition-colors hover:text-primary"
+                  >
+                    <Icon name={showPassword ? "visibility_off" : "visibility"} size={20} />
+                  </button>
+                }
+                {...field("password", { required: "Password is required." })}
+              />
             </div>
+
 
             <div className="flex flex-col gap-2">
               <button
@@ -289,7 +296,7 @@ export function SignInScreen({
               </button>
               {showRegister && (
                 <p className="text-center text-sm text-on-surface-variant">
-                  New to the portal?{" "}
+                  Don't have an account yet?{" "}
                   <Link 
                     href="/registration" 
                     className="font-bold text-primary border-b border-transparent hover:border-current transition-colors"

@@ -1,13 +1,14 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { AsyncState } from "@/components/ui/AsyncState";
 import { Icon } from "@/components/ui/Icon";
 import { Loader } from "@/components/common/loader";
 import { normalizeRole, type Role } from "@/lib/roles";
 import { getUserRoleDetails, type ProfileField } from "@/services/user.service";
-import { ProfileFieldRow, normalizeValue, PROFILE_SECTIONS } from "@/app/dashboard/profile/page";
+import { normalizeValue, PROFILE_SECTIONS } from "@/app/dashboard/profile/page";
+import { getFieldOptionConfig } from "@/lib/profile-field-options";
 import { ProposalFormModal } from "@/components/dashboard/connections/ProposalFormModal";
 import { useSenderIdentity } from "@/components/dashboard/connections/sender-identity";
 import type { ApiError } from "@/lib/axios";
@@ -34,6 +35,64 @@ function fieldValue(fields: ProfileField[], columnName: string): string {
   const f = fields.find((x) => x.columnName === columnName);
   if (!f) return "";
   return typeof f.value === "string" ? f.value : Array.isArray(f.value) ? f.value.join(", ") : "";
+}
+
+/** Columns that hold an uploaded document's S3 key — shown as a provided marker rather
+ *  than the raw key. */
+const DOCUMENT_COLUMNS = new Set(["incorporation_certificate", "pitch_deck_certificate"]);
+
+/**
+ * Plain read-only display for one profile field — label above, value below as text
+ * (or chips for multi-select), instead of the input-styled boxes `ProfileFieldRow`
+ * renders. Reuses the same value normalization + option-label mapping as My Profile so
+ * stored codes read as their human labels.
+ */
+function ReadOnlyField({ field }: { field: ProfileField }) {
+  const label = field.label ?? field.columnName;
+  const cfg = getFieldOptionConfig(field.columnName);
+  const options = cfg?.options ?? field.options ?? [];
+  const labelFor = (v: string) => options.find((o) => o.value === v)?.label ?? v;
+  const normalized = normalizeValue(field);
+
+  const dash = <span className="text-sm text-outline-variant">—</span>;
+  let body: ReactNode;
+
+  if (Array.isArray(normalized)) {
+    const chips = normalized.map(labelFor).filter(Boolean);
+    body = chips.length ? (
+      <div className="flex flex-wrap gap-1.5">
+        {chips.map((c) => (
+          <span
+            key={c}
+            className="rounded-lg bg-secondary-container px-2.5 py-0.5 text-xs font-semibold text-on-secondary-container"
+          >
+            {c}
+          </span>
+        ))}
+      </div>
+    ) : (
+      dash
+    );
+  } else if (DOCUMENT_COLUMNS.has(field.columnName)) {
+    body = normalized ? (
+      <span className="inline-flex items-center gap-1.5 text-sm font-medium text-on-surface">
+        <Icon name="description" size={16} className="text-primary" />
+        Document provided
+      </span>
+    ) : (
+      dash
+    );
+  } else {
+    const text = normalized ? labelFor(normalized) : "";
+    body = text ? <p className="break-words text-sm font-medium text-on-surface">{text}</p> : dash;
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="px-0.5 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant">{label}</span>
+      {body}
+    </div>
+  );
 }
 
 /**
@@ -94,7 +153,7 @@ function UserProfilePageContent() {
     const fullWidth = field.type === "textarea" || field.type === "array";
     return (
       <div key={field.columnName} className={fullWidth ? "sm:col-span-2" : ""}>
-        <ProfileFieldRow field={field} value={normalizeValue(field)} editMode={false} onChange={() => {}} />
+        <ReadOnlyField field={field} />
       </div>
     );
   };

@@ -12,7 +12,7 @@ import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { StatusPill } from "@/components/dashboard/kyc-status";
 import { CURRENCIES } from "@/lib/startup-profile-options";
-import { daysRemaining } from "@/lib/utils";
+import { formatDateTime } from "@/lib/utils";
 import { SharedFilesDrawer } from "./SharedFilesDrawer";
 import { ScheduleMeetingDrawer, type ScheduleMeetingFormValues } from "./ScheduleMeetingDrawer";
 import { MeetingsDrawer } from "./MeetingsDrawer";
@@ -32,7 +32,6 @@ import { getCurrentUserId } from "@/lib/jwt";
 import { useAuth } from "@/components/auth/AuthProvider";
 import type { ApiError } from "@/lib/axios";
 import type {
-  B2BStageConfirmation,
   B2BTermSheet,
   DealFundingOffer,
   DealRoom,
@@ -245,25 +244,29 @@ function TermSheetDrawer({ open, onClose, current, onConfirm }: TermSheetDrawerP
   );
 }
 
-/** Field-by-field diff lines between two consecutive term-sheet snapshots. `prev` is
- *  null for the very first version, so every field shows as "set" rather than a diff. */
-function diffTermSheetFields(prev: B2BTermSheet | null, next: B2BTermSheet): { label: string; value: string }[] {
-  const rows: { label: string; value: string }[] = [];
-
+/** Every field's current value for a term-sheet snapshot, alongside whether it changed
+ *  from the previous version (`prev` null on the very first version — nothing is
+ *  "changed" there, every field is just the starting value). Unlike a pure diff, this
+ *  always lists all four fields so a version reads as a complete snapshot, not just
+ *  what moved. */
+function diffTermSheetFields(prev: B2BTermSheet | null, next: B2BTermSheet): { label: string; value: string; changed: boolean }[] {
   const moq = `${next.moqQuantity.toLocaleString()} ${next.moqUnit}`;
   const prevMoq = prev ? `${prev.moqQuantity.toLocaleString()} ${prev.moqUnit}` : null;
-  if (!prev || prevMoq !== moq) rows.push({ label: "MOQ", value: prev ? `${prevMoq} → ${moq}` : moq });
+  const moqChanged = !!prev && prevMoq !== moq;
 
   const price = `${next.currency} ${next.unitPrice.toLocaleString()}`;
   const prevPrice = prev ? `${prev.currency} ${prev.unitPrice.toLocaleString()}` : null;
-  if (!prev || prevPrice !== price) rows.push({ label: "Unit Price", value: prev ? `${prevPrice} → ${price}` : price });
+  const priceChanged = !!prev && prevPrice !== price;
 
-  if (!prev || prev.paymentTerms !== next.paymentTerms) rows.push({ label: "Payment Terms", value: next.paymentTerms });
-  if (!prev || prev.supplyLogisticsTerms !== next.supplyLogisticsTerms) {
-    rows.push({ label: "Supply/Logistics/Delivery Terms", value: next.supplyLogisticsTerms });
-  }
+  const paymentChanged = !!prev && prev.paymentTerms !== next.paymentTerms;
+  const supplyChanged = !!prev && prev.supplyLogisticsTerms !== next.supplyLogisticsTerms;
 
-  return rows;
+  return [
+    { label: "MOQ", value: moqChanged ? `${prevMoq} → ${moq}` : moq, changed: moqChanged },
+    { label: "Unit Price", value: priceChanged ? `${prevPrice} → ${price}` : price, changed: priceChanged },
+    { label: "Payment Terms", value: next.paymentTerms, changed: paymentChanged },
+    { label: "Supply/Logistics/Delivery Terms", value: next.supplyLogisticsTerms, changed: supplyChanged },
+  ];
 }
 
 interface TermSheetHistoryDrawerProps {
@@ -323,12 +326,13 @@ function TermSheetHistoryDrawer({ open, onClose, dealRoomId, refreshKey }: TermS
             return (
               <li key={v.id} className="rounded-lg bg-surface-container-low p-3">
                 <p className="text-xs font-bold text-on-surface">
-                  Version {v.version} · {v.updatedByUserId === getCurrentUserId() ? "You" : "Counterparty"} · {relativeTime(v.updatedAt)}
+                  Version {v.version} · {v.updatedByUserId === getCurrentUserId() ? "You" : v.updatedByName} · {formatDateTime(v.updatedAt)}
                 </p>
                 <ul className="mt-1.5 flex flex-col gap-0.5">
                   {diffs.map((d) => (
-                    <li key={d.label} className="text-xs text-on-surface-variant">
-                      <span className="font-semibold text-on-surface">{d.label}:</span> {d.value}
+                    <li key={d.label} className={`text-xs ${d.changed ? "text-primary" : "text-on-surface-variant"}`}>
+                      <span className={`font-semibold ${d.changed ? "text-primary" : "text-on-surface"}`}>{d.label}:</span> {d.value}
+                      {d.changed && <span className="ml-1 text-[10px] font-bold uppercase tracking-wide">· Updated</span>}
                     </li>
                   ))}
                 </ul>
@@ -338,43 +342,6 @@ function TermSheetHistoryDrawer({ open, onClose, dealRoomId, refreshKey }: TermS
         </ul>
       </AsyncState>
     </Drawer>
-  );
-}
-
-interface B2BStageConfirmBlockProps {
-  confirmation: B2BStageConfirmation | null | undefined;
-  counterpartyName: string;
-  closed: boolean;
-  onConfirm: () => void;
-}
-
-/** Mutual-confirm control for the B2B Negotiation → Due Diligence transition — swapped
- *  in for the generic Accept/Reject/Request-Next-Stage block ONLY on B2B rooms while on
- *  the Negotiation stage (see `useB2BConfirmFlow` below). */
-function B2BStageConfirmBlock({ confirmation, counterpartyName, closed, onConfirm }: B2BStageConfirmBlockProps) {
-  const me = getCurrentUserId();
-  const confirmedByMe = !!confirmation && me != null && confirmation.confirmedUserIds.includes(me);
-  const confirmedByThem = !!confirmation && confirmation.confirmedUserIds.some((id) => id !== me);
-  const daysLeft = confirmation?.expiresAt ? daysRemaining(confirmation.expiresAt) : null;
-
-  return (
-    <div className="mt-3 flex flex-col gap-1.5">
-      <button
-        type="button"
-        onClick={onConfirm}
-        disabled={closed || confirmedByMe}
-        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-outline-variant/50 py-2 text-xs font-bold text-on-surface-variant transition-colors hover:border-primary/50 hover:text-primary disabled:opacity-50"
-      >
-        <Icon name={confirmedByMe ? "hourglass_empty" : "task_alt"} size={16} />
-        {confirmedByMe ? `Waiting for ${counterpartyName}…` : "Confirm Ready for Due Diligence"}
-      </button>
-      {daysLeft != null && (
-        <p className="text-center text-[11px] text-on-surface-variant">
-          {confirmedByThem && !confirmedByMe ? `${counterpartyName} confirmed — ` : ""}
-          {daysLeft > 0 ? `${daysLeft} day${daysLeft === 1 ? "" : "s"} left to confirm` : "Confirmation window expired"}
-        </p>
-      )}
-    </div>
   );
 }
 
@@ -411,8 +378,6 @@ interface DealSidePanelProps {
   termSheetRefreshKey?: number;
   /** Save an edit to the B2B term sheet (either party). */
   onSaveTermSheet: (values: TermSheetFormValues) => void | Promise<void>;
-  /** Confirm readiness to move Negotiation → Due Diligence (B2B mutual-confirm flow). */
-  onConfirmB2BStageTransition: () => void;
 }
 
 /**
@@ -436,7 +401,6 @@ export function DealSidePanel({
   onCounterFundingOffer,
   termSheetRefreshKey,
   onSaveTermSheet,
-  onConfirmB2BStageTransition,
 }: DealSidePanelProps) {
   const { counterparty: cp } = room;
   const { role } = useAuth();
@@ -456,6 +420,30 @@ export function DealSidePanel({
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
   /** Confirmation modal for "Request Next Stage" — asks before firing the socket event. */
   const [confirmStageOpen, setConfirmStageOpen] = useState(false);
+  /** Auto-opened for the RECIPIENT the moment a stage request arrives live — reuses the
+   *  same modal element as the requester's confirm prompt (polymorphic by mode below). */
+  const [respondStageOpen, setRespondStageOpen] = useState(false);
+  /** Which pending-request id we've already auto-popped the modal for, so dismissing it
+   *  (or a re-render) doesn't reopen the same request. */
+  const autoShownRequestIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- drives the auto-open modal
+    if (!pendingStageRequest) {
+      autoShownRequestIdRef.current = null;
+      setRespondStageOpen(false);
+      return;
+    }
+    if (!iRequestedStage && !closed && autoShownRequestIdRef.current !== pendingStageRequest.id) {
+      autoShownRequestIdRef.current = pendingStageRequest.id;
+      setRespondStageOpen(true);
+    }
+  }, [pendingStageRequest, iRequestedStage, closed]);
+
+  // One shared stage modal, two modes: "respond" (recipient acts on an incoming request)
+  // takes priority over "confirm" (I'm about to send my own request).
+  const stageModalMode = respondStageOpen ? "respond" : confirmStageOpen ? "confirm" : null;
+  const requestedStageLabel = DEAL_STAGES[stageIndexFromValue(pendingStageRequest?.requestedStage)] ?? "the next stage";
 
   const loadUpcomingMeetings = useCallback(() => {
     fetchUpcomingMeetings(room.id)
@@ -525,6 +513,9 @@ export function DealSidePanel({
   const [offerDrawerOpen, setOfferDrawerOpen] = useState(false);
   const [offerDrawerMode, setOfferDrawerMode] = useState<"create" | "counter">("create");
   const [offersListOpen, setOffersListOpen] = useState(false);
+  /** Which entry point opened the drawer: the preview card ("current" only) vs the
+   *  "View All" button (full negotiation history too). */
+  const [offersDrawerView, setOffersDrawerView] = useState<"current" | "all">("current");
   /** Snapshot of the offer being countered — set from the offers drawer's Counter
    *  button so FundingOfferDrawer (the create/counter form) has it to prefill. */
   const [offerToCounter, setOfferToCounter] = useState<DealFundingOffer | null>(null);
@@ -558,10 +549,12 @@ export function DealSidePanel({
     loadTermSheet();
   }, [loadTermSheet, termSheetRefreshKey]);
 
-  const canShowTermSheet = role === "b2b_enterprise";
   const isB2BRoom = role === "b2b_enterprise" && cp.role === "b2b_enterprise";
-  // DEAL_STAGES index 1 = "Negotiation" — the ONLY transition the mutual-confirm flow covers.
-  const useB2BConfirmFlow = isB2BRoom && room.stage === 1;
+  // The term sheet appears once negotiation starts and stays visible (read-only) for
+  // the rest of the deal's life, but can only be EDITED while still on Negotiation —
+  // once Due Diligence begins, the terms are locked for both parties (server-enforced too).
+  const canShowTermSheet = isB2BRoom && room.stage >= 1;
+  const canEditTermSheet = isB2BRoom && room.stage === 1;
 
   return (
     <>
@@ -656,16 +649,7 @@ export function DealSidePanel({
             </ul>
           )}
 
-          {useB2BConfirmFlow ? (
-            // B2B rooms on Negotiation use mutual-confirm + a 7-day window instead of
-            // the generic instant Accept/Reject/Request-Next-Stage flow below.
-            <B2BStageConfirmBlock
-              confirmation={room.b2bStageConfirmation}
-              counterpartyName={cp.name}
-              closed={closed}
-              onConfirm={onConfirmB2BStageTransition}
-            />
-          ) : pendingStageRequest && !iRequestedStage ? (
+          {pendingStageRequest && !iRequestedStage ? (
             // Their request is pending — I can accept or reject it.
             <div className="mt-3 flex gap-2">
               <button
@@ -708,7 +692,10 @@ export function DealSidePanel({
             action={
               <button
                 type="button"
-                onClick={() => setOffersListOpen(true)}
+                onClick={() => {
+                  setOffersDrawerView("all");
+                  setOffersListOpen(true);
+                }}
                 className="rounded-full bg-secondary-container px-2 py-0.5 text-[10px] font-bold text-on-surface-variant transition-colors hover:bg-secondary-container/70"
               >
                 View All
@@ -720,7 +707,10 @@ export function DealSidePanel({
             ) : (
               <button
                 type="button"
-                onClick={() => setOffersListOpen(true)}
+                onClick={() => {
+                  setOffersDrawerView("current");
+                  setOffersListOpen(true);
+                }}
                 className="flex w-full items-center justify-between gap-2 rounded-lg p-2 text-left transition-colors hover:bg-surface-container-low"
               >
                 <span className="min-w-0 flex-1">
@@ -789,55 +779,108 @@ export function DealSidePanel({
                   <span className="font-semibold">Supply/Logistics:</span> {termSheet.supplyLogisticsTerms}
                 </p>
                 <p className="text-[11px] text-on-surface-variant">
-                  Version {termSheet.version} · updated {relativeTime(termSheet.updatedAt)}
+                  Version {termSheet.version} · updated by{" "}
+                  {termSheet.updatedByUserId === getCurrentUserId() ? "You" : termSheet.updatedByName} ·{" "}
+                  {relativeTime(termSheet.updatedAt)}
                 </p>
               </div>
             )}
 
-            <button
-              type="button"
-              disabled={closed}
-              onClick={() => setTermSheetDrawerOpen(true)}
-              className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-outline-variant/50 py-2 text-xs font-bold text-on-surface-variant transition-colors hover:border-primary/50 hover:text-primary disabled:opacity-50"
-            >
-              <Icon name="edit" size={16} />
-              Edit Term Sheet
-            </button>
+            {canEditTermSheet ? (
+              <button
+                type="button"
+                disabled={closed}
+                onClick={() => setTermSheetDrawerOpen(true)}
+                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-outline-variant/50 py-2 text-xs font-bold text-on-surface-variant transition-colors hover:border-primary/50 hover:text-primary disabled:opacity-50"
+              >
+                <Icon name="edit" size={16} />
+                Edit Term Sheet
+              </button>
+            ) : (
+              // Past Negotiation the terms are locked for both parties — explain why
+              // the edit action is gone instead of silently omitting it.
+              <p className="mt-3 flex items-center gap-2 rounded-lg bg-surface-container px-3 py-2 text-xs text-on-surface-variant">
+                <Icon name="lock" size={14} className="shrink-0" />
+                Locked — editable only during Negotiation.
+              </p>
+            )}
           </PanelCard>
         )}
       </div>
 
-      {/* Confirm before firing the request_stage_update socket event */}
+      {/* One reused modal: the requester's "confirm before requesting" prompt AND the
+          recipient's real-time Accept/Reject on an incoming request (mode-switched). */}
       <Modal
-        open={confirmStageOpen}
-        onClose={() => setConfirmStageOpen(false)}
-        title="Move to Next Stage?"
+        open={stageModalMode !== null}
+        onClose={() => {
+          // ✕ / backdrop / Escape just dismiss — in "respond" mode the in-card
+          // Accept/Reject buttons remain as the fallback.
+          setConfirmStageOpen(false);
+          setRespondStageOpen(false);
+        }}
+        title={stageModalMode === "respond" ? "Stage Change Request" : "Move to Next Stage?"}
         maxWidthClass="max-w-sm"
         footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setConfirmStageOpen(false)}
-              className="flex h-11 flex-1 items-center justify-center rounded-xl border border-outline-variant/50 font-bold text-on-surface-variant transition-colors hover:bg-surface-container"
-            >
-              No
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                onRequestNextStage();
-                setConfirmStageOpen(false);
-              }}
-              className="flex h-11 flex-1 items-center justify-center rounded-xl cta-gradient font-bold text-on-primary"
-            >
-              Yes
-            </button>
-          </>
+          stageModalMode === "respond" ? (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  onRejectStage();
+                  setRespondStageOpen(false);
+                }}
+                disabled={closed}
+                className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-outline-variant/50 font-bold text-on-surface-variant transition-colors hover:border-error/50 hover:text-error disabled:opacity-50"
+              >
+                <Icon name="close" size={16} />
+                Reject
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onAcceptStage();
+                  setRespondStageOpen(false);
+                }}
+                disabled={closed}
+                className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl cta-gradient font-bold text-on-primary disabled:opacity-50"
+              >
+                <Icon name="check" size={16} />
+                Accept
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setConfirmStageOpen(false)}
+                className="flex h-11 flex-1 items-center justify-center rounded-xl border border-outline-variant/50 font-bold text-on-surface-variant transition-colors hover:bg-surface-container"
+              >
+                No
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onRequestNextStage();
+                  setConfirmStageOpen(false);
+                }}
+                className="flex h-11 flex-1 items-center justify-center rounded-xl cta-gradient font-bold text-on-primary"
+              >
+                Yes
+              </button>
+            </>
+          )
         }
       >
-        <p className="text-sm text-on-surface-variant">
-          Do you want to request {cp.name} to move this deal to the next stage?
-        </p>
+        {stageModalMode === "respond" ? (
+          <p className="text-sm text-on-surface-variant">
+            {cp.name} wants to move this deal to{" "}
+            <span className="font-semibold text-on-surface">{requestedStageLabel}</span>. Do you accept?
+          </p>
+        ) : (
+          <p className="text-sm text-on-surface-variant">
+            Do you want to request {cp.name} to move this deal to the next stage?
+          </p>
+        )}
       </Modal>
 
       {/* All shared files (API-backed) */}
@@ -890,13 +933,15 @@ export function DealSidePanel({
       />
 
       {/* The current actionable offer (Accept/Reject/Counter, role-gated to the offer's
-          recipient) plus the full negotiation thread ("Counter History") below it. */}
+          recipient) — plus the full negotiation history below it, only when opened via
+          "View All" (offersDrawerView). */}
       <FundingOffersDrawer
         open={offersListOpen}
         onClose={() => setOffersListOpen(false)}
         dealRoomId={room.id}
         refreshKey={fundingOfferRefreshKey}
         closed={closed}
+        view={offersDrawerView}
         onAccept={(offerId) => onAcceptFundingOffer(offerId)}
         onReject={(offerId) => onRejectFundingOffer(offerId)}
         onCounter={(offer) => {
