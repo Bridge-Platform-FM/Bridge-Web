@@ -420,6 +420,30 @@ export function DealSidePanel({
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
   /** Confirmation modal for "Request Next Stage" — asks before firing the socket event. */
   const [confirmStageOpen, setConfirmStageOpen] = useState(false);
+  /** Auto-opened for the RECIPIENT the moment a stage request arrives live — reuses the
+   *  same modal element as the requester's confirm prompt (polymorphic by mode below). */
+  const [respondStageOpen, setRespondStageOpen] = useState(false);
+  /** Which pending-request id we've already auto-popped the modal for, so dismissing it
+   *  (or a re-render) doesn't reopen the same request. */
+  const autoShownRequestIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- drives the auto-open modal
+    if (!pendingStageRequest) {
+      autoShownRequestIdRef.current = null;
+      setRespondStageOpen(false);
+      return;
+    }
+    if (!iRequestedStage && !closed && autoShownRequestIdRef.current !== pendingStageRequest.id) {
+      autoShownRequestIdRef.current = pendingStageRequest.id;
+      setRespondStageOpen(true);
+    }
+  }, [pendingStageRequest, iRequestedStage, closed]);
+
+  // One shared stage modal, two modes: "respond" (recipient acts on an incoming request)
+  // takes priority over "confirm" (I'm about to send my own request).
+  const stageModalMode = respondStageOpen ? "respond" : confirmStageOpen ? "confirm" : null;
+  const requestedStageLabel = DEAL_STAGES[stageIndexFromValue(pendingStageRequest?.requestedStage)] ?? "the next stage";
 
   const loadUpcomingMeetings = useCallback(() => {
     fetchUpcomingMeetings(room.id)
@@ -784,37 +808,79 @@ export function DealSidePanel({
         )}
       </div>
 
-      {/* Confirm before firing the request_stage_update socket event */}
+      {/* One reused modal: the requester's "confirm before requesting" prompt AND the
+          recipient's real-time Accept/Reject on an incoming request (mode-switched). */}
       <Modal
-        open={confirmStageOpen}
-        onClose={() => setConfirmStageOpen(false)}
-        title="Move to Next Stage?"
+        open={stageModalMode !== null}
+        onClose={() => {
+          // ✕ / backdrop / Escape just dismiss — in "respond" mode the in-card
+          // Accept/Reject buttons remain as the fallback.
+          setConfirmStageOpen(false);
+          setRespondStageOpen(false);
+        }}
+        title={stageModalMode === "respond" ? "Stage Change Request" : "Move to Next Stage?"}
         maxWidthClass="max-w-sm"
         footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setConfirmStageOpen(false)}
-              className="flex h-11 flex-1 items-center justify-center rounded-xl border border-outline-variant/50 font-bold text-on-surface-variant transition-colors hover:bg-surface-container"
-            >
-              No
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                onRequestNextStage();
-                setConfirmStageOpen(false);
-              }}
-              className="flex h-11 flex-1 items-center justify-center rounded-xl cta-gradient font-bold text-on-primary"
-            >
-              Yes
-            </button>
-          </>
+          stageModalMode === "respond" ? (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  onRejectStage();
+                  setRespondStageOpen(false);
+                }}
+                disabled={closed}
+                className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-outline-variant/50 font-bold text-on-surface-variant transition-colors hover:border-error/50 hover:text-error disabled:opacity-50"
+              >
+                <Icon name="close" size={16} />
+                Reject
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onAcceptStage();
+                  setRespondStageOpen(false);
+                }}
+                disabled={closed}
+                className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl cta-gradient font-bold text-on-primary disabled:opacity-50"
+              >
+                <Icon name="check" size={16} />
+                Accept
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setConfirmStageOpen(false)}
+                className="flex h-11 flex-1 items-center justify-center rounded-xl border border-outline-variant/50 font-bold text-on-surface-variant transition-colors hover:bg-surface-container"
+              >
+                No
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onRequestNextStage();
+                  setConfirmStageOpen(false);
+                }}
+                className="flex h-11 flex-1 items-center justify-center rounded-xl cta-gradient font-bold text-on-primary"
+              >
+                Yes
+              </button>
+            </>
+          )
         }
       >
-        <p className="text-sm text-on-surface-variant">
-          Do you want to request {cp.name} to move this deal to the next stage?
-        </p>
+        {stageModalMode === "respond" ? (
+          <p className="text-sm text-on-surface-variant">
+            {cp.name} wants to move this deal to{" "}
+            <span className="font-semibold text-on-surface">{requestedStageLabel}</span>. Do you accept?
+          </p>
+        ) : (
+          <p className="text-sm text-on-surface-variant">
+            Do you want to request {cp.name} to move this deal to the next stage?
+          </p>
+        )}
       </Modal>
 
       {/* All shared files (API-backed) */}
