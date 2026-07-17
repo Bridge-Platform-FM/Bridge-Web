@@ -462,64 +462,57 @@ export async function updateMeeting(meetingId: string, payload: UpdateMeetingPay
 export interface RawFundingOffer {
   id: number | string;
   status: FundingOfferStatus;
-  created_by_user_id: number;
+  offered_by_user_id: number;
   recipient_user_id: number;
-  amount: number;
+  investment_amount: number | string;
   currency: string;
-  equity_percent: number;
+  equity_percentage: number | string;
   valuation_type: ValuationType;
   valid_until: string;
-  terms?: string | null;
-  notes?: string | null;
+  terms_conditions?: string | null;
+  supporting_notes?: string | null;
   parent_offer_id?: number | string | null;
   version: number;
   created_at: string;
 }
 
-/** Normalize a raw offer row — exported so useDealRoomSocket.ts's broadcast handler reuses it. */
+/** Normalize a raw offer row — exported so useDealRoomSocket.ts's broadcast handlers reuse it. */
 export function normalizeFundingOffer(raw: RawFundingOffer): DealFundingOffer {
   return {
     id: String(raw.id),
     status: raw.status,
-    createdByUserId: raw.created_by_user_id,
+    createdByUserId: raw.offered_by_user_id,
     recipientUserId: raw.recipient_user_id,
-    amount: raw.amount,
+    amount: Number(raw.investment_amount),
     currency: raw.currency,
-    equityPercent: raw.equity_percent,
+    equityPercent: Number(raw.equity_percentage),
     valuationType: raw.valuation_type,
     validUntil: raw.valid_until,
-    ...(raw.terms ? { terms: raw.terms } : {}),
-    ...(raw.notes ? { notes: raw.notes } : {}),
+    ...(raw.terms_conditions ? { terms: raw.terms_conditions } : {}),
+    ...(raw.supporting_notes ? { notes: raw.supporting_notes } : {}),
     parentOfferId: raw.parent_offer_id != null ? String(raw.parent_offer_id) : null,
     version: raw.version,
     createdAt: raw.created_at,
   };
 }
 
-/** TODO(api): the currently pending/most-recent funding offer for a room, if any.
- *  Guessed contract: GET /api/v1/deal-rooms/:id/funding-offer/current. */
+/** The currently actionable funding offer for a room — the live Pending row if a
+ *  negotiation is underway, else the latest row (Accepted/Rejected/Draft), or null if
+ *  none exists yet. GET /deal-rooms/:id/offers/current. */
 export async function fetchCurrentFundingOffer(dealRoomId: string): Promise<DealFundingOffer | null> {
-  try {
-    const { data } = await api.get<{ data?: RawFundingOffer | null }>(
-      API_ENDPOINTS.DEAL_ROOM_FUNDING_OFFER_CURRENT(dealRoomId),
-    );
-    return data.data ? normalizeFundingOffer(data.data) : null;
-  } catch {
-    return null; // no backend yet — fail soft
-  }
+  const { data } = await api.get<{ data?: RawFundingOffer | null }>(
+    API_ENDPOINTS.DEAL_ROOM_FUNDING_OFFER_CURRENT(dealRoomId),
+  );
+  return data.data ? normalizeFundingOffer(data.data) : null;
 }
 
-/** TODO(api): the full negotiation history (every offer + counter-offer) for a room —
- *  "View All" drawer. Guessed contract: GET /api/v1/deal-rooms/:id/funding-offer/history. */
+/** The full negotiation thread (every offer + counter-offer, oldest → newest) for a
+ *  room — "View All" drawer. GET /deal-rooms/:id/offers. */
 export async function fetchFundingOfferHistory(dealRoomId: string): Promise<DealFundingOffer[]> {
-  try {
-    const { data } = await api.get<{ data?: RawFundingOffer[] }>(
-      API_ENDPOINTS.DEAL_ROOM_FUNDING_OFFER_HISTORY(dealRoomId),
-    );
-    return (data.data ?? []).map(normalizeFundingOffer);
-  } catch {
-    return []; // no backend yet — fail soft
-  }
+  const { data } = await api.get<{ data?: RawFundingOffer[] }>(
+    API_ENDPOINTS.DEAL_ROOM_FUNDING_OFFER_HISTORY(dealRoomId),
+  );
+  return (data.data ?? []).map(normalizeFundingOffer);
 }
 
 // ---- B2B Term Sheet (Stage 2: Negotiation, B2B ↔ B2B only) -----------------------

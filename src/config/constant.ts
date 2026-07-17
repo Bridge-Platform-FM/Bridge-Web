@@ -128,12 +128,13 @@ export const API_ENDPOINTS = {
   // The currently pending stage-update request for a room, if any (survives refresh —
   // request/respond themselves go over the socket, see useDealRoomSocket). GET.
   DEAL_ROOM_STAGE_REQUEST_PENDING: (id: string) => `${DEAL_ROOMS}/${id}/stage-request/pending`,
-  // Funding Offer (Stage 2: Negotiation) — PLACEHOLDER, backend not yet built.
-  // Create/Accept/Reject/Counter go over the socket (create_funding_offer/
-  // respond_funding_offer); these are reads only, mirroring the stage-request pattern.
-  DEAL_ROOM_FUNDING_OFFER_CURRENT: (id: string) => `${DEAL_ROOMS}/${id}/funding-offer/current`,
+  // Funding Offer (Stage 2: Negotiation). Bridge-Server calls this "Deal Room Offer"
+  // internally (table `deal_room_offer`) — Save Draft/Send/Accept/Reject/Counter all go
+  // over the socket (save_offer_draft/send_offer/respond_offer/counter_offer); these
+  // two are reads only, mirroring the stage-request pattern.
+  DEAL_ROOM_FUNDING_OFFER_CURRENT: (id: string) => `${DEAL_ROOMS}/${id}/offers/current`,
   // Full negotiation history (chain of offer → counter → counter …) for the "View All" drawer.
-  DEAL_ROOM_FUNDING_OFFER_HISTORY: (id: string) => `${DEAL_ROOMS}/${id}/funding-offer/history`,
+  DEAL_ROOM_FUNDING_OFFER_HISTORY: (id: string) => `${DEAL_ROOMS}/${id}/offers`,
   // B2B Term Sheet (Stage 2: Negotiation, B2B ↔ B2B only) — PLACEHOLDER, backend not
   // yet built. Update/Confirm go over the socket (update_term_sheet/
   // confirm_b2b_stage_transition); these are reads only.

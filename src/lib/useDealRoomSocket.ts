@@ -9,6 +9,7 @@ import {
   normalizeMessage,
   normalizeTermSheet,
   toScheduledMeeting,
+  type RawFundingOffer,
   type RawMessage,
 } from "@/services/deal-room.service";
 import { stageIndexFromValue } from "@/components/dashboard/deal-room/deal-room-meta";
@@ -17,7 +18,6 @@ import type {
   DealFundingOffer,
   DealMessage,
   DealStageRequest,
-  FundingOfferStatus,
   ScheduledMeeting,
   ValuationType,
 } from "@/components/dashboard/deal-room/types";
@@ -55,28 +55,8 @@ interface RawStageResponded {
 /** Decision passed to `respondStageUpdate`. */
 export type StageDecision = "Accepted" | "Rejected";
 
-/** Raw `funding_offer_created` broadcast (also fired for a counter — same event, a new row). */
-export interface RawFundingOffer {
-  id: number | string;
-  status: FundingOfferStatus;
-  created_by_user_id: number;
-  recipient_user_id: number;
-  amount: number;
-  currency: string;
-  equity_percent: number;
-  valuation_type: ValuationType;
-  valid_until: string;
-  terms?: string | null;
-  notes?: string | null;
-  parent_offer_id?: number | string | null;
-  version: number;
-  created_at: string;
-}
-/** Raw `funding_offer_responded` broadcast. */
-interface RawFundingOfferResponded {
-  offer: { id: number | string; status: "Accepted" | "Rejected" };
-}
-/** Payload for creating or countering a funding offer (counter adds `parentOfferId`). */
+/** Payload for creating or countering a funding offer (the recipient is derived
+ *  server-side from the deal room's investor/startup pair — not sent). */
 export interface FundingOfferEmitPayload {
   amount: number;
   currency: string;
@@ -85,7 +65,20 @@ export interface FundingOfferEmitPayload {
   validUntil: string;
   terms?: string;
   notes?: string;
-  recipientUserId: number;
+}
+
+/** Translate the frontend-friendly emit payload into Bridge-Server's `deal_room_offer`
+ *  wire field names (investmentAmount/equityPercentage/termsConditions/supportingNotes). */
+function toOfferWirePayload(payload: FundingOfferEmitPayload) {
+  return {
+    currency: payload.currency,
+    investmentAmount: payload.amount,
+    equityPercentage: payload.equityPercent,
+    valuationType: payload.valuationType,
+    validUntil: payload.validUntil,
+    ...(payload.terms ? { termsConditions: payload.terms } : {}),
+    ...(payload.notes ? { supportingNotes: payload.notes } : {}),
+  };
 }
 
 /** Raw `term_sheet_updated` broadcast (B2B collaborative term sheet — no accept/reject,
@@ -249,11 +242,20 @@ export function useDealRoomSocket(dealRoomId: string, handlers: DealRoomSocketHa
       handlersRef.current.onMeetingScheduled?.(toScheduledMeeting(raw));
     });
 
-    socket.on("funding_offer_created", (raw: RawFundingOffer) => {
+    // A new offer and a counter-offer are both "a new Pending row now exists" — same
+    // handler either way (it distinguishes via `offer.parentOfferId` if it needs to).
+    socket.on("offer_received", (raw: RawFundingOffer) => {
       handlersRef.current.onFundingOfferCreated?.(normalizeFundingOffer(raw));
     });
-    socket.on("funding_offer_responded", (raw: RawFundingOfferResponded) => {
-      handlersRef.current.onFundingOfferResponded?.({ offerId: String(raw.offer.id), decision: raw.offer.status });
+    socket.on("offer_countered", (raw: RawFundingOffer) => {
+      handlersRef.current.onFundingOfferCreated?.(normalizeFundingOffer(raw));
+    });
+    socket.on("offer_responded", (raw: RawFundingOffer) => {
+      const offer = normalizeFundingOffer(raw);
+      handlersRef.current.onFundingOfferResponded?.({
+        offerId: offer.id,
+        decision: offer.status as "Accepted" | "Rejected",
+      });
     });
 
     socket.on("term_sheet_updated", (raw: RawB2BTermSheet) => {
@@ -336,23 +338,27 @@ export function useDealRoomSocket(dealRoomId: string, handlers: DealRoomSocketHa
     socketRef.current?.emit("respond_stage_update", { dealRoomId, requestId, decision });
   };
 
-  /** Send a NEW funding offer (investor → founder). No optimistic state — the server
-   *  broadcasts `funding_offer_created` back to the room. */
+  /** Send a NEW funding offer (investor → founder only — enforced server-side). No
+   *  optimistic state — the server broadcasts `offer_received` back to the room. */
   const createFundingOffer = (payload: FundingOfferEmitPayload) => {
-    socketRef.current?.emit("create_funding_offer", { dealRoomId, ...payload });
+    socketRef.current?.emit("send_offer", { dealRoomId, ...toOfferWirePayload(payload) });
   };
 
   /** Accept/reject a pending funding offer (only the recipient may call this —
-   *  enforced server-side too). */
+   *  enforced server-side too). The server broadcasts `offer_responded` back to the room. */
   const respondFundingOffer = (offerId: string, decision: "Accepted" | "Rejected") => {
-    socketRef.current?.emit("respond_funding_offer", { dealRoomId, offerId, decision });
+    socketRef.current?.emit("respond_offer", { dealRoomId, offerId: Number(offerId), decision });
   };
 
-  /** Submit a counter-offer against `parentOfferId` — creates a new pending version
-   *  sent back to the original sender. Same event as create, distinguished by
-   *  `parentOfferId`, so the server can link the chain and flip the parent to "Countered". */
+  /** Submit a counter-offer against `parentOfferId` (only the recipient may call this).
+   *  The server flips the parent to "Countered", inserts a new Pending row with the
+   *  sender/recipient swapped, and broadcasts `offer_countered` back to the room. */
   const counterFundingOffer = (parentOfferId: string, payload: FundingOfferEmitPayload) => {
-    socketRef.current?.emit("create_funding_offer", { dealRoomId, parentOfferId, ...payload });
+    socketRef.current?.emit("counter_offer", {
+      dealRoomId,
+      offerId: Number(parentOfferId),
+      ...toOfferWirePayload(payload),
+    });
   };
 
   /** Save an edit to the B2B term sheet (either party). No optimistic state — the
