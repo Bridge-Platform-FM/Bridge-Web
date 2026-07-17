@@ -525,6 +525,9 @@ export function DealSidePanel({
   const [offerDrawerOpen, setOfferDrawerOpen] = useState(false);
   const [offerDrawerMode, setOfferDrawerMode] = useState<"create" | "counter">("create");
   const [offersListOpen, setOffersListOpen] = useState(false);
+  /** Which entry point opened the drawer: the preview card ("current" only) vs the
+   *  "View All" button (full negotiation history too). */
+  const [offersDrawerView, setOffersDrawerView] = useState<"current" | "all">("current");
   /** Snapshot of the offer being countered — set from the offers drawer's Counter
    *  button so FundingOfferDrawer (the create/counter form) has it to prefill. */
   const [offerToCounter, setOfferToCounter] = useState<DealFundingOffer | null>(null);
@@ -708,7 +711,10 @@ export function DealSidePanel({
             action={
               <button
                 type="button"
-                onClick={() => setOffersListOpen(true)}
+                onClick={() => {
+                  setOffersDrawerView("all");
+                  setOffersListOpen(true);
+                }}
                 className="rounded-full bg-secondary-container px-2 py-0.5 text-[10px] font-bold text-on-surface-variant transition-colors hover:bg-secondary-container/70"
               >
                 View All
@@ -720,7 +726,10 @@ export function DealSidePanel({
             ) : (
               <button
                 type="button"
-                onClick={() => setOffersListOpen(true)}
+                onClick={() => {
+                  setOffersDrawerView("current");
+                  setOffersListOpen(true);
+                }}
                 className="flex w-full items-center justify-between gap-2 rounded-lg p-2 text-left transition-colors hover:bg-surface-container-low"
               >
                 <span className="min-w-0 flex-1">
@@ -890,13 +899,15 @@ export function DealSidePanel({
       />
 
       {/* The current actionable offer (Accept/Reject/Counter, role-gated to the offer's
-          recipient) plus the full negotiation thread ("Counter History") below it. */}
+          recipient) — plus the full negotiation history below it, only when opened via
+          "View All" (offersDrawerView). */}
       <FundingOffersDrawer
         open={offersListOpen}
         onClose={() => setOffersListOpen(false)}
         dealRoomId={room.id}
         refreshKey={fundingOfferRefreshKey}
         closed={closed}
+        view={offersDrawerView}
         onAccept={(offerId) => onAcceptFundingOffer(offerId)}
         onReject={(offerId) => onRejectFundingOffer(offerId)}
         onCounter={(offer) => {

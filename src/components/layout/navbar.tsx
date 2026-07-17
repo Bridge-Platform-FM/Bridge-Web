@@ -174,7 +174,7 @@ export function BrandLockup({ className = "", showLabel = true }: { className?: 
         <span className={`flex items-center gap-3 ${className}`}>
             <BridgeMark />
             <span
-                className={`overflow-hidden whitespace-nowrap font-bold text-xl tracking-tight transition-[max-width,opacity] duration-200 ${
+                className={`overflow-hidden whitespace-nowrap font-bold text-2xl tracking-tight transition-[max-width,opacity] duration-200 ${
                     showLabel ? "max-w-[200px] opacity-100" : "max-w-0 opacity-0"
                 }`}
             >
@@ -215,7 +215,7 @@ export function Navbar() {
     if (pathname?.startsWith("/dashboard")) return null;
 
     return (
-        <nav className="flex-none flex items-center justify-between px-8 py-2 w-full max-w-7xl mx-auto">
+        <nav className="flex-none flex items-center justify-between px-4 py-2 w-full max-w-[1200px] mx-auto sm:px-6">
             <BrandLockup />
             <Link
                 href="/"

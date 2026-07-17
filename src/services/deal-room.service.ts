@@ -457,6 +457,13 @@ export async function updateMeeting(meetingId: string, payload: UpdateMeetingPay
 // fails soft (returns null) until Bridge-Server implements it. Create/Accept/Reject/
 // Counter are socket-only (see useDealRoomSocket.ts) — never REST POSTs.
 
+/** A joined user reference on an offer row (`offeredBy` / `recipient` / `respondedBy`). */
+interface RawOfferUser {
+  id: number;
+  first_name?: string;
+  last_name?: string;
+}
+
 /** Raw funding-offer row — the same shape as the `funding_offer_created` socket
  *  broadcast, reused here so normalizeFundingOffer serves both. */
 export interface RawFundingOffer {
@@ -472,8 +479,16 @@ export interface RawFundingOffer {
   terms_conditions?: string | null;
   supporting_notes?: string | null;
   parent_offer_id?: number | string | null;
+  root_offer_id?: number | string | null;
+  is_counter_offer?: boolean;
   version: number;
   created_at: string;
+  sent_at?: string;
+  responded_by_user_id?: number | null;
+  responded_at?: string | null;
+  offeredBy?: RawOfferUser | null;
+  recipient?: RawOfferUser | null;
+  respondedBy?: RawOfferUser | null;
 }
 
 /** Normalize a raw offer row — exported so useDealRoomSocket.ts's broadcast handlers reuse it. */
@@ -482,7 +497,9 @@ export function normalizeFundingOffer(raw: RawFundingOffer): DealFundingOffer {
     id: String(raw.id),
     status: raw.status,
     createdByUserId: raw.offered_by_user_id,
+    offeredByName: fullName(raw.offeredBy?.first_name, raw.offeredBy?.last_name),
     recipientUserId: raw.recipient_user_id,
+    recipientName: fullName(raw.recipient?.first_name, raw.recipient?.last_name),
     amount: Number(raw.investment_amount),
     currency: raw.currency,
     equityPercent: Number(raw.equity_percentage),
@@ -491,8 +508,14 @@ export function normalizeFundingOffer(raw: RawFundingOffer): DealFundingOffer {
     ...(raw.terms_conditions ? { terms: raw.terms_conditions } : {}),
     ...(raw.supporting_notes ? { notes: raw.supporting_notes } : {}),
     parentOfferId: raw.parent_offer_id != null ? String(raw.parent_offer_id) : null,
+    isCounterOffer: !!raw.is_counter_offer,
+    rootOfferId: raw.root_offer_id != null ? String(raw.root_offer_id) : null,
     version: raw.version,
     createdAt: raw.created_at,
+    sentAt: raw.sent_at,
+    ...(raw.responded_by_user_id != null ? { respondedByUserId: raw.responded_by_user_id } : {}),
+    ...(raw.respondedBy ? { respondedByName: fullName(raw.respondedBy.first_name, raw.respondedBy.last_name) } : {}),
+    respondedAt: raw.responded_at ?? null,
   };
 }
 
@@ -506,11 +529,12 @@ export async function fetchCurrentFundingOffer(dealRoomId: string): Promise<Deal
   return data.data ? normalizeFundingOffer(data.data) : null;
 }
 
-/** The full negotiation thread (every offer + counter-offer, oldest → newest) for a
- *  room — "View All" drawer. GET /deal-rooms/:id/offers. */
-export async function fetchFundingOfferHistory(dealRoomId: string): Promise<DealFundingOffer[]> {
+/** Every negotiation thread this room has ever had (oldest → newest overall), including
+ *  earlier resolved (Accepted/Rejected) rounds a later thread superseded — powers the
+ *  "Negotiation History" section of FundingOffersDrawer. GET /deal-rooms/:id/offers/all. */
+export async function fetchAllFundingOfferThreads(dealRoomId: string): Promise<DealFundingOffer[]> {
   const { data } = await api.get<{ data?: RawFundingOffer[] }>(
-    API_ENDPOINTS.DEAL_ROOM_FUNDING_OFFER_HISTORY(dealRoomId),
+    API_ENDPOINTS.DEAL_ROOM_FUNDING_OFFER_ALL_THREADS(dealRoomId),
   );
   return (data.data ?? []).map(normalizeFundingOffer);
 }

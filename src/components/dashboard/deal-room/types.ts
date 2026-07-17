@@ -122,8 +122,12 @@ export interface DealFundingOffer {
   status: FundingOfferStatus;
   /** Who sent THIS version — compare to getCurrentUserId() for "mine vs theirs". */
   createdByUserId: number;
+  /** First + last name of whoever sent this version. */
+  offeredByName: string;
   /** Who this version is addressed to (flips on each counter). */
   recipientUserId: number;
+  /** First + last name of the recipient of this version. */
+  recipientName: string;
   amount: number;
   currency: string;
   /** (0, 100) exclusive. */
@@ -135,8 +139,19 @@ export interface DealFundingOffer {
   notes?: string;
   /** Previous offer's id, if this is a counter; null/undefined on the first offer. */
   parentOfferId?: string | null;
+  /** True for every version except the original root offer. */
+  isCounterOffer: boolean;
+  /** Id of the root (version 1) offer of this negotiation thread. */
+  rootOfferId?: string | null;
   version: number;
   createdAt: string;
+  /** ISO timestamp this version was sent to the recipient. */
+  sentAt?: string;
+  /** Who accepted/rejected/countered this version, if it's been actioned yet. */
+  respondedByUserId?: number;
+  respondedByName?: string;
+  /** ISO timestamp this version was actioned; null/undefined while still Pending. */
+  respondedAt?: string | null;
 }
 
 /** Create/counter funding-offer form values (FundingOfferDrawer). */

@@ -133,8 +133,8 @@ export const API_ENDPOINTS = {
   // over the socket (save_offer_draft/send_offer/respond_offer/counter_offer); these
   // two are reads only, mirroring the stage-request pattern.
   DEAL_ROOM_FUNDING_OFFER_CURRENT: (id: string) => `${DEAL_ROOMS}/${id}/offers/current`,
-  // Full negotiation history (chain of offer → counter → counter …) for the "View All" drawer.
-  DEAL_ROOM_FUNDING_OFFER_HISTORY: (id: string) => `${DEAL_ROOMS}/${id}/offers`,
+  // Every negotiation thread ever started in this room (all rounds, oldest → newest overall).
+  DEAL_ROOM_FUNDING_OFFER_ALL_THREADS: (id: string) => `${DEAL_ROOMS}/${id}/offers/all`,
   // B2B Term Sheet (Stage 2: Negotiation, B2B ↔ B2B only) — PLACEHOLDER, backend not
   // yet built. Update/Confirm go over the socket (update_term_sheet/
   // confirm_b2b_stage_transition); these are reads only.
