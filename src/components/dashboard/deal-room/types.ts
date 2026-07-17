@@ -179,6 +179,8 @@ export interface B2BTermSheet {
   paymentTerms: string;
   supplyLogisticsTerms: string;
   updatedByUserId: number;
+  /** First + last name of whoever saved this version. */
+  updatedByName: string;
   updatedAt: string;
 }
 
@@ -192,21 +194,6 @@ export interface TermSheetFormValues {
   supplyLogisticsTerms: string;
 }
 
-/** Mutual stage-confirmation state for the B2B Negotiation → Due Diligence
- *  transition ONLY (`confirm_b2b_stage_transition` socket). Distinct from the
- *  generic `DealStageRequest` used by every other transition/role — this one
- *  needs BOTH parties to independently confirm within a 7-day window of the
- *  first confirmation, or it resets. `confirmedUserIds` holds whichever of the
- *  two participants have confirmed so far (0, 1, or 2 entries). */
-export interface B2BStageConfirmation {
-  confirmedUserIds: number[];
-  /** ISO timestamp of the FIRST confirmation — starts the 7-day window. Null if
-   *  neither party has confirmed yet. */
-  windowStartedAt: string | null;
-  /** windowStartedAt + 7 days. Null if neither party has confirmed yet. */
-  expiresAt: string | null;
-}
-
 /** One deal room = an accepted connection the two parties are progressing. */
 export interface DealRoom {
   id: string;
@@ -218,9 +205,6 @@ export interface DealRoom {
   stage: number;
   /** The room's currently pending stage-update request, if any. */
   pendingStageRequest?: DealStageRequest | null;
-  /** B2B-only mutual-confirmation state for the Negotiation → Due Diligence
-   *  transition; unused/null for non-B2B rooms and for every other transition. */
-  b2bStageConfirmation?: B2BStageConfirmation | null;
   /** Short summary of the latest event, e.g. "Term sheet revised by Legal". */
   lastActivityNote: string;
   /** Count of unread messages for the current user. */

@@ -21,7 +21,6 @@ import { normalizeRole } from "@/lib/roles";
 import { getCurrentUserId } from "@/lib/jwt";
 import { stageIndexFromValue } from "@/components/dashboard/deal-room/deal-room-meta";
 import type {
-  B2BStageConfirmation,
   B2BTermSheet,
   DealAttachment,
   DealFundingOffer,
@@ -540,8 +539,16 @@ export async function fetchAllFundingOfferThreads(dealRoomId: string): Promise<D
 }
 
 // ---- B2B Term Sheet (Stage 2: Negotiation, B2B ↔ B2B only) -----------------------
-// Backend does not exist yet. Update/Confirm are socket-only (see useDealRoomSocket.ts)
-// — never REST POSTs. Reads below fail soft, same convention as Funding Offer above.
+// Same split as Funding Offer above: Save goes over the socket (see
+// useDealRoomSocket.ts's updateTermSheet) — never a REST POST — while these reads are
+// plain GETs.
+
+/** A joined user reference on a term-sheet row (`updatedBy`). */
+interface RawTermSheetUser {
+  id: number;
+  first_name?: string;
+  last_name?: string;
+}
 
 /** Raw term-sheet row — the same shape as the `term_sheet_updated` socket broadcast. */
 export interface RawB2BTermSheet {
@@ -555,9 +562,10 @@ export interface RawB2BTermSheet {
   supply_logistics_terms: string;
   updated_by_user_id: number;
   updated_at: string;
+  updatedBy?: RawTermSheetUser | null;
 }
 
-/** Normalize a raw term-sheet row — exported so useDealRoomSocket.ts's broadcast handler reuses it. */
+/** Normalize a raw term-sheet row — exported so useDealRoomSocket.ts's handlers reuse it. */
 export function normalizeTermSheet(raw: RawB2BTermSheet): B2BTermSheet {
   return {
     id: String(raw.id),
@@ -569,58 +577,25 @@ export function normalizeTermSheet(raw: RawB2BTermSheet): B2BTermSheet {
     paymentTerms: raw.payment_terms,
     supplyLogisticsTerms: raw.supply_logistics_terms,
     updatedByUserId: raw.updated_by_user_id,
+    updatedByName: fullName(raw.updatedBy?.first_name, raw.updatedBy?.last_name),
     updatedAt: raw.updated_at,
   };
 }
 
-/** TODO(api): the current term sheet for a room, if any.
- *  Guessed contract: GET /api/v1/deal-rooms/:id/term-sheet/current. */
+/** The current term sheet for a room, if any. GET /deal-rooms/:id/term-sheet/current. */
 export async function fetchCurrentTermSheet(dealRoomId: string): Promise<B2BTermSheet | null> {
-  try {
-    const { data } = await api.get<{ data?: RawB2BTermSheet | null }>(
-      API_ENDPOINTS.DEAL_ROOM_TERM_SHEET_CURRENT(dealRoomId),
-    );
-    return data.data ? normalizeTermSheet(data.data) : null;
-  } catch {
-    return null; // no backend yet — fail soft
-  }
+  const { data } = await api.get<{ data?: RawB2BTermSheet | null }>(
+    API_ENDPOINTS.DEAL_ROOM_TERM_SHEET_CURRENT(dealRoomId),
+  );
+  return data.data ? normalizeTermSheet(data.data) : null;
 }
 
-/** TODO(api): every saved version, newest first ("View All" history drawer).
- *  Guessed contract: GET /api/v1/deal-rooms/:id/term-sheet/history. */
+/** Every saved version, oldest → newest ("View All" history drawer).
+ *  GET /deal-rooms/:id/term-sheet/history. */
 export async function fetchTermSheetHistory(dealRoomId: string): Promise<B2BTermSheet[]> {
-  try {
-    const { data } = await api.get<{ data?: RawB2BTermSheet[] }>(
-      API_ENDPOINTS.DEAL_ROOM_TERM_SHEET_HISTORY(dealRoomId),
-    );
-    return (data.data ?? []).map(normalizeTermSheet);
-  } catch {
-    return []; // no backend yet — fail soft
-  }
+  const { data } = await api.get<{ data?: RawB2BTermSheet[] }>(
+    API_ENDPOINTS.DEAL_ROOM_TERM_SHEET_HISTORY(dealRoomId),
+  );
+  return (data.data ?? []).map(normalizeTermSheet);
 }
 
-/** Raw B2B stage-confirmation row — same shape as the socket broadcast minus `new_stage_index`. */
-interface RawB2BStageConfirmation {
-  confirmed_user_ids: number[];
-  window_started_at: string | null;
-  expires_at: string | null;
-}
-
-/** TODO(api): the room's current B2B mutual-confirmation state for the Negotiation →
- *  Due Diligence transition, if any — survives refresh (confirm itself is socket-only).
- *  Guessed contract: GET /api/v1/deal-rooms/:id/stage-confirmation. */
-export async function fetchB2BStageConfirmation(dealRoomId: string): Promise<B2BStageConfirmation | null> {
-  try {
-    const { data } = await api.get<{ data?: RawB2BStageConfirmation | null }>(
-      API_ENDPOINTS.DEAL_ROOM_B2B_STAGE_CONFIRMATION(dealRoomId),
-    );
-    if (!data.data) return null;
-    return {
-      confirmedUserIds: data.data.confirmed_user_ids,
-      windowStartedAt: data.data.window_started_at,
-      expiresAt: data.data.expires_at,
-    };
-  } catch {
-    return null; // no backend yet — fail soft
-  }
-}

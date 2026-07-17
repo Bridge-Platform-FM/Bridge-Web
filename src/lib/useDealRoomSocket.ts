@@ -105,15 +105,6 @@ export interface TermSheetEmitPayload {
   supplyLogisticsTerms: string;
 }
 
-/** Raw `b2b_stage_transition_confirmed` broadcast. */
-interface RawB2BStageConfirmation {
-  confirmed_user_ids: number[];
-  window_started_at: string | null;
-  expires_at: string | null;
-  /** Only present once BOTH have confirmed — the room's new stage. */
-  new_stage_index?: number;
-}
-
 interface DealRoomSocketHandlers {
   onNewMessage: (msg: DealMessage) => void;
   /** Fired when someone marks the room read (used for "Seen" receipts). */
@@ -137,17 +128,6 @@ interface DealRoomSocketHandlers {
   /** Fired whenever either side saves an edit to the B2B term sheet — including my
    *  own, echoed back, so every open tab shows the latest version live. */
   onTermSheetUpdated?: (sheet: B2BTermSheet) => void;
-  /** Fired whenever either side confirms readiness to move Negotiation → Due
-   *  Diligence (B2B mutual-confirm flow), including my own echoed back.
-   *  `newStageIndex` is only set once BOTH parties have confirmed. */
-  onB2BStageConfirmed?: (payload: {
-    confirmedUserIds: number[];
-    windowStartedAt: string | null;
-    expiresAt: string | null;
-    newStageIndex?: number;
-  }) => void;
-  /** Fired when the 7-day confirmation window lapses without mutual consent. */
-  onB2BStageConfirmationExpired?: () => void;
 }
 
 /** How long after the LAST keystroke we auto-emit `stop_typing` (indicator lingers this
@@ -262,18 +242,6 @@ export function useDealRoomSocket(dealRoomId: string, handlers: DealRoomSocketHa
       handlersRef.current.onTermSheetUpdated?.(normalizeTermSheet(raw));
     });
 
-    socket.on("b2b_stage_transition_confirmed", (raw: RawB2BStageConfirmation) => {
-      handlersRef.current.onB2BStageConfirmed?.({
-        confirmedUserIds: raw.confirmed_user_ids,
-        windowStartedAt: raw.window_started_at,
-        expiresAt: raw.expires_at,
-        ...(raw.new_stage_index != null ? { newStageIndex: raw.new_stage_index } : {}),
-      });
-    });
-    socket.on("b2b_stage_transition_expired", () => {
-      handlersRef.current.onB2BStageConfirmationExpired?.();
-    });
-
     socket.on("error", (err: { message?: string }) =>
       toast.error(err?.message ?? "Deal room connection error."),
     );
@@ -367,13 +335,6 @@ export function useDealRoomSocket(dealRoomId: string, handlers: DealRoomSocketHa
     socketRef.current?.emit("update_term_sheet", { dealRoomId, ...payload });
   };
 
-  /** Confirm I'm ready to move Negotiation → Due Diligence (B2B mutual-confirm
-   *  flow). No optimistic state — the server broadcasts
-   *  `b2b_stage_transition_confirmed` back to the room. */
-  const confirmB2BStageTransition = () => {
-    socketRef.current?.emit("confirm_b2b_stage_transition", { dealRoomId });
-  };
-
   return {
     sendMessage,
     markRead,
@@ -385,6 +346,5 @@ export function useDealRoomSocket(dealRoomId: string, handlers: DealRoomSocketHa
     respondFundingOffer,
     counterFundingOffer,
     updateTermSheet,
-    confirmB2BStageTransition,
   };
 }

@@ -135,13 +135,11 @@ export const API_ENDPOINTS = {
   DEAL_ROOM_FUNDING_OFFER_CURRENT: (id: string) => `${DEAL_ROOMS}/${id}/offers/current`,
   // Every negotiation thread ever started in this room (all rounds, oldest → newest overall).
   DEAL_ROOM_FUNDING_OFFER_ALL_THREADS: (id: string) => `${DEAL_ROOMS}/${id}/offers/all`,
-  // B2B Term Sheet (Stage 2: Negotiation, B2B ↔ B2B only) — PLACEHOLDER, backend not
-  // yet built. Update/Confirm go over the socket (update_term_sheet/
-  // confirm_b2b_stage_transition); these are reads only.
+  // B2B Term Sheet (Stage 2: Negotiation, B2B ↔ B2B only). Mirrors the Funding Offer
+  // split: Save goes over the socket (update_term_sheet); these two are reads only,
+  // over REST.
   DEAL_ROOM_TERM_SHEET_CURRENT: (id: string) => `${DEAL_ROOMS}/${id}/term-sheet/current`,
   DEAL_ROOM_TERM_SHEET_HISTORY: (id: string) => `${DEAL_ROOMS}/${id}/term-sheet/history`,
-  DEAL_ROOM_B2B_STAGE_CONFIRMATION: (id: string) => `${DEAL_ROOMS}/${id}/stage-confirmation`,
-
 
   // ----- Meetings -----
   // Schedule a meeting inside a deal room. POST.

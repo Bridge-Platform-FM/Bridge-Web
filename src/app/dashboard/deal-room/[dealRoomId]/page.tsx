@@ -11,7 +11,6 @@ import { Loader } from "@/components/common/loader";
 import { DealRoomChat } from "@/components/dashboard/deal-room/DealRoomChat";
 import {
   closeDealRoom,
-  fetchB2BStageConfirmation,
   fetchDealRoom,
   fetchDealRoomMessages,
   fetchPendingStageRequest,
@@ -62,16 +61,15 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
     Promise.all([
       fetchDealRoom(dealRoomId),
       fetchDealRoomMessages(dealRoomId),
-      // Non-critical: don't fail the whole page load if either lookup errors.
+      // Non-critical: don't fail the whole page load if this lookup errors.
       fetchPendingStageRequest(dealRoomId).catch(() => null),
-      fetchB2BStageConfirmation(dealRoomId).catch(() => null),
     ])
-      .then(([meta, messages, pendingStageRequest, b2bStageConfirmation]) => {
+      .then(([meta, messages, pendingStageRequest]) => {
         if (!meta) {
           setError("This deal room doesn't exist.");
           return;
         }
-        setRoom({ ...meta, messages, pendingStageRequest, b2bStageConfirmation });
+        setRoom({ ...meta, messages, pendingStageRequest });
       })
       .catch(() => setError("Couldn't load this deal room. Please try again."))
       .finally(() => setLoading(false));
@@ -214,40 +212,6 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
     if (sheet.updatedByUserId !== getCurrentUserId()) toast.success("The B2B term sheet was updated.");
   }, []);
 
-  // Either side confirms readiness for Due Diligence (B2B mutual-confirm flow),
-  // including my own echoed back — `newStageIndex` is only set once BOTH have confirmed.
-  const onB2BStageConfirmed = useCallback(
-    (payload: { confirmedUserIds: number[]; windowStartedAt: string | null; expiresAt: string | null; newStageIndex?: number }) => {
-      setRoom((prev) =>
-        prev
-          ? {
-              ...prev,
-              b2bStageConfirmation: {
-                confirmedUserIds: payload.confirmedUserIds,
-                windowStartedAt: payload.windowStartedAt,
-                expiresAt: payload.expiresAt,
-              },
-              stage: payload.newStageIndex ?? prev.stage,
-            }
-          : prev,
-      );
-      if (payload.newStageIndex != null) {
-        toast.success("Both parties confirmed — deal moved to Due Diligence.");
-      } else if (payload.confirmedUserIds.includes(getCurrentUserId() ?? -1)) {
-        toast.success("Confirmation recorded. Waiting on the counterparty.");
-      } else {
-        toast("The counterparty confirmed readiness for Due Diligence.");
-      }
-    },
-    [],
-  );
-
-  // The 7-day confirmation window lapsed without mutual consent — resets both flags.
-  const onB2BStageConfirmationExpired = useCallback(() => {
-    setRoom((prev) => (prev ? { ...prev, b2bStageConfirmation: null } : prev));
-    toast.error("The confirmation window expired — please confirm again.");
-  }, []);
-
   const {
     sendMessage,
     notifyTyping,
@@ -258,7 +222,6 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
     respondFundingOffer,
     counterFundingOffer,
     updateTermSheet,
-    confirmB2BStageTransition,
   } = useDealRoomSocket(room ? dealRoomId : "", {
     onNewMessage,
     onMessagesRead,
@@ -270,8 +233,6 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
     onFundingOfferCreated,
     onFundingOfferResponded,
     onTermSheetUpdated,
-    onB2BStageConfirmed,
-    onB2BStageConfirmationExpired,
   });
 
   if (!isLoaded || !isUserRole(role)) return null;
@@ -389,7 +350,6 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
       onCounterFundingOffer={onCounterFundingOffer}
       termSheetRefreshKey={termSheetRefreshKey}
       onSaveTermSheet={onSaveTermSheet}
-      onConfirmB2BStageTransition={confirmB2BStageTransition}
     />
   );
 }

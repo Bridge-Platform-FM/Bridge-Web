@@ -71,7 +71,7 @@ function NegotiationRound({ round, roundNumber, defaultOpen }: NegotiationRoundP
         className="flex w-full items-center justify-between gap-2 p-3.5 text-left"
       >
         <span className="flex min-w-0 flex-col">
-          <span className="font-headline text-sm font-bold text-on-surface">Round {roundNumber}</span>
+          <span className="font-headline text-sm font-bold text-on-surface">Offer {roundNumber}</span>
           {first.sentAt && <span className="truncate text-xs text-on-surface-variant">Started {formatDateTime(first.sentAt)}</span>}
         </span>
         <span className="flex shrink-0 items-center gap-2">

@@ -64,8 +64,6 @@ interface DealRoomChatProps {
   termSheetRefreshKey?: number;
   /** Save an edit to the B2B term sheet (either party). */
   onSaveTermSheet: (values: TermSheetFormValues) => void | Promise<void>;
-  /** Confirm readiness to move Negotiation → Due Diligence (B2B mutual-confirm flow). */
-  onConfirmB2BStageTransition: () => void;
 }
 
 
@@ -106,7 +104,6 @@ export function DealRoomChat({
   onCounterFundingOffer,
   termSheetRefreshKey,
   onSaveTermSheet,
-  onConfirmB2BStageTransition,
 }: DealRoomChatProps) {
   const router = useRouter();
   const { counterparty: cp } = room;
@@ -452,7 +449,6 @@ export function DealRoomChat({
               onCounterFundingOffer={onCounterFundingOffer}
               termSheetRefreshKey={termSheetRefreshKey}
               onSaveTermSheet={onSaveTermSheet}
-              onConfirmB2BStageTransition={onConfirmB2BStageTransition}
             />
           </aside>
         )}
