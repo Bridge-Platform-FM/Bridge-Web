@@ -689,3 +689,22 @@ export interface UpdateUserLimitConfigPayload {
   allowed_free_trial_days?: number;
   allowed_premium_days?: number;
 }
+
+/* ===========================================================================
+ * FAQs — active FAQ entries visible to all logged-in users.
+ * Fetched from GET /api/v1/faqs.
+ * ======================================================================== */
+
+/** One FAQ entry returned by the backend. */
+export interface FaqItem {
+  id: number;
+  question: string;
+  answer: string;
+}
+
+/** Raw envelope returned by GET /api/v1/faqs. */
+export interface FaqListResponse {
+  success?: boolean;
+  message?: string;
+  data?: FaqItem[];
+}

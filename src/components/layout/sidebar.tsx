@@ -139,7 +139,7 @@ export function DashboardSidebar() {
           </div>
         </div>
 
-        {isStaffRole(role) && (
+        {/* {isStaffRole(role) && ( */}
           <Link
             href={SUPPORT_NAV.route}
             aria-current={isActive(SUPPORT_NAV.route) ? "page" : undefined}
@@ -154,7 +154,7 @@ export function DashboardSidebar() {
             <Icon name={SUPPORT_NAV.icon} size={20} filled={isActive(SUPPORT_NAV.route)} className="shrink-0" />
             <RowLabel collapsed={collapsed}>{SUPPORT_NAV.label}</RowLabel>
           </Link>
-        )}
+        {/* )} */}
 
         <button
           type="button"

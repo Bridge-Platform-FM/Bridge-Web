@@ -27,6 +27,7 @@ const DISCOVER: NavItem = { key: "discover", label: "Discover", icon: "explore",
 const EXPLORE: NavItem = { key: "explore", label: "Explore", icon: "groups", route: "/dashboard/explore" };
 const CONNECTIONS: NavItem = { key: "connections", label: "Connections", icon: "hub", route: "/dashboard/connections" };
 const DEAL_ROOM: NavItem = { key: "deal-room", label: "Deal Room", icon: "handshake", route: "/dashboard/deal-room" };
+const FAQ: NavItem = { key: "faq", label: "FAQs", icon: "quiz", route: "/dashboard/faq" };
 const PROFILE: NavItem = { key: "profile", label: "Profile", icon: "account_circle", route: "/dashboard/profile" };
 
 // Shared staff (admin / super_admin) menu — declared once, reused for both roles.
@@ -55,6 +56,7 @@ export const DASHBOARD_NAV: Record<Role, NavItem[]> = {
     EXPLORE,
     CONNECTIONS,
     DEAL_ROOM,
+    FAQ,
     PROFILE,
   ],
   investor: [
@@ -66,6 +68,7 @@ export const DASHBOARD_NAV: Record<Role, NavItem[]> = {
     EXPLORE,
     CONNECTIONS,
     DEAL_ROOM,
+    FAQ,
     PROFILE,
   ],
   b2b_enterprise: [
@@ -79,6 +82,7 @@ export const DASHBOARD_NAV: Record<Role, NavItem[]> = {
     EXPLORE,
     CONNECTIONS,
     DEAL_ROOM,
+    FAQ,
     PROFILE,
   ],
 };
