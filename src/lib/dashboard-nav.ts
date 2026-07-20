@@ -37,11 +37,15 @@ const STAFF_NAV: NavItem[] = [
   { key: "user-management", label: "User Management", icon: "manage_accounts", route: "/dashboard/user-management" },
   { key: "kyc-review", label: "KYC Review", icon: "verified_user", route: "/dashboard/kyc-review" },
   { key: "subscription", label: "Subscription", icon: "card_membership", route: "/dashboard/subscription" },
+  { key: "faq-management", label: "FAQ Management", icon: "quiz", route: "/dashboard/faq-management" },
   PROFILE,
 ];
 
-/** Support entry pinned above Logout for staff roles (see DashboardSidebar). */
-export const SUPPORT_NAV: NavItem = { key: "support", label: "Support", icon: "support_agent", route: "/dashboard/support" };
+/**
+ * Support entry pinned at the bottom of the sidebar for ALL roles.
+ * Points to the FAQ page — clicking "Support" shows the FAQ list.
+ */
+export const SUPPORT_NAV: NavItem = { key: "support", label: "Support", icon: "support_agent", route: "/dashboard/faq" };
 
 export const DASHBOARD_NAV: Record<Role, NavItem[]> = {
   super_admin: STAFF_NAV,

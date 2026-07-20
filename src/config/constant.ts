@@ -19,6 +19,8 @@ const CONNECTIONS = `${BASE}/connections`;
 const DEAL_ROOMS = `${BASE}/deal-rooms`;
 // Meetings scheduled inside a deal room.
 const MEETINGS = `${BASE}/meetings`;
+// FAQs — active FAQ entries visible to all logged-in users.
+const FAQS = `${BASE}/faqs`;
 
 /** API endpoint paths (relative to NEXT_PUBLIC_API_BASE_URL host). */
 export const API_ENDPOINTS = {
@@ -84,6 +86,14 @@ export const API_ENDPOINTS = {
   // Per-user connection limit config (GET to fetch, PUT to create/update).
   ADMIN_USER_LIMIT_CONFIG: (id: string) => `${ADMIN}/users/${id}/limit-config`,
 
+  // ----- Admin FAQ Management -----
+  // Fetch all FAQs including inactive ones (admin view). GET.
+  ADMIN_FAQS: `${ADMIN}/faqs`,
+  // Create a new FAQ. POST. Body: { question, answer, is_active }.
+  ADMIN_FAQ_CREATE: `${ADMIN}/faqs`,
+  // Update an existing FAQ by id. PUT. Body: { question?, answer?, is_active? }.
+  ADMIN_FAQ_UPDATE: (id: string) => `${ADMIN}/faqs/${id}`,
+
   // ----- Matching Engine (Explore) -----
   // Compatibility matches for a profile. TODO: switch to `${MATCHING}/me`
   // (token-derived) once the backend supports it; for now the profileId is passed.
@@ -141,6 +151,7 @@ export const API_ENDPOINTS = {
   DEAL_ROOM_TERM_SHEET_CURRENT: (id: string) => `${DEAL_ROOMS}/${id}/term-sheet/current`,
   DEAL_ROOM_TERM_SHEET_HISTORY: (id: string) => `${DEAL_ROOMS}/${id}/term-sheet/history`,
 
+
   // ----- Meetings -----
   // Schedule a meeting inside a deal room. POST.
   MEETING_CREATE: MEETINGS,
@@ -152,4 +163,8 @@ export const API_ENDPOINTS = {
   MEETING_DETAIL: (meetingId: string) => `${MEETINGS}/detail?meetingId=${meetingId}`,
   // Update a meeting (partial body — any subset of title/agenda/meetingLink/scheduledAt). PUT.
   MEETING_UPDATE: (meetingId: string) => `${MEETINGS}/update?meetingId=${meetingId}`,
+
+  // ----- FAQs -----
+  // Fetch all active FAQs for the logged-in user. GET.
+  FAQS,
 } as const;

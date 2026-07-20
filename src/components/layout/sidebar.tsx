@@ -8,7 +8,8 @@ import { BrandLockup } from "@/components/layout/navbar";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { SwitchUserModal } from "@/components/dashboard/SwitchUserModal";
 import { getNavForRole, SUPPORT_NAV } from "@/lib/dashboard-nav";
-import { ROLE_META, isUserRole, isStaffRole } from "@/lib/roles";
+import { ROLE_META, isUserRole } from "@/lib/roles";
+
 /** Width of the collapsed rail (`w-20`), in px — used to place the fixed tooltip. */
 const COLLAPSED_WIDTH = 80;
 
@@ -31,7 +32,7 @@ function RowLabel({ collapsed, children }: { collapsed: boolean; children: React
  * Dynamic dashboard sidebar. Reads the current role from `useAuth()` and renders
  * `DASHBOARD_NAV[role]` (active route highlighted via usePathname). Profile + the
  * Logout control are pinned at the bottom; user roles also get a "Switch User"
- * entry that opens the SwitchUserModal.
+ * entry that opens the SwitchUserModal. Support is pinned above Logout for all roles.
  */
 export function DashboardSidebar() {
   const pathname = usePathname();
@@ -104,7 +105,7 @@ export function DashboardSidebar() {
         </ul>
       </nav>
 
-      {/* Bottom-pinned: switch user (user roles only) + profile + logout */}
+      {/* Bottom-pinned: switch user (user roles only) + profile + support + logout */}
       <div className="border-t border-outline-variant/30 p-3">
         {isUserRole(role) && (
           <button
@@ -139,22 +140,21 @@ export function DashboardSidebar() {
           </div>
         </div>
 
-        {isStaffRole(role) && (
-          <Link
-            href={SUPPORT_NAV.route}
-            aria-current={isActive(SUPPORT_NAV.route) ? "page" : undefined}
-            onMouseEnter={(e) => showLabel(e, SUPPORT_NAV.label)}
-            onMouseLeave={hideLabel}
-            className={`mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
-              isActive(SUPPORT_NAV.route)
-                ? "bg-primary-container/50 text-primary"
-                : "text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface"
-            }`}
-          >
-            <Icon name={SUPPORT_NAV.icon} size={20} filled={isActive(SUPPORT_NAV.route)} className="shrink-0" />
-            <RowLabel collapsed={collapsed}>{SUPPORT_NAV.label}</RowLabel>
-          </Link>
-        )}
+        {/* Support — visible to all roles, links to the FAQ page */}
+        <Link
+          href={SUPPORT_NAV.route}
+          aria-current={isActive(SUPPORT_NAV.route) ? "page" : undefined}
+          onMouseEnter={(e) => showLabel(e, SUPPORT_NAV.label)}
+          onMouseLeave={hideLabel}
+          className={`mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
+            isActive(SUPPORT_NAV.route)
+              ? "bg-primary-container/50 text-primary"
+              : "text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface"
+          }`}
+        >
+          <Icon name={SUPPORT_NAV.icon} size={20} filled={isActive(SUPPORT_NAV.route)} className="shrink-0" />
+          <RowLabel collapsed={collapsed}>{SUPPORT_NAV.label}</RowLabel>
+        </Link>
 
         <button
           type="button"
