@@ -13,6 +13,8 @@ import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewMod
 import { Modal } from "@/components/modal/Modal";
 import { Loader } from "@/components/common/loader";
 import { Select } from "@/components/ui/Select";
+import { exportDealRoom } from "@/services/deal-room.service";
+import type { ApiError } from "@/lib/axios";
 import type { DealAttachment, DealRoom, FundingOfferFormValues, PreviewableFile, TermSheetFormValues } from "./types";
 
 interface DealRoomChatProps {
@@ -121,6 +123,22 @@ export function DealRoomChat({
   const [panelOpen, setPanelOpen] = useState(true);
   const [closeModalOpen, setCloseModalOpen] = useState(false);
   const [closeReason, setCloseReason] = useState("");
+  const [exporting, setExporting] = useState(false);
+
+  // Download the deal room's chats + media as a stage-organized zip
+  // (GET /deal-rooms/:id/export, streamed as an attachment).
+  const handleExport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      await exportDealRoom(room.id);
+      toast.success("Deal room exported.");
+    } catch (err) {
+      toast.error((err as ApiError).message ?? "Couldn't export the deal room.");
+    } finally {
+      setExporting(false);
+    }
+  };
   const [closing, setClosing] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -224,11 +242,12 @@ export function DealRoomChat({
         <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
-            onClick={() => toast("Export isn't wired up yet.")}
-            className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/50 bg-surface-container px-4 py-2 text-sm font-bold text-on-surface-variant shadow-sm transition-colors hover:bg-surface-container-high"
+            onClick={handleExport}
+            disabled={exporting}
+            className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/50 bg-surface-container px-4 py-2 text-sm font-bold text-on-surface-variant shadow-sm transition-colors hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <Icon name="download" size={16} />
-            Export
+            {exporting ? <Loader size="small" /> : <Icon name="download" size={16} />}
+            {exporting ? "Exporting…" : "Export"}
           </button>
           <button
             type="button"

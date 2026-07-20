@@ -203,6 +203,28 @@ export async function closeDealRoom(id: string, reason?: string): Promise<void> 
   await api.put(API_ENDPOINTS.DEAL_ROOM_CLOSE(id), reason ? { reason } : {});
 }
 
+/** Download the deal room's full export — the backend streams an `application/zip`
+ *  attachment (chat transcripts + media organized by stage). We fetch it as a Blob and
+ *  save it via a temporary object URL. The filename comes from the `Content-Disposition`
+ *  header, falling back to a stable name. GET /deal-rooms/:id/export. */
+export async function exportDealRoom(id: string): Promise<void> {
+  const res = await api.get(API_ENDPOINTS.DEAL_ROOM_EXPORT(id), { responseType: "blob" });
+  const blob = res.data as Blob;
+
+  const disposition = (res.headers["content-disposition"] as string | undefined) ?? "";
+  const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
+  const fileName = match ? decodeURIComponent(match[1]) : `deal-room-${id}-export.zip`;
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 /** Raw pending stage-request row (Bridge-Server `DealRoomStageRequest`). */
 interface RawStageRequest {
   id: number | string;

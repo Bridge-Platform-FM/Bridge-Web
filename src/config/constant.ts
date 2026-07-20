@@ -140,6 +140,8 @@ export const API_ENDPOINTS = {
   // over REST.
   DEAL_ROOM_TERM_SHEET_CURRENT: (id: string) => `${DEAL_ROOMS}/${id}/term-sheet/current`,
   DEAL_ROOM_TERM_SHEET_HISTORY: (id: string) => `${DEAL_ROOMS}/${id}/term-sheet/history`,
+  // Full deal-room export — streams a .zip of chats + media organized by stage (attachment).
+  DEAL_ROOM_EXPORT: (id: string) => `${DEAL_ROOMS}/${id}/export`,
 
   // ----- Meetings -----
   // Schedule a meeting inside a deal room. POST.
