@@ -3,8 +3,14 @@
 import { Icon } from "@/components/ui/Icon";
 import { StatusPill } from "@/components/dashboard/kyc-status";
 import { formatDateTime } from "@/lib/utils";
+import { getCurrentUserId } from "@/lib/jwt";
 import { FUNDING_OFFER_STATUS_META } from "./deal-room-meta";
 import type { DealFundingOffer } from "./types";
+
+/** Show a party's name, or just "You" for the current user. */
+function nameFor(name: string, userId: number): string {
+  return userId === getCurrentUserId() ? "You" : name;
+}
 
 // Same colour language as DealStageStepper.tsx: inline styles because this Tailwind v4
 // setup doesn't reliably generate arbitrary colour utilities.
@@ -87,11 +93,20 @@ export function OfferNegotiationTree({ offers }: OfferNegotiationTreeProps) {
                 {offer.currency} {offer.amount.toLocaleString()} · {offer.equityPercent}% ({offer.valuationType})
               </p>
 
-              {offer.sentAt && <p className="text-xs text-on-surface-variant">Sent at {formatDateTime(offer.sentAt)}</p>}
+              {offer.sentAt && (
+                <p className="text-xs text-on-surface-variant">
+                  Sent by <span className="font-semibold text-on-surface">{nameFor(offer.offeredByName, offer.createdByUserId)}</span> to{" "}
+                  <span className="font-semibold text-on-surface">{nameFor(offer.recipientName, offer.recipientUserId)}</span> ·{" "}
+                  {formatDateTime(offer.sentAt)}
+                </p>
+              )}
 
               {offer.respondedAt && responseVerb && (
                 <p className="text-xs text-on-surface-variant">
-                  {responseVerb[0]!.toUpperCase() + responseVerb.slice(1)} at {formatDateTime(offer.respondedAt)}
+                  {offer.respondedByName != null && offer.respondedByUserId != null && (
+                    <span className="font-semibold text-on-surface">{nameFor(offer.respondedByName, offer.respondedByUserId)} </span>
+                  )}
+                  {responseVerb} it · {formatDateTime(offer.respondedAt)}
                 </p>
               )}
             </div>
