@@ -122,12 +122,16 @@ export const API_ENDPOINTS = {
   CONNECTION_ACTION: `${CONNECTIONS}/change-status`,
 
   // ----- Deal Rooms ----- (Bridge-Server: /api/v1/deal-rooms + /:id/messages, JWT)
-  // List the current user's deal rooms. GET. Returns flat requester_*/recipient_* rows.
+  // List the current user's deal rooms. GET. Returns flat requester_*/recipient_* rows
+  // (each with `archived_at`). Pass `?archived=true` for the caller's archived rooms.
   DEAL_ROOMS_LIST: DEAL_ROOMS,
   // A room's message history (cursor-paginated, newest-first). GET.
   DEAL_ROOM_MESSAGES: (id: string) => `${DEAL_ROOMS}/${id}/messages`,
   // Close a deal room (both sides go read-only). PUT, body: { reason? }.
   DEAL_ROOM_CLOSE: (id: string) => `${DEAL_ROOMS}/${id}/close`,
+  // Archive / unarchive a deal room for the CALLER only (per-user view). PUT, no body.
+  DEAL_ROOM_ARCHIVE: (id: string) => `${DEAL_ROOMS}/${id}/archive`,
+  DEAL_ROOM_UNARCHIVE: (id: string) => `${DEAL_ROOMS}/${id}/unarchive`,
   // Send a FILE/media message. POST multipart: field `media` (+ optional `caption`,
   // `download_allowed` = "true"|"false"). NOTE: TEXT messages go over the socket.
   DEAL_ROOM_SEND_MEDIA: (id: string) => `${DEAL_ROOMS}/${id}/messages/media`,

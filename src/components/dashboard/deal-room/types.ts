@@ -203,6 +203,9 @@ export interface DealRoom {
   title: string;
   counterparty: DealCounterparty;
   status: DealRoomStatus;
+  /** Whether the CURRENT user has archived this room (per-user view — derived from the
+   *  backend's `archived_at` on the list row). Archived rooms live under the Archived tab. */
+  isArchived: boolean;
   /** 0-based index into DEAL_STAGES of the stage the deal is currently in. */
   stage: number;
   /** The room's currently pending stage-update request, if any. */
