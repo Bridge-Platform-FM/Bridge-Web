@@ -98,6 +98,9 @@ interface FundingOffersDrawerProps {
   refreshKey?: number;
   /** True once the deal is closed — disables all response actions. */
   closed?: boolean;
+  /** True once the deal has moved past Negotiation — offers become view-only for both
+   *  parties (server-enforced too), so Accept/Reject/Counter are hidden. */
+  locked?: boolean;
   /** "current" (default) shows just the actionable Current Offer card — opened by
    *  clicking the panel's offer preview. "all" also loads and shows every past
    *  negotiation round below it — opened via the "View All" button. */
@@ -119,6 +122,7 @@ export function FundingOffersDrawer({
   dealRoomId,
   refreshKey,
   closed,
+  locked,
   view = "current",
   onAccept,
   onReject,
@@ -157,7 +161,7 @@ export function FundingOffersDrawer({
   }, [open, load, refreshKey]);
 
   const isRecipient = !!current && current.recipientUserId === getCurrentUserId();
-  const canRespond = isRecipient && current?.status === "Pending" && !closed;
+  const canRespond = isRecipient && current?.status === "Pending" && !closed && !locked;
 
   return (
     <Drawer open={open} onClose={onClose} title="Funding Offer" subtitle="Active transaction" footer={null}>
@@ -221,13 +225,15 @@ export function FundingOffersDrawer({
                 </div>
               ) : current.status === "Pending" ? (
                 // Explain the missing actions instead of silently showing nothing — either
-                // I'm the one who sent this offer (only the recipient may respond), or the
-                // deal room has since closed.
+                // the deal has moved past Negotiation (locked), the room is closed, or I'm
+                // the one who sent this offer (only the recipient may respond).
                 <p className="flex items-center gap-2 rounded-lg bg-surface-container px-3 py-2 text-xs text-on-surface-variant">
-                  <Icon name="hourglass_empty" size={14} className="shrink-0" />
+                  <Icon name={locked && !closed ? "lock" : "hourglass_empty"} size={14} className="shrink-0" />
                   {closed
                     ? "This deal room is closed — no further action can be taken."
-                    : "Waiting for the other party to respond."}
+                    : locked
+                      ? "Offers are locked — actions are only allowed during Negotiation."
+                      : "Waiting for the other party to respond."}
                 </p>
               ) : null}
             </section>
@@ -243,7 +249,7 @@ export function FundingOffersDrawer({
                   <h4 className="font-headline text-sm font-bold text-on-surface">Negotiation History</h4>
                   <div className="flex flex-col gap-2">
                     {rounds.map((round, i) => (
-                      <NegotiationRound key={round.rootOfferId} round={round} roundNumber={rounds.length - i} defaultOpen={i === 0} />
+                      <NegotiationRound key={round.rootOfferId} round={round} roundNumber={rounds.length - i} defaultOpen={false} />
                     ))}
                   </div>
                 </section>

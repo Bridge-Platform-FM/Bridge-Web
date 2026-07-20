@@ -64,15 +64,15 @@ export function DashboardSidebar() {
       }`}
     >
       {/* Brand — same lockup as the global navbar. */}
-      <Link href="/dashboard" className="flex items-center px-5 py-5">
+      <div className="flex items-center py-5 pl-3 pr-10">
         <BrandLockup showLabel={!collapsed} />
-      </Link>
+      </div>
       <button
         type="button"
         onClick={() => setCollapsed((v) => !v)}
         aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        className="absolute right-2 top-6 z-10 flex size-6 items-center justify-center text-on-surface-variant transition-colors hover:text-on-surface"
+        className="absolute -right-1 top-6 z-20 flex size-7 items-center justify-center text-on-surface-variant transition-colors hover:text-on-surface"
       >
         <Icon name={collapsed ? "chevron_right" : "chevron_left"} size={18} />
       </button>

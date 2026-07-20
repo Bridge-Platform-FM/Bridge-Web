@@ -166,7 +166,7 @@ function TermSheetDrawer({ open, onClose, current, onConfirm }: TermSheetDrawerP
             className="flex h-11 items-center gap-2 rounded-xl bg-primary px-6 font-bold text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Icon name="save" size={18} />
-            {isSubmitting ? "Saving…" : "Save Term Sheet"}
+            {isSubmitting ? "Saving…" : "Share Term Sheet"}
           </button>
         </>
       }
@@ -177,22 +177,28 @@ function TermSheetDrawer({ open, onClose, current, onConfirm }: TermSheetDrawerP
             Minimum Order Quantity<span className="align-middle text-base leading-none text-error"> *</span>
           </span>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_8rem]">
-            <Input
-              type="number"
-              min={0}
-              step="any"
-              placeholder="Quantity"
-              error={errors.moqQuantity?.message}
-              {...register("moqQuantity", {
-                required: "MOQ is required.",
-                validate: (v) => Number(v) > 0 || "Enter a quantity greater than 0.",
-              })}
-            />
-            <Input
-              placeholder="Unit (e.g. Units)"
-              error={errors.moqUnit?.message}
-              {...register("moqUnit", { required: "Unit is required." })}
-            />
+            <div className="flex flex-col gap-1">
+              <span className="px-1 text-[11px] font-semibold text-on-surface-variant">Quantity</span>
+              <Input
+                type="number"
+                min={0}
+                step="any"
+                placeholder="Quantity"
+                error={errors.moqQuantity?.message}
+                {...register("moqQuantity", {
+                  required: "MOQ is required.",
+                  validate: (v) => Number(v) > 0 || "Enter a quantity greater than 0.",
+                })}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="px-1 text-[11px] font-semibold text-on-surface-variant">Unit</span>
+              <Input
+                placeholder="e.g. Units"
+                error={errors.moqUnit?.message}
+                {...register("moqUnit", { required: "Unit is required." })}
+              />
+            </div>
           </div>
         </div>
 
@@ -250,9 +256,13 @@ function TermSheetDrawer({ open, onClose, current, onConfirm }: TermSheetDrawerP
  *  always lists all four fields so a version reads as a complete snapshot, not just
  *  what moved. */
 function diffTermSheetFields(prev: B2BTermSheet | null, next: B2BTermSheet): { label: string; value: string; changed: boolean }[] {
-  const moq = `${next.moqQuantity.toLocaleString()} ${next.moqUnit}`;
-  const prevMoq = prev ? `${prev.moqQuantity.toLocaleString()} ${prev.moqUnit}` : null;
-  const moqChanged = !!prev && prevMoq !== moq;
+  const moqQty = next.moqQuantity.toLocaleString();
+  const prevMoqQty = prev ? prev.moqQuantity.toLocaleString() : null;
+  const moqQtyChanged = !!prev && prevMoqQty !== moqQty;
+
+  const unit = next.moqUnit;
+  const prevUnit = prev ? prev.moqUnit : null;
+  const unitChanged = !!prev && prevUnit !== unit;
 
   const price = `${next.currency} ${next.unitPrice.toLocaleString()}`;
   const prevPrice = prev ? `${prev.currency} ${prev.unitPrice.toLocaleString()}` : null;
@@ -262,7 +272,8 @@ function diffTermSheetFields(prev: B2BTermSheet | null, next: B2BTermSheet): { l
   const supplyChanged = !!prev && prev.supplyLogisticsTerms !== next.supplyLogisticsTerms;
 
   return [
-    { label: "MOQ", value: moqChanged ? `${prevMoq} → ${moq}` : moq, changed: moqChanged },
+    { label: "MOQ", value: moqQtyChanged ? `${prevMoqQty} → ${moqQty}` : moqQty, changed: moqQtyChanged },
+    { label: "Unit", value: unitChanged ? `${prevUnit} → ${unit}` : unit, changed: unitChanged },
     { label: "Unit Price", value: priceChanged ? `${prevPrice} → ${price}` : price, changed: priceChanged },
     { label: "Payment Terms", value: next.paymentTerms, changed: paymentChanged },
     { label: "Supply/Logistics/Delivery Terms", value: next.supplyLogisticsTerms, changed: supplyChanged },
@@ -325,9 +336,7 @@ function TermSheetHistoryDrawer({ open, onClose, dealRoomId, refreshKey }: TermS
             const diffs = diffTermSheetFields(prev, v);
             return (
               <li key={v.id} className="rounded-lg bg-surface-container-low p-3">
-                <p className="text-xs font-bold text-on-surface">
-                  Version {v.version} · {v.updatedByUserId === getCurrentUserId() ? "You" : v.updatedByName} · {formatDateTime(v.updatedAt)}
-                </p>
+                <p className="text-xs font-bold text-on-surface">Version {v.version}</p>
                 <ul className="mt-1.5 flex flex-col gap-0.5">
                   {diffs.map((d) => (
                     <li key={d.label} className={`text-xs ${d.changed ? "text-primary" : "text-on-surface-variant"}`}>
@@ -336,6 +345,10 @@ function TermSheetHistoryDrawer({ open, onClose, dealRoomId, refreshKey }: TermS
                     </li>
                   ))}
                 </ul>
+                <p className="mt-1.5 text-[11px] text-on-surface-variant">
+                  {v.version === 1 ? "Sent by" : "Updated by"}{" "}
+                  {v.updatedByUserId === getCurrentUserId() ? "You" : v.updatedByName} · {formatDateTime(v.updatedAt)}
+                </p>
               </li>
             );
           })}
@@ -420,18 +433,32 @@ export function DealSidePanel({
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
   /** Confirmation modal for "Request Next Stage" — asks before firing the socket event. */
   const [confirmStageOpen, setConfirmStageOpen] = useState(false);
-  /** Auto-opened for the RECIPIENT the moment a stage request arrives live — reuses the
+  /** Auto-opened for the RECIPIENT the moment a stage request arrives LIVE — reuses the
    *  same modal element as the requester's confirm prompt (polymorphic by mode below). */
   const [respondStageOpen, setRespondStageOpen] = useState(false);
   /** Which pending-request id we've already auto-popped the modal for, so dismissing it
    *  (or a re-render) doesn't reopen the same request. */
   const autoShownRequestIdRef = useRef<string | null>(null);
+  /** Whether we've processed the first render's state. A request already pending on mount
+   *  came from the initial REST fetch (fetchPendingStageRequest), NOT a live socket
+   *  arrival — so we suppress its auto-popup, otherwise a days-old request would
+   *  re-interrupt the recipient on every page open/reload. Only requests that appear
+   *  AFTER mount (live via `stage_update_requested`) pop the modal. */
+  const stageInitializedRef = useRef(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- drives the auto-open modal
     if (!pendingStageRequest) {
       autoShownRequestIdRef.current = null;
       setRespondStageOpen(false);
+      stageInitializedRef.current = true;
+      return;
+    }
+    if (!stageInitializedRef.current) {
+      // Already pending when the page loaded — mark it seen without popping the modal
+      // (the in-card Accept/Reject buttons still show it).
+      stageInitializedRef.current = true;
+      autoShownRequestIdRef.current = pendingStageRequest.id;
       return;
     }
     if (!iRequestedStage && !closed && autoShownRequestIdRef.current !== pendingStageRequest.id) {
@@ -530,7 +557,12 @@ export function DealSidePanel({
     loadCurrentOffer();
   }, [loadCurrentOffer, fundingOfferRefreshKey]);
 
-  const canShowFundingOffer = role === "startup" || role === "investor";
+  // Funding offers are a Negotiation-stage activity: the card shows from Negotiation on
+  // (view-only afterwards), but offers can only be created/actioned WHILE in Negotiation —
+  // once the deal moves to Due Diligence they're locked (server-enforced too). Mirrors the
+  // B2B term-sheet gating above.
+  const canShowFundingOffer = (role === "startup" || role === "investor") && room.stage >= 1;
+  const canEditFundingOffer = canShowFundingOffer && room.stage === 1;
   const offerPending = !!currentOffer && currentOffer.status === "Pending";
 
   // B2B Term Sheet card — visible only to b2b_enterprise. Same load/refresh-key
@@ -722,28 +754,37 @@ export function DealSidePanel({
               </button>
             )}
 
-            <div className="group relative">
-              <button
-                type="button"
-                disabled={closed || role === "startup" || offerPending}
-                onClick={() => {
-                  setOfferDrawerMode("create");
-                  setOfferDrawerOpen(true);
-                }}
-                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-outline-variant/50 py-2 text-xs font-bold text-on-surface-variant transition-colors hover:border-primary/50 hover:text-primary disabled:opacity-50"
-              >
-                <Icon name="request_quote" size={16} />
-                Request Offer
-              </button>
-              {role === "startup" && (
-                <span
-                  role="tooltip"
-                  className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-max max-w-[220px] -translate-x-1/2 scale-95 rounded-lg bg-surface-container-highest px-3 py-2 text-center text-xs font-medium text-on-surface opacity-0 shadow-lg transition-all duration-150 group-hover:scale-100 group-hover:opacity-100"
+            {canEditFundingOffer ? (
+              <div className="group relative">
+                <button
+                  type="button"
+                  disabled={closed || role === "startup" || offerPending}
+                  onClick={() => {
+                    setOfferDrawerMode("create");
+                    setOfferDrawerOpen(true);
+                  }}
+                  className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-outline-variant/50 py-2 text-xs font-bold text-on-surface-variant transition-colors hover:border-primary/50 hover:text-primary disabled:opacity-50"
                 >
-                  Only investors can send a funding offer.
-                </span>
-              )}
-            </div>
+                  <Icon name="request_quote" size={16} />
+                  Request Offer
+                </button>
+                {role === "startup" && (
+                  <span
+                    role="tooltip"
+                    className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-max max-w-[220px] -translate-x-1/2 scale-95 rounded-lg bg-surface-container-highest px-3 py-2 text-center text-xs font-medium text-on-surface opacity-0 shadow-lg transition-all duration-150 group-hover:scale-100 group-hover:opacity-100"
+                  >
+                    Only investors can send a funding offer.
+                  </span>
+                )}
+              </div>
+            ) : (
+              // Past Negotiation the offer is frozen for both parties — explain why the
+              // action is gone instead of silently omitting it (server-enforced too).
+              <p className="mt-3 flex items-center gap-2 rounded-lg bg-surface-container px-3 py-2 text-xs text-on-surface-variant">
+                <Icon name="lock" size={14} className="shrink-0" />
+                Locked — offers are only made during Negotiation.
+              </p>
+            )}
           </PanelCard>
         )}
 
@@ -767,7 +808,10 @@ export function DealSidePanel({
             ) : (
               <div className="flex flex-col gap-1.5 rounded-lg bg-surface-container-low p-2.5 text-xs">
                 <p className="text-on-surface">
-                  <span className="font-semibold">MOQ:</span> {termSheet.moqQuantity.toLocaleString()} {termSheet.moqUnit}
+                  <span className="font-semibold">MOQ:</span> {termSheet.moqQuantity.toLocaleString()}
+                </p>
+                <p className="text-on-surface">
+                  <span className="font-semibold">Unit:</span> {termSheet.moqUnit}
                 </p>
                 <p className="text-on-surface">
                   <span className="font-semibold">Unit Price:</span> {termSheet.currency} {termSheet.unitPrice.toLocaleString()}
@@ -793,8 +837,8 @@ export function DealSidePanel({
                 onClick={() => setTermSheetDrawerOpen(true)}
                 className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-outline-variant/50 py-2 text-xs font-bold text-on-surface-variant transition-colors hover:border-primary/50 hover:text-primary disabled:opacity-50"
               >
-                <Icon name="edit" size={16} />
-                Edit Term Sheet
+                <Icon name={termSheet ? "edit" : "add"} size={16} />
+                {termSheet ? "Edit Term Sheet" : "Send Term Sheet"}
               </button>
             ) : (
               // Past Negotiation the terms are locked for both parties — explain why
@@ -941,6 +985,7 @@ export function DealSidePanel({
         dealRoomId={room.id}
         refreshKey={fundingOfferRefreshKey}
         closed={closed}
+        locked={!canEditFundingOffer}
         view={offersDrawerView}
         onAccept={(offerId) => onAcceptFundingOffer(offerId)}
         onReject={(offerId) => onRejectFundingOffer(offerId)}
