@@ -7,9 +7,12 @@ import { getCurrentUserId } from "@/lib/jwt";
 import { FUNDING_OFFER_STATUS_META } from "./deal-room-meta";
 import type { DealFundingOffer } from "./types";
 
-/** Show a party's name, or just "You" for the current user. */
+/** Show a party's name, "You" for the current user, or a "User #id" fallback when the
+ *  backend didn't include the joined user (fullName() returns "" then — never render a
+ *  blank "Sent by  to "). Mirrors the backend export service's `User #<id>` convention. */
 function nameFor(name: string, userId: number): string {
-  return userId === getCurrentUserId() ? "You" : name;
+  if (userId === getCurrentUserId()) return "You";
+  return name.trim() || `User #${userId}`;
 }
 
 // Same colour language as DealStageStepper.tsx: inline styles because this Tailwind v4
