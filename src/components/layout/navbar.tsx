@@ -210,21 +210,14 @@ export function DashboardNavbar() {
 
 export function Navbar() {
     const pathname = usePathname();
-    // The dashboard owns its own chrome (sidebar + DashboardNavbar), so hide the
-    // global navbar there.
-    if (pathname?.startsWith("/dashboard")) return null;
+    // The dashboard owns its own chrome (sidebar + DashboardNavbar), and the
+    // marketing landing page renders its own header, so hide the global navbar on them.
+    if (pathname === "/landing-page" || pathname?.startsWith("/dashboard")) return null;
 
     return (
         <nav className="flex-none flex items-center justify-between px-4 py-2 w-full max-w-[1200px] mx-auto sm:px-6">
-            <BrandLockup />
-            <Link
-                href="/"
-                className="flex items-center gap-2 text-slate-500 cursor-pointer group"
-            >
-                {/* <ArrowLeft size={20} />
-                <span className="text-sm font-medium group-hover:text-blue-600 transition-colors">
-                    Return to Website
-                </span> */}
+            <Link href="/" aria-label="Bridge Platform home">
+                <BrandLockup />
             </Link>
         </nav>
     );
