@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
+import { Button } from "@/components/ui/Button";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
 import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewModal";
 import { useFilePreview } from "@/lib/useFilePreview";
@@ -237,6 +238,11 @@ export default function VerificationStatusPage() {
       </div>
 
       {/* Actions */}
+      <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+        <Button href="/login" leadingIcon="login" className="w-full sm:w-auto">
+          Go to Login
+        </Button>
+      </div>
       {/* <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
         <button className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-surface-container-high px-8 font-bold text-on-surface transition-all hover:bg-surface-container-highest sm:w-auto">
           <Icon name="contact_support" size={20} /> Contact Support

@@ -342,7 +342,7 @@ export default function RegisterPage() {
                 <Input
                   id="cinNumber"
                   type="text"
-                  label="Cin Number"
+                  label="CIN Number"
                   required
                   placeholder="U12345MH2024PTC123456"
                   error={errors.cinNumber?.message}
