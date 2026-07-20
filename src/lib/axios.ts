@@ -62,15 +62,25 @@ function handleUnauthorized() {
 // Normalize errors so callers get a predictable shape.
 api.interceptors.response.use(
   (response) => response,
-  (error: AxiosError<{ message?: string }>) => {
+  async (error: AxiosError<{ message?: string }>) => {
     if (error.response?.status === 401) handleUnauthorized();
+
+    let data: unknown = error.response?.data;
+    if (data instanceof Blob) {
+      try {
+        const text = await data.text();
+        data = text ? JSON.parse(text) : undefined;
+      } catch {
+        data = undefined;
+      }
+    }
 
     const normalized: ApiError = {
       // Show only the backend-provided message; fall back to a generic line so
       // raw axios/technical strings never reach the UI.
-      message: error.response?.data?.message || "Something went wrong. Please try again.",
+      message: (data as { message?: string } | undefined)?.message || "Something went wrong. Please try again.",
       status: error.response?.status,
-      data: error.response?.data,
+      data,
     };
     return Promise.reject(normalized);
   }

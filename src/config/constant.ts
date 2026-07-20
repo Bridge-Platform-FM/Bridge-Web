@@ -150,6 +150,13 @@ export const API_ENDPOINTS = {
   // over REST.
   DEAL_ROOM_TERM_SHEET_CURRENT: (id: string) => `${DEAL_ROOMS}/${id}/term-sheet/current`,
   DEAL_ROOM_TERM_SHEET_HISTORY: (id: string) => `${DEAL_ROOMS}/${id}/term-sheet/history`,
+  // Full deal-room export. GET — verified against Bridge-Server (dealRoomExportController
+  // → dealRoomExportService, route `GET /deal-rooms/:id/export`, participant-only via
+  // chatService.authorize). Streams `application/zip` as an attachment (Content-Disposition
+  // `deal-room-{id}-export-{ts}.zip`), NOT JSON — fetch it with `responseType: "blob"`
+  // (see `exportDealRoom`). Archive layout: `chats/{stage}/messages.txt` transcripts +
+  // `media/{stage}/…` files, plus a `missing_files.txt` when an S3 object can't be read.
+  DEAL_ROOM_EXPORT: (id: string) => `${DEAL_ROOMS}/${id}/export`,
 
 
   // ----- Meetings -----
