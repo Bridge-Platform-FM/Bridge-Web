@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
 import { AsyncState } from "@/components/ui/AsyncState";
 import { fetchFaqs } from "@/services/faq.service";
@@ -34,7 +33,7 @@ export default function FaqPage() {
   return (
     <div className="mx-auto max-w-3xl p-6 md:p-8">
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-8">
         <h1 className="font-headline text-2xl font-extrabold tracking-[-0.02em] text-on-surface md:text-3xl">
           Frequently Asked Questions
         </h1>
@@ -43,7 +42,7 @@ export default function FaqPage() {
         </p>
       </div>
 
-      {/* FAQ Accordion */}
+      {/* FAQ list — no outer container, just divider lines between rows */}
       <AsyncState
         loading={loading}
         error={error}
@@ -52,27 +51,25 @@ export default function FaqPage() {
         emptyIcon="quiz"
         emptyText="No FAQs available at the moment."
       >
-        <div className="flex flex-col gap-3">
+        <div>
           {faqs.map((faq) => {
             const isOpen = openId === faq.id;
             return (
-              <Card key={faq.id} surface="lowest" padding="none" className="overflow-hidden">
+              <div key={faq.id} className="border-b border-outline/20">
+                {/* Question row */}
                 <button
                   type="button"
                   onClick={() => toggle(faq.id)}
                   aria-expanded={isOpen}
-                  className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition-colors hover:bg-surface-container-low"
+                  className="flex w-full items-center justify-between gap-4 py-4 text-left"
                 >
-                  <span className="text-sm font-semibold text-on-surface">
-                    {faq.question}
+                  <span className="text-sm text-on-surface">{faq.question}</span>
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-container text-on-surface-variant transition-colors hover:bg-surface-container-high">
+                    <Icon name={isOpen ? "expand_less" : "expand_more"} size={20} />
                   </span>
-                  <Icon
-                    name={isOpen ? "keyboard_arrow_up" : "keyboard_arrow_down"}
-                    size={20}
-                    className="shrink-0 text-on-surface-variant"
-                  />
                 </button>
 
+                {/* Answer — animated expand/collapse */}
                 <AnimatePresence initial={false}>
                   {isOpen && (
                     <motion.div
@@ -83,15 +80,13 @@ export default function FaqPage() {
                       transition={{ duration: 0.2, ease: "easeInOut" }}
                       className="overflow-hidden"
                     >
-                      <div className="border-t border-outline/10 px-5 py-4">
-                        <p className="text-sm leading-relaxed text-on-surface-variant">
-                          {faq.answer}
-                        </p>
-                      </div>
+                      <p className="pb-5 text-sm leading-relaxed text-on-surface-variant">
+                        {faq.answer}
+                      </p>
                     </motion.div>
                   )}
                 </AnimatePresence>
-              </Card>
+              </div>
             );
           })}
         </div>

@@ -691,11 +691,11 @@ export interface UpdateUserLimitConfigPayload {
 }
 
 /* ===========================================================================
- * FAQs — active FAQ entries visible to all logged-in users.
- * Fetched from GET /api/v1/faqs.
+ * FAQs — user-facing
+ * Fetched from GET /api/v1/faqs (active FAQs only).
  * ======================================================================== */
 
-/** One FAQ entry returned by the backend. */
+/** One FAQ entry returned by GET /api/v1/faqs. */
 export interface FaqItem {
   id: number;
   question: string;
@@ -707,4 +707,53 @@ export interface FaqListResponse {
   success?: boolean;
   message?: string;
   data?: FaqItem[];
+}
+
+/* ===========================================================================
+ * Admin FAQ Management
+ * Managed via GET/POST /api/v1/admin/faqs and PUT /api/v1/admin/faqs/:id
+ * ======================================================================== */
+
+/**
+ * One FAQ row as returned by the admin list endpoint.
+ * Includes is_active so the admin can see and toggle each entry's status.
+ */
+export interface AdminFaqItem {
+  id: number;
+  question: string;
+  answer: string;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/** Raw envelope returned by GET /api/v1/admin/faqs. */
+export interface AdminFaqListResponse {
+  success?: boolean;
+  message?: string;
+  data?: AdminFaqItem[];
+}
+
+/** Payload for POST /api/v1/admin/faqs (create). */
+export interface CreateFaqPayload {
+  question: string;
+  answer: string;
+  is_active: boolean;
+}
+
+/**
+ * Payload for PUT /api/v1/admin/faqs/:id (update).
+ * All fields are optional — at least one must be provided.
+ */
+export interface UpdateFaqPayload {
+  question?: string;
+  answer?: string;
+  is_active?: boolean;
+}
+
+/** Response envelope from create / update FAQ actions. */
+export interface FaqActionResponse {
+  success?: boolean;
+  message?: string;
+  data?: { id?: number };
 }

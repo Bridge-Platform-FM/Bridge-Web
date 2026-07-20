@@ -27,7 +27,6 @@ const DISCOVER: NavItem = { key: "discover", label: "Discover", icon: "explore",
 const EXPLORE: NavItem = { key: "explore", label: "Explore", icon: "groups", route: "/dashboard/explore" };
 const CONNECTIONS: NavItem = { key: "connections", label: "Connections", icon: "hub", route: "/dashboard/connections" };
 const DEAL_ROOM: NavItem = { key: "deal-room", label: "Deal Room", icon: "handshake", route: "/dashboard/deal-room" };
-const FAQ: NavItem = { key: "faq", label: "FAQs", icon: "quiz", route: "/dashboard/faq" };
 const PROFILE: NavItem = { key: "profile", label: "Profile", icon: "account_circle", route: "/dashboard/profile" };
 
 // Shared staff (admin / super_admin) menu — declared once, reused for both roles.
@@ -38,11 +37,15 @@ const STAFF_NAV: NavItem[] = [
   { key: "user-management", label: "User Management", icon: "manage_accounts", route: "/dashboard/user-management" },
   { key: "kyc-review", label: "KYC Review", icon: "verified_user", route: "/dashboard/kyc-review" },
   { key: "subscription", label: "Subscription", icon: "card_membership", route: "/dashboard/subscription" },
+  { key: "faq-management", label: "FAQ Management", icon: "quiz", route: "/dashboard/faq-management" },
   PROFILE,
 ];
 
-/** Support entry pinned above Logout for staff roles (see DashboardSidebar). */
-export const SUPPORT_NAV: NavItem = { key: "support", label: "Support", icon: "support_agent", route: "/dashboard/support" };
+/**
+ * Support entry pinned at the bottom of the sidebar for ALL roles.
+ * Points to the FAQ page — clicking "Support" shows the FAQ list.
+ */
+export const SUPPORT_NAV: NavItem = { key: "support", label: "Support", icon: "support_agent", route: "/dashboard/faq" };
 
 export const DASHBOARD_NAV: Record<Role, NavItem[]> = {
   super_admin: STAFF_NAV,
@@ -56,7 +59,6 @@ export const DASHBOARD_NAV: Record<Role, NavItem[]> = {
     EXPLORE,
     CONNECTIONS,
     DEAL_ROOM,
-    FAQ,
     PROFILE,
   ],
   investor: [
@@ -68,7 +70,6 @@ export const DASHBOARD_NAV: Record<Role, NavItem[]> = {
     EXPLORE,
     CONNECTIONS,
     DEAL_ROOM,
-    FAQ,
     PROFILE,
   ],
   b2b_enterprise: [
@@ -82,7 +83,6 @@ export const DASHBOARD_NAV: Record<Role, NavItem[]> = {
     EXPLORE,
     CONNECTIONS,
     DEAL_ROOM,
-    FAQ,
     PROFILE,
   ],
 };

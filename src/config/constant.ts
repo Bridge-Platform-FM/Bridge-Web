@@ -151,6 +151,7 @@ export const API_ENDPOINTS = {
   DEAL_ROOM_TERM_SHEET_CURRENT: (id: string) => `${DEAL_ROOMS}/${id}/term-sheet/current`,
   DEAL_ROOM_TERM_SHEET_HISTORY: (id: string) => `${DEAL_ROOMS}/${id}/term-sheet/history`,
 
+
   // ----- Meetings -----
   // Schedule a meeting inside a deal room. POST.
   MEETING_CREATE: MEETINGS,
