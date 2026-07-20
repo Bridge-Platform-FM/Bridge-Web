@@ -166,7 +166,7 @@ function TermSheetDrawer({ open, onClose, current, onConfirm }: TermSheetDrawerP
             className="flex h-11 items-center gap-2 rounded-xl bg-primary px-6 font-bold text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Icon name="save" size={18} />
-            {isSubmitting ? "Saving…" : "Save Term Sheet"}
+            {isSubmitting ? "Saving…" : "Share Term Sheet"}
           </button>
         </>
       }
@@ -177,22 +177,28 @@ function TermSheetDrawer({ open, onClose, current, onConfirm }: TermSheetDrawerP
             Minimum Order Quantity<span className="align-middle text-base leading-none text-error"> *</span>
           </span>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_8rem]">
-            <Input
-              type="number"
-              min={0}
-              step="any"
-              placeholder="Quantity"
-              error={errors.moqQuantity?.message}
-              {...register("moqQuantity", {
-                required: "MOQ is required.",
-                validate: (v) => Number(v) > 0 || "Enter a quantity greater than 0.",
-              })}
-            />
-            <Input
-              placeholder="Unit (e.g. Units)"
-              error={errors.moqUnit?.message}
-              {...register("moqUnit", { required: "Unit is required." })}
-            />
+            <div className="flex flex-col gap-1">
+              <span className="px-1 text-[11px] font-semibold text-on-surface-variant">Quantity</span>
+              <Input
+                type="number"
+                min={0}
+                step="any"
+                placeholder="Quantity"
+                error={errors.moqQuantity?.message}
+                {...register("moqQuantity", {
+                  required: "MOQ is required.",
+                  validate: (v) => Number(v) > 0 || "Enter a quantity greater than 0.",
+                })}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="px-1 text-[11px] font-semibold text-on-surface-variant">Unit</span>
+              <Input
+                placeholder="e.g. Units"
+                error={errors.moqUnit?.message}
+                {...register("moqUnit", { required: "Unit is required." })}
+              />
+            </div>
           </div>
         </div>
 
@@ -250,9 +256,13 @@ function TermSheetDrawer({ open, onClose, current, onConfirm }: TermSheetDrawerP
  *  always lists all four fields so a version reads as a complete snapshot, not just
  *  what moved. */
 function diffTermSheetFields(prev: B2BTermSheet | null, next: B2BTermSheet): { label: string; value: string; changed: boolean }[] {
-  const moq = `${next.moqQuantity.toLocaleString()} ${next.moqUnit}`;
-  const prevMoq = prev ? `${prev.moqQuantity.toLocaleString()} ${prev.moqUnit}` : null;
-  const moqChanged = !!prev && prevMoq !== moq;
+  const moqQty = next.moqQuantity.toLocaleString();
+  const prevMoqQty = prev ? prev.moqQuantity.toLocaleString() : null;
+  const moqQtyChanged = !!prev && prevMoqQty !== moqQty;
+
+  const unit = next.moqUnit;
+  const prevUnit = prev ? prev.moqUnit : null;
+  const unitChanged = !!prev && prevUnit !== unit;
 
   const price = `${next.currency} ${next.unitPrice.toLocaleString()}`;
   const prevPrice = prev ? `${prev.currency} ${prev.unitPrice.toLocaleString()}` : null;
@@ -262,7 +272,8 @@ function diffTermSheetFields(prev: B2BTermSheet | null, next: B2BTermSheet): { l
   const supplyChanged = !!prev && prev.supplyLogisticsTerms !== next.supplyLogisticsTerms;
 
   return [
-    { label: "MOQ", value: moqChanged ? `${prevMoq} → ${moq}` : moq, changed: moqChanged },
+    { label: "MOQ", value: moqQtyChanged ? `${prevMoqQty} → ${moqQty}` : moqQty, changed: moqQtyChanged },
+    { label: "Unit", value: unitChanged ? `${prevUnit} → ${unit}` : unit, changed: unitChanged },
     { label: "Unit Price", value: priceChanged ? `${prevPrice} → ${price}` : price, changed: priceChanged },
     { label: "Payment Terms", value: next.paymentTerms, changed: paymentChanged },
     { label: "Supply/Logistics/Delivery Terms", value: next.supplyLogisticsTerms, changed: supplyChanged },
@@ -335,7 +346,8 @@ function TermSheetHistoryDrawer({ open, onClose, dealRoomId, refreshKey }: TermS
                   ))}
                 </ul>
                 <p className="mt-1.5 text-[11px] text-on-surface-variant">
-                  Updated by {v.updatedByUserId === getCurrentUserId() ? "You" : v.updatedByName} · {formatDateTime(v.updatedAt)}
+                  {v.version === 1 ? "Sent by" : "Updated by"}{" "}
+                  {v.updatedByUserId === getCurrentUserId() ? "You" : v.updatedByName} · {formatDateTime(v.updatedAt)}
                 </p>
               </li>
             );
@@ -796,7 +808,10 @@ export function DealSidePanel({
             ) : (
               <div className="flex flex-col gap-1.5 rounded-lg bg-surface-container-low p-2.5 text-xs">
                 <p className="text-on-surface">
-                  <span className="font-semibold">MOQ:</span> {termSheet.moqQuantity.toLocaleString()} {termSheet.moqUnit}
+                  <span className="font-semibold">MOQ:</span> {termSheet.moqQuantity.toLocaleString()}
+                </p>
+                <p className="text-on-surface">
+                  <span className="font-semibold">Unit:</span> {termSheet.moqUnit}
                 </p>
                 <p className="text-on-surface">
                   <span className="font-semibold">Unit Price:</span> {termSheet.currency} {termSheet.unitPrice.toLocaleString()}
