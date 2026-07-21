@@ -26,14 +26,18 @@ export default function DealRoomPage() {
     if (isLoaded && !isUserRole(role)) router.replace("/dashboard");
   }, [isLoaded, role, router]);
 
+  // The backend splits archived vs active rooms server-side, so the Archived tab fetches
+  // a different set. Active ↔ Closed share the non-archived set (no refetch between them).
+  const isArchivedTab = tab === "ARCHIVED";
+
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
-    fetchDealRooms()
+    fetchDealRooms(isArchivedTab)
       .then((data) => setRooms(data))
       .catch(() => setError("Couldn't load your deal rooms. Please try again."))
       .finally(() => setLoading(false));
-  }, []);
+  }, [isArchivedTab]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- load() drives loading state

@@ -13,7 +13,7 @@ import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewMod
 import { Modal } from "@/components/modal/Modal";
 import { Loader } from "@/components/common/loader";
 import { Select } from "@/components/ui/Select";
-import { exportDealRoom } from "@/services/deal-room.service";
+import { exportDealRoom, archiveDealRoom, unarchiveDealRoom } from "@/services/deal-room.service";
 import type { ApiError } from "@/lib/axios";
 import type { DealAttachment, DealRoom, FundingOfferFormValues, PreviewableFile, TermSheetFormValues } from "./types";
 
@@ -124,6 +124,14 @@ export function DealRoomChat({
   const [closeModalOpen, setCloseModalOpen] = useState(false);
   const [closeReason, setCloseReason] = useState("");
   const [exporting, setExporting] = useState(false);
+  // Per-user archive state — toggles the Archive/Unarchive button. Seeded from the room
+  // and re-synced if a different room loads.
+  const [archived, setArchived] = useState(!!room.isArchived);
+  const [archiving, setArchiving] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- keep the toggle in sync with the loaded room
+    setArchived(!!room.isArchived);
+  }, [room.id, room.isArchived]);
 
   // Download the deal room's chats + media as a stage-organized zip
   // (GET /deal-rooms/:id/export, streamed as an attachment).
@@ -137,6 +145,28 @@ export function DealRoomChat({
       toast.error((err as ApiError).message ?? "Couldn't export the deal room.");
     } finally {
       setExporting(false);
+    }
+  };
+
+  // Archive / unarchive this room for the current user (per-user view). Toggles the
+  // button label between "Archive" and "Unarchive".
+  const handleToggleArchive = async () => {
+    if (archiving) return;
+    setArchiving(true);
+    try {
+      if (archived) {
+        await unarchiveDealRoom(room.id);
+        setArchived(false);
+        toast.success("Deal room unarchived.");
+      } else {
+        await archiveDealRoom(room.id);
+        setArchived(true);
+        toast.success("Deal room archived. Find it under the Archived tab.");
+      }
+    } catch (err) {
+      toast.error((err as ApiError).message ?? "Couldn't update the archive state.");
+    } finally {
+      setArchiving(false);
     }
   };
   const [closing, setClosing] = useState(false);
@@ -251,11 +281,12 @@ export function DealRoomChat({
           </button>
           <button
             type="button"
-            onClick={() => toast("Archive isn't wired up yet.")}
-            className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/50 bg-surface-container px-4 py-2 text-sm font-bold text-on-surface-variant shadow-sm transition-colors hover:bg-surface-container-high"
+            onClick={handleToggleArchive}
+            disabled={archiving}
+            className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/50 bg-surface-container px-4 py-2 text-sm font-bold text-on-surface-variant shadow-sm transition-colors hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <Icon name="archive" size={16} />
-            Archive
+            {archiving ? <Loader size="small" /> : <Icon name={archived ? "unarchive" : "archive"} size={16} />}
+            {archived ? "Unarchive" : "Archive"}
           </button>
 
           {closed ? (

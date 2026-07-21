@@ -41,6 +41,9 @@ interface RawRoom {
   deal_room_status: string; // "Active" | "Closed"
   deal_room_stage?: string | null; // "Initial Connection" | "Negotiation" | "Due Diligence" | "Closed"
   deal_room_created_at: string;
+  // Per-user archive timestamp (LEFT JOIN deal_room_archive) — null when the caller
+  // hasn't archived this room, an ISO string when they have.
+  archived_at?: string | null;
   requester_user_id: number;
   requester_first_name?: string;
   requester_last_name?: string;
@@ -144,6 +147,7 @@ function toDealRoom(raw: RawRoom): DealRoom {
       role: normalizeRole(cp.role) ?? "startup",
     },
     status: raw.deal_room_status === "Closed" ? "CLOSED" : "ACTIVE",
+    isArchived: raw.archived_at != null,
     stage: stageIndexFromValue(raw.deal_room_stage),
     lastActivityNote: "",
     lastActivityAt: raw.deal_room_created_at ?? "",
@@ -181,15 +185,34 @@ export function normalizeMessage(raw: RawMessage): DealMessage {
 }
 
 /** List the current user's deal rooms. GET. */
-export async function fetchDealRooms(): Promise<DealRoom[]> {
-  const { data } = await api.get<{ data?: RawRoom[] }>(API_ENDPOINTS.DEAL_ROOMS_LIST);
+export async function fetchDealRooms(archived = false): Promise<DealRoom[]> {
+  const { data } = await api.get<{ data?: RawRoom[] }>(API_ENDPOINTS.DEAL_ROOMS_LIST, {
+    // Backend returns the caller's active (non-archived) rooms by default, or their
+    // archived rooms with ?archived=true.
+    params: archived ? { archived: true } : undefined,
+  });
   return (data.data ?? []).map(toDealRoom).filter((r) => r.id !== "");
 }
 
-/** Fetch a single room's meta by finding it in the list (no detail endpoint exists). */
+/** Fetch a single room's meta by finding it in the list (no detail endpoint exists).
+ *  Checks the active list first, then the archived one — so an archived room still opens
+ *  (and carries `isArchived: true` for the Archive/Unarchive toggle). */
 export async function fetchDealRoom(id: string): Promise<DealRoom | undefined> {
-  const rooms = await fetchDealRooms();
-  return rooms.find((r) => r.id === id);
+  const active = await fetchDealRooms(false);
+  const found = active.find((r) => r.id === id);
+  if (found) return found;
+  const archived = await fetchDealRooms(true);
+  return archived.find((r) => r.id === id);
+}
+
+/** Archive a deal room for the current user only (moves it to the Archived tab). PUT. */
+export async function archiveDealRoom(id: string): Promise<void> {
+  await api.put(API_ENDPOINTS.DEAL_ROOM_ARCHIVE(id));
+}
+
+/** Unarchive a deal room for the current user (restores it to Active/Closed). PUT. */
+export async function unarchiveDealRoom(id: string): Promise<void> {
+  await api.put(API_ENDPOINTS.DEAL_ROOM_UNARCHIVE(id));
 }
 
 /** Fetch a room's message history (returned newest-first; reversed to chronological). */
