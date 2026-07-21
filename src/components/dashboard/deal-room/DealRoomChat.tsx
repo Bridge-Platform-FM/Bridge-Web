@@ -244,29 +244,35 @@ export function DealRoomChat({
           <Icon name="arrow_back" size={22} />
         </button>
 
-        {/* Counterparty avatar with presence dot */}
-        <div className="relative shrink-0">
-          <div
-            className={`flex size-12 items-center justify-center rounded-full bg-gradient-to-br ${ROLE_AVATAR_GRADIENT[cp.role]} font-headline text-base font-bold text-on-primary`}
-          >
-            {initials(cp.name)}
+        {/* Counterparty avatar + name/company — clickable through to their profile preview */}
+        <button
+          type="button"
+          onClick={() => router.push(`/dashboard/profile/${cp.userId}?roleId=${cp.roleId}&companyId=${cp.companyId}`)}
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-xl text-left transition-opacity hover:opacity-80"
+        >
+          <div className="relative shrink-0">
+            <div
+              className={`flex size-12 items-center justify-center rounded-full bg-gradient-to-br ${ROLE_AVATAR_GRADIENT[cp.role]} font-headline text-base font-bold text-on-primary`}
+            >
+              {initials(cp.name)}
+            </div>
+            <span
+              aria-hidden
+              className={`absolute right-0 bottom-0 size-3 rounded-full border-2 border-surface ${
+                closed ? "bg-outline-variant" : "bg-[#16a34a]"
+              }`}
+            />
           </div>
-          <span
-            aria-hidden
-            className={`absolute right-0 bottom-0 size-3 rounded-full border-2 border-surface ${
-              closed ? "bg-outline-variant" : "bg-[#16a34a]"
-            }`}
-          />
-        </div>
 
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-headline text-lg font-extrabold tracking-[-0.01em] text-on-surface md:text-xl">
-            {cp.company || room.title}
-          </p>
-          {location && (
-            <p className="truncate text-sm text-on-surface-variant">{location}</p>
-          )}
-        </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-headline text-lg font-extrabold tracking-[-0.01em] text-on-surface md:text-xl">
+              {cp.company || room.title}
+            </p>
+            {location && (
+              <p className="truncate text-sm text-on-surface-variant">{location}</p>
+            )}
+          </div>
+        </button>
 
         {/* Action row: Export · Archive · Close Deal (or the Closed badge) */}
         <div className="flex shrink-0 items-center gap-2">

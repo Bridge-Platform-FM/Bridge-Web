@@ -48,6 +48,11 @@ interface RawRoom {
   requester_first_name?: string;
   requester_last_name?: string;
   requester_role_code?: string;
+  // TODO: confirm with backend — needed (with requester_company_id) to open this
+  // participant's profile preview page (GET /users/role-details), same ids the
+  // navbar search result already returns as role_id/company_id.
+  requester_role_id?: number;
+  requester_company_id?: number;
   requester_company_name?: string;
   // `*_country` comes from the `user` table (GET /deal-rooms now joins it). `*_state`
   // doesn't exist anywhere in Bridge-Server's schema — no state/province column on
@@ -59,6 +64,9 @@ interface RawRoom {
   recipient_first_name?: string;
   recipient_last_name?: string;
   recipient_role_code?: string;
+  // TODO: confirm with backend — see requester_role_id/requester_company_id above.
+  recipient_role_id?: number;
+  recipient_company_id?: number;
   recipient_company_name?: string;
   recipient_state?: string;
   recipient_country?: string;
@@ -116,6 +124,8 @@ function toDealRoom(raw: RawRoom): DealRoom {
   const cp = iAmRequester
     ? {
         userId: raw.recipient_user_id,
+        roleId: raw.recipient_role_id,
+        companyId: raw.recipient_company_id,
         name: fullName(raw.recipient_first_name, raw.recipient_last_name),
         company: raw.recipient_company_name ?? "",
         state: raw.recipient_state ?? "",
@@ -124,6 +134,8 @@ function toDealRoom(raw: RawRoom): DealRoom {
       }
     : {
         userId: raw.requester_user_id,
+        roleId: raw.requester_role_id,
+        companyId: raw.requester_company_id,
         name: fullName(raw.requester_first_name, raw.requester_last_name),
         company: raw.requester_company_name ?? "",
         state: raw.requester_state ?? "",
@@ -139,6 +151,11 @@ function toDealRoom(raw: RawRoom): DealRoom {
     title: raw.title || cp.company || "Deal Room",
     counterparty: {
       userId: cp.userId,
+      // TODO: 0 is a placeholder until the backend adds requester/recipient_role_id +
+      // _company_id to GET /deal-rooms (see RawRoom above) — the profile preview link
+      // won't resolve correctly until then.
+      roleId: cp.roleId ?? 0,
+      companyId: cp.companyId ?? 0,
       name: cp.name || cp.company || "—",
       title: "", // backend has no designation field
       company: cp.company,
