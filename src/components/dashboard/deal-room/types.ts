@@ -22,6 +22,11 @@ export type DealRoomTab = "ACTIVE" | "CLOSED" | "ARCHIVED";
 export interface DealCounterparty {
   /** Numeric user id — sent as `recipientUserId` when scheduling a meeting. */
   userId: number;
+  /** Numeric role id — needed (with companyId) to open the counterparty's profile
+   *  preview page (GET /users/role-details). */
+  roleId: number;
+  /** Numeric company id — see roleId. */
+  companyId: number;
   name: string;
   /** Job title, e.g. "Managing Partner". */
   title: string;

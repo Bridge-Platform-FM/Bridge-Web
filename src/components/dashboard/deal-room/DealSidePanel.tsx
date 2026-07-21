@@ -417,6 +417,10 @@ export function DealSidePanel({
 }: DealSidePanelProps) {
   const { counterparty: cp } = room;
   const { role } = useAuth();
+  // Funding Offer is a startup/investor-only concept; B2B Term Sheet is B2B-only — each
+  // role only ever calls its own current-state endpoint, never the other's.
+  const isB2BRoom = role === "b2b_enterprise" && cp.role === "b2b_enterprise";
+  const canCallFundingOfferApi = role === "startup" || role === "investor";
   // Live stage name + icon — updates whenever room.stage changes (stage-update socket flow).
   const stageLabel = DEAL_STAGES[room.stage] ?? DEAL_STAGES[0];
   const stageIcon = DEAL_STAGE_ICONS[room.stage] ?? DEAL_STAGE_ICONS[0];
@@ -548,10 +552,11 @@ export function DealSidePanel({
   const [offerToCounter, setOfferToCounter] = useState<DealFundingOffer | null>(null);
 
   const loadCurrentOffer = useCallback(() => {
+    if (!canCallFundingOfferApi) return;
     fetchCurrentFundingOffer(room.id)
       .then(setCurrentOffer)
       .catch(() => setCurrentOffer(null));
-  }, [room.id]);
+  }, [room.id, canCallFundingOfferApi]);
 
   useEffect(() => {
     loadCurrentOffer();
@@ -572,16 +577,16 @@ export function DealSidePanel({
   const [termSheetHistoryOpen, setTermSheetHistoryOpen] = useState(false);
 
   const loadTermSheet = useCallback(() => {
+    if (!isB2BRoom) return;
     fetchCurrentTermSheet(room.id)
       .then(setTermSheet)
       .catch(() => setTermSheet(null));
-  }, [room.id]);
+  }, [room.id, isB2BRoom]);
 
   useEffect(() => {
     loadTermSheet();
   }, [loadTermSheet, termSheetRefreshKey]);
 
-  const isB2BRoom = role === "b2b_enterprise" && cp.role === "b2b_enterprise";
   // The term sheet appears once negotiation starts and stays visible (read-only) for
   // the rest of the deal's life, but can only be EDITED while still on Negotiation —
   // once Due Diligence begins, the terms are locked for both parties (server-enforced too).
