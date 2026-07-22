@@ -11,6 +11,7 @@ import { getSessionLimitStatus } from "@/services/session.service";
 import { OTP_LENGTH, type OtpChannel } from "@/lib/validation";
 import { normalizeRole } from "@/lib/roles";
 import { getSession, setSession } from "@/lib/auth-session";
+import { setTokens } from "@/lib/auth-tokens";
 import { ERROR_MESSAGES } from "@/lib/messages";
 import type { ActiveSession } from "@/types/api.types";
 import type { ApiError } from "@/lib/axios";
@@ -57,6 +58,9 @@ export function VerifyOtpScreen({
 
   const handleVerify = async (code: string) => {
     const res = await verifyMfaOtp({ channel, otp: code }, portal);
+    if (res.data?.accessToken && res.data?.refreshToken) {
+      setTokens({ accessToken: res.data.accessToken, refreshToken: res.data.refreshToken });
+    }
     const destination = res.data?.redirectRoute || SUCCESS_ROUTE;
     setRedirectRoute(destination);
     // Persist the real name + role echoed back here so the dashboard sidebar shows

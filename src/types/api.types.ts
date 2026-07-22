@@ -37,7 +37,7 @@ export interface LoginResponse {
   message?: string;
   data?: {
     accessToken: string;
-    refreshToken: string;
+    refreshToken?: string;
     redirectTo?: string;
     /** Raw role string from the backend (e.g. "INVESTOR"); normalize via normalizeRole. */
     role?: string;
@@ -96,6 +96,8 @@ export interface VerifyMfaOtpResponse {
   success?: boolean;
   message?: string;
   data?: {
+    accessToken?: string;
+    refreshToken?: string;
     /** Route the backend wants the client to land on after verification. */
     redirectRoute?: string;
     /** Authenticated user's profile, echoed back on successful verification. */

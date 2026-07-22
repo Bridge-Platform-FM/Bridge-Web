@@ -132,8 +132,8 @@ export function SignInScreen({
   const onSubmit = async (values: LoginForm) => {
     try {
       const res = await loginUser({ email: values.email, password: values.password }, portal);
-      if (res.data?.accessToken && res.data?.refreshToken) {
-        setTokens(res.data);
+      if (res.data?.accessToken) {
+        setTokens({ accessToken: res.data.accessToken, refreshToken: res.data.refreshToken ?? "" });
       } else {
         throw { message: ERROR_MESSAGES.NO_SESSION } as ApiError;
       }
