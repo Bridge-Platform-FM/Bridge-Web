@@ -1,4 +1,4 @@
-import { api } from "@/lib/axios";
+import { api, type ApiError } from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/constant";
 import type {
   RegisterPayload,
@@ -44,6 +44,24 @@ const AUTH_BY_PORTAL: Record<Portal, { LOGIN: string; MFA_SELECT_CHANNEL: string
   },
 };
 
+const LEGACY_BACKEND_ERROR: ApiError = {
+  message: "This app version isn't compatible with the connected server. Please contact support.",
+};
+
+/**
+ * Detects the pre-cookie-migration response shape (tokens returned in the body). Tokens
+ * are httpOnly cookies now — the backend sets them directly on the response and the body
+ * no longer carries them. If a mismatched/older backend still returns them in the body,
+ * the call still looks like a 2xx success but no cookie ever arrives, so the very next
+ * authenticated request fails and the app bounces back to login with no clear reason why.
+ * This catches that at the source instead.
+ */
+function assertNotLegacyTokenResponse(data: unknown): void {
+  if (data && typeof data === "object" && ("accessToken" in data || "refreshToken" in data)) {
+    throw LEGACY_BACKEND_ERROR;
+  }
+}
+
 /**
  * Register the company (step 1).
  *
@@ -52,6 +70,7 @@ const AUTH_BY_PORTAL: Record<Portal, { LOGIN: string; MFA_SELECT_CHANNEL: string
  */
 export async function registerCompany(payload: RegisterPayload): Promise<RegisterResponse> {
   const { data } = await api.post<RegisterResponse>(API_ENDPOINTS.REGISTER, payload);
+  assertNotLegacyTokenResponse(data.data);
   return data;
 }
 
@@ -64,6 +83,7 @@ export async function registerCompany(payload: RegisterPayload): Promise<Registe
  */
 export async function loginUser(payload: LoginPayload, portal: Portal = "user"): Promise<LoginResponse> {
   const { data } = await api.post<LoginResponse>(AUTH_BY_PORTAL[portal].LOGIN, payload);
+  assertNotLegacyTokenResponse(data.data);
   return data;
 }
 
@@ -90,6 +110,7 @@ export async function verifyMfaOtp(
   portal: Portal = "user",
 ): Promise<VerifyMfaOtpResponse> {
   const { data } = await api.post<VerifyMfaOtpResponse>(AUTH_BY_PORTAL[portal].MFA_VERIFY_OTP, payload);
+  assertNotLegacyTokenResponse(data.data);
   return data;
 }
 
@@ -118,6 +139,7 @@ export async function verifyResetPasswordOtp(
     API_ENDPOINTS.RESET_PASSWORD_VERIFY_OTP,
     payload,
   );
+  assertNotLegacyTokenResponse(data.data);
   return data;
 }
 

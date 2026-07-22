@@ -55,11 +55,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // directly on this response, so there's nothing for the client to store.
       const res = await switchRoleRequest({ role: target });
       const data = res.data;
-      const next: Session = { role: normalizeRole(data?.role) ?? target, user: session?.user };
+      // A role switch doesn't change the token type or the user's own id — only carry
+      // `role` forward from the response; tokenType/userId must be preserved from the
+      // current session or the dashboard guard (tokenType) and getUserId() drop to
+      // undefined right after switching, breaking both until a full logout/login.
+      const next: Session = {
+        role: normalizeRole(data?.role) ?? target,
+        user: session?.user,
+        tokenType: session?.tokenType,
+        userId: session?.userId,
+      };
       persistSession(next);
       setSessionState(next);
     },
-    [session?.user]
+    [session?.user, session?.tokenType, session?.userId]
   );
 
   const logout = useCallback(async () => {

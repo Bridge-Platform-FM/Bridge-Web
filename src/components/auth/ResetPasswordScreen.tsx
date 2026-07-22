@@ -70,7 +70,13 @@ export function ResetPasswordScreen({ from = "/login" }: { from?: string }) {
       toast.success(res.message ?? SUCCESS_MESSAGES.RESET_PASSWORD_SUCCESS);
       router.push(`/reset-password/success${fromQuery}`);
     } catch (err) {
-      toast.error((err as ApiError).message ?? ERROR_MESSAGES.RESET_PASSWORD_FAILED);
+      const apiErr = err as ApiError;
+      if (apiErr.status === 401) {
+        toast.error("Your verification has expired. Please restart the password reset process.");
+        router.push(`/reset-password${fromQuery}`);
+        return;
+      }
+      toast.error(apiErr.message ?? ERROR_MESSAGES.RESET_PASSWORD_FAILED);
     }
   };
 
