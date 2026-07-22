@@ -37,7 +37,6 @@ const STAFF_NAV: NavItem[] = [
   { key: "suggestion-weights", label: "Suggestion Weights", icon: "tune", route: "/dashboard/suggestion-weights" },
   { key: "user-management", label: "User Management", icon: "manage_accounts", route: "/dashboard/user-management" },
   { key: "kyc-review", label: "KYC Review", icon: "verified_user", route: "/dashboard/kyc-review" },
-  { key: "subscription", label: "Subscription", icon: "card_membership", route: "/dashboard/subscription" },
   { key: "faq-management", label: "FAQ Management", icon: "quiz", route: "/dashboard/faq-management" },
   PROFILE,
 ];

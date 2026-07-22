@@ -8,6 +8,7 @@ import type {
   UserSubscriptionData,
   UserSubscriptionResponse,
 } from "@/types/api.types";
+import type { ApiError } from "@/lib/axios";
 
 /**
  * Fetch all active subscription plans.
@@ -44,9 +45,9 @@ export async function selectSubscriptionPlan(
  * Fetch the authenticated user's currently active subscription.
  * GET /api/v1/subscriptions/my
  *
- * Returns null when the user has no active subscription (server returns 404
- * which the axios interceptor throws as an ApiError; caught here so the UI
- * can treat "no plan yet" as a normal state rather than an error).
+ * Returns null only on 404 (user has no active subscription — a normal state).
+ * All other errors (network failures, 5xx, etc.) are re-thrown so the caller
+ * can surface them to the user rather than silently rendering "no active plan".
  */
 export async function getUserSubscription(): Promise<UserSubscriptionData | null> {
   try {
@@ -54,7 +55,9 @@ export async function getUserSubscription(): Promise<UserSubscriptionData | null
       API_ENDPOINTS.SUBSCRIPTION_MY
     );
     return data.data ?? null;
-  } catch {
-    return null;
+  } catch (err) {
+    const apiErr = err as ApiError;
+    if (apiErr.status === 404) return null;
+    throw err;
   }
 }
