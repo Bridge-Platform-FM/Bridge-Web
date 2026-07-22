@@ -367,6 +367,10 @@ interface DealSidePanelProps {
   /** Bumped whenever a `meeting_scheduled` socket event lands (own or counterparty's),
    *  so the "Upcoming Meetings" preview refetches live. */
   meetingsRefreshKey?: number;
+  /** Bumped whenever a `new_message` socket event carries a file attachment (own or
+   *  counterparty's), so the Shared Files preview refetches live (mirrors
+   *  meetingsRefreshKey — files are otherwise only refetched on room.stage change). */
+  filesRefreshKey?: number;
   /** Open the watermarked preview modal for a shared file. */
   onPreview: (file: PreviewableFile) => void;
   /** Ask the counterparty to move to the next stage (`request_stage_update` socket). */
@@ -403,6 +407,7 @@ export function DealSidePanel({
   closed,
   isLastStage,
   meetingsRefreshKey,
+  filesRefreshKey,
   onPreview,
   onRequestNextStage,
   onAcceptStage,
@@ -503,7 +508,10 @@ export function DealSidePanel({
       .catch(() => {
         setStageFiles([]);
       });
-  }, [room.id, room.stage]);
+    // filesRefreshKey deliberately included: a `new_message` socket event carrying a
+    // file attachment (mine or the counterparty's) bumps it so this refetches live,
+    // without polling — mirrors the meetingsRefreshKey pattern above.
+  }, [room.id, room.stage, filesRefreshKey]);
 
   const files = useMemo<SharedFile[]>(
     () =>

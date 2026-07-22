@@ -87,6 +87,12 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
   // Whether the counterparty currently has this deal room open (see onPresenceChange below).
   const [counterpartyOnline, setCounterpartyOnline] = useState(false);
 
+  // Bumped whenever a `new_message` socket event carries a file attachment (mine or the
+  // counterparty's), so the side panel's Shared Files preview refetches live — otherwise
+  // it only refetches on room.stage change, so a file shared while already on a stage
+  // never appeared until the stage changed or the page was reloaded.
+  const [filesRefreshKey, setFilesRefreshKey] = useState(0);
+
   // Append inbound (and self-echoed) socket messages, de-duplicated by id. A fresh
   // message of mine is delivered-but-unread (single tick) until a `messages_read` arrives.
   const onNewMessage = useCallback((msg: DealMessage) => {
@@ -97,6 +103,7 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
     );
     // Their new message means they're clearly not just-typing anymore.
     if (msg.sender === "them") setCounterpartyTyping(false);
+    if (msg.attachment) setFilesRefreshKey((k) => k + 1);
   }, []);
 
   // The counterparty read the room → mark all MY messages as seen (double blue tick).
@@ -340,6 +347,7 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
       counterpartyOnline={counterpartyOnline}
       isLastStage={room.stage >= DEAL_STAGES.length - 1}
       meetingsRefreshKey={meetingsRefreshKey}
+      filesRefreshKey={filesRefreshKey}
       onRequestNextStage={onRequestNextStage}
       onAcceptStage={onAcceptStage}
       onRejectStage={onRejectStage}
