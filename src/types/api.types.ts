@@ -12,11 +12,15 @@ export interface RegisterPayload {
   cinNumber?: string;
 }
 
-/** Response from the register endpoint. Tokens are issued here now (OTP is sent in parallel). */
+/**
+ * Response from the register endpoint (OTP is sent in parallel). Tokens are issued
+ * here as httpOnly cookies directly on this response — there's nothing token-shaped
+ * in the body for the client to store.
+ */
 export interface RegisterResponse {
   success?: boolean;
   message?: string;
-  data?: { accessToken: string; refreshToken: string };
+  data?: unknown;
 }
 
 import type { Role } from "@/lib/roles";
@@ -28,16 +32,15 @@ export interface LoginPayload {
 }
 
 /**
- * Response from the login endpoint. Tokens authenticate subsequent requests;
- * `redirectTo` is the route the backend wants the client to land on (e.g. the
- * next pending onboarding step or the home dashboard).
+ * Response from the login endpoint. The pre-MFA token is set as an httpOnly cookie
+ * directly on this response — nothing token-shaped is in the body. `redirectTo` is
+ * the route the backend wants the client to land on (e.g. the next pending
+ * onboarding step or the home dashboard).
  */
 export interface LoginResponse {
   success?: boolean;
   message?: string;
   data?: {
-    accessToken: string;
-    refreshToken?: string;
     redirectTo?: string;
     /** Raw role string from the backend (e.g. "INVESTOR"); normalize via normalizeRole. */
     role?: string;
@@ -55,13 +58,14 @@ export interface SwitchRolePayload {
   role: Role;
 }
 
-/** Response from the switch-role endpoint — new tokens + the now-active role. */
+/**
+ * Response from the switch-role endpoint. The re-issued token pair is set as
+ * httpOnly cookies directly on this response; the body just carries the now-active role.
+ */
 export interface SwitchRoleResponse {
   success?: boolean;
   message?: string;
   data?: {
-    accessToken: string;
-    refreshToken: string;
     /** Raw role string from the backend; normalize via normalizeRole. */
     role?: string;
   };
@@ -91,13 +95,16 @@ export interface VerifyMfaOtpPayload {
   otp: string;
 }
 
-/** Response from the MFA verify-otp endpoint. */
+/**
+ * Response from the MFA verify-otp endpoint. The full access+refresh token pair is
+ * set as httpOnly cookies directly on this response — the client can no longer
+ * decode them, so the backend echoes `userId`/`tokenType` in the body instead
+ * (stored via setSession, read by the dashboard guard and deal-room "mine vs theirs").
+ */
 export interface VerifyMfaOtpResponse {
   success?: boolean;
   message?: string;
   data?: {
-    accessToken?: string;
-    refreshToken?: string;
     /** Route the backend wants the client to land on after verification. */
     redirectRoute?: string;
     /** Authenticated user's profile, echoed back on successful verification. */
@@ -105,6 +112,10 @@ export interface VerifyMfaOtpResponse {
     last_name?: string | null;
     /** Raw role string (e.g. "STARTUP"); normalize via normalizeRole. */
     role?: string | null;
+    /** The authenticated user's numeric id — the token itself is no longer client-readable. */
+    userId?: number;
+    /** The access token's `type` claim (e.g. "AUTH_ACCESS_TOKEN"), echoed back for the same reason. */
+    tokenType?: string;
   };
 }
 
@@ -120,7 +131,11 @@ export interface ResetPasswordTriggerOtpResponse {
   data?: unknown;
 }
 
-/** Step 2: verify the emailed OTP; returns a short-lived reset access token. */
+/**
+ * Step 2: verify the emailed OTP. The short-lived reset token (RESET_PASSWORD_ACCESS_TOKEN)
+ * is set as an httpOnly cookie directly on this response, authorizing the step-3 call
+ * automatically — nothing token-shaped is in the body.
+ */
 export interface ResetPasswordVerifyOtpPayload {
   email: string;
   otp: string;
@@ -128,10 +143,7 @@ export interface ResetPasswordVerifyOtpPayload {
 export interface ResetPasswordVerifyOtpResponse {
   success?: boolean;
   message?: string;
-  data?: {
-    /** Short-lived RESET_PASSWORD_ACCESS_TOKEN used to authorize the reset call. */
-    accessToken: string;
-  };
+  data?: unknown;
 }
 
 /** Step 3: set the new password (authorized by the reset access token). */

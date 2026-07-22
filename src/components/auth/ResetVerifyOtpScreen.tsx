@@ -6,18 +6,17 @@ import { toast } from "sonner";
 import { OtpVerifyCard } from "@/components/auth/OtpVerifyCard";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { verifyResetPasswordOtp, triggerResetPasswordOtp } from "@/services/auth.service";
-import { setTokens } from "@/lib/auth-tokens";
 import { maskEmail } from "@/lib/mask";
 import { OTP_LENGTH } from "@/lib/validation";
-import { ERROR_MESSAGES } from "@/lib/messages";
 import type { ApiError } from "@/lib/axios";
 
 /**
  * Step 2 of the password-reset flow: verify the emailed OTP. Reuses the shared
- * `OtpVerifyCard`. On success it stores the returned short-lived reset access
- * token (via setTokens — the axios interceptor then authorizes step 3) and
- * advances to the new-password screen. `from` is the originating portal sign-in,
- * threaded through for the back / cancel links.
+ * `OtpVerifyCard`. On success the backend sets the short-lived reset token as an
+ * httpOnly cookie directly on this response (nothing for the client to store —
+ * the cookie authorizes step 3 automatically) and advances to the new-password
+ * screen. `from` is the originating portal sign-in, threaded through for the
+ * back / cancel links.
  */
 export function ResetVerifyOtpScreen({ from = "/login" }: { from?: string }) {
   const router = useRouter();
@@ -32,13 +31,9 @@ export function ResetVerifyOtpScreen({ from = "/login" }: { from?: string }) {
   }, [resetEmail, router, fromQuery]);
 
   const handleVerify = async (code: string) => {
+    // A wrong/expired OTP is a non-2xx response, already thrown by the axios
+    // interceptor. Success sets the reset_token cookie directly — nothing to store.
     const res = await verifyResetPasswordOtp({ email: resetEmail, otp: code });
-    if (!res.data?.accessToken) {
-      throw { message: ERROR_MESSAGES.INVALID_OTP } as ApiError;
-    }
-    // Store the reset token the same way auth tokens are stored; the request
-    // interceptor attaches it as Bearer on the step-3 reset call.
-    setTokens({ accessToken: res.data.accessToken, refreshToken: "" });
     router.push(`/reset-password/new-password${fromQuery}`);
     return { message: res.message ?? undefined };
   };

@@ -10,7 +10,6 @@ import { Card } from "@/components/ui/Card";
 import { Loader } from "@/components/common/loader";
 import { Input } from "@/components/ui/input";
 import { loginUser, type Portal } from "@/services/auth.service";
-import { setTokens } from "@/lib/auth-tokens";
 import { setSession } from "@/lib/auth-session";
 import { normalizeRole, type Role } from "@/lib/roles";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
@@ -131,10 +130,11 @@ export function SignInScreen({
 
   const onSubmit = async (values: LoginForm) => {
     try {
+      // The pre-MFA token is an httpOnly cookie now, set directly by the backend on
+      // this response — nothing for the client to store. A non-2xx response (bad
+      // credentials) already throws via the axios interceptor and lands in catch.
       const res = await loginUser({ email: values.email, password: values.password }, portal);
-      if (res.data?.accessToken) {
-        setTokens({ accessToken: res.data.accessToken, refreshToken: res.data.refreshToken ?? "" });
-      } else {
+      if (!res.data) {
         throw { message: ERROR_MESSAGES.NO_SESSION } as ApiError;
       }
       // Persist the role so the dashboard can render the role-specific view once

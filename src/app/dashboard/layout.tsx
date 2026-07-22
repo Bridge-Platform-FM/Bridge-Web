@@ -1,22 +1,41 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
 import { DashboardSidebar } from "@/components/layout/sidebar";
 import { DashboardNavbar } from "@/components/layout/navbar";
-import { getAccessToken, getRefreshToken } from "@/lib/auth-tokens";
+import { getSessionLimitStatus } from "@/services/session.service";
+const FULL_SESSION_TOKEN_TYPE = "AUTH_ACCESS_TOKEN";
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { role, isLoaded } = useAuth();
+  const { role, tokenType, isLoaded } = useAuth();
+  const hasFullSession = tokenType === FULL_SESSION_TOKEN_TYPE;
+  const [verified, setVerified] = useState(false);
 
   useEffect(() => {
     if (!isLoaded) return;
-    if (!getAccessToken() || !getRefreshToken() || !role) router.replace("/login");
-  }, [isLoaded, role, router]);
+    if (!hasFullSession || !role) {
+      router.replace("/login");
+      return;
+    }
+    let cancelled = false;
+    getSessionLimitStatus()
+      .then(() => {
+        if (!cancelled) setVerified(true);
+      })
+      .catch(() => {
+        // A 401 here is handled globally by lib/axios.ts's response interceptor
+        // (clears the session + redirects to /login) — nothing extra to do here.
+        // verified stays false either way, so children never render.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoaded, role, hasFullSession, router]);
 
-  if (!isLoaded || !role || !getAccessToken() || !getRefreshToken()) {
+  if (!isLoaded || !role || !hasFullSession || !verified) {
     return (
       <div className="flex h-full items-center justify-center text-on-surface-variant">
         Loading…

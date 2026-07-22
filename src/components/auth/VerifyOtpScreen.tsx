@@ -11,7 +11,6 @@ import { getSessionLimitStatus } from "@/services/session.service";
 import { OTP_LENGTH, type OtpChannel } from "@/lib/validation";
 import { normalizeRole } from "@/lib/roles";
 import { getSession, setSession } from "@/lib/auth-session";
-import { setTokens } from "@/lib/auth-tokens";
 import { ERROR_MESSAGES } from "@/lib/messages";
 import type { ActiveSession } from "@/types/api.types";
 import type { ApiError } from "@/lib/axios";
@@ -57,10 +56,11 @@ export function VerifyOtpScreen({
   const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([]);
 
   const handleVerify = async (code: string) => {
+    // MFA passed — the backend sets the full access+refresh token pair as httpOnly
+    // cookies directly on this response; nothing for the client to store. It also
+    // echoes userId/tokenType in the body since the client can no longer decode the
+    // (now-invisible) cookie itself.
     const res = await verifyMfaOtp({ channel, otp: code }, portal);
-    if (res.data?.accessToken && res.data?.refreshToken) {
-      setTokens({ accessToken: res.data.accessToken, refreshToken: res.data.refreshToken });
-    }
     const destination = res.data?.redirectRoute || SUCCESS_ROUTE;
     setRedirectRoute(destination);
     // Persist the real name + role echoed back here so the dashboard sidebar shows
@@ -70,7 +70,12 @@ export function VerifyOtpScreen({
     const fullName = [res.data?.first_name, res.data?.last_name].filter(Boolean).join(" ").trim();
     const nextRole = normalizeRole(res.data?.role) ?? current?.role ?? null;
     if (nextRole) {
-      setSession({ role: nextRole, user: { ...current?.user, name: fullName || current?.user?.name } });
+      setSession({
+        role: nextRole,
+        user: { ...current?.user, name: fullName || current?.user?.name },
+        userId: res.data?.userId ?? current?.userId,
+        tokenType: res.data?.tokenType ?? current?.tokenType,
+      });
     }
     // Check the active-session limit before redirecting. If at the limit, open
     // the chooser modal instead. Falls back to normal redirect on check failure

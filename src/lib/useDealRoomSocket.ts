@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 import { io, type Socket } from "socket.io-client";
 import { toast } from "sonner";
-import { getAccessToken } from "@/lib/auth-tokens";
 import {
   normalizeFundingOffer,
   normalizeMessage,
@@ -176,11 +175,12 @@ export function useDealRoomSocket(dealRoomId: string, handlers: DealRoomSocketHa
 
   useEffect(() => {
     if (!dealRoomId) return;
-    const token = getAccessToken();
-    if (!token) return;
 
+    // The access token is an httpOnly cookie now — withCredentials makes the browser
+    // attach it to the socket.io handshake automatically (server reads it from the
+    // handshake's Cookie header); there's no token for JS to read or pass explicitly.
     const url = process.env.NEXT_PUBLIC_API_BASE_URL || undefined;
-    const socket = io(url, { auth: { token }, transports: ["websocket", "polling"] });
+    const socket = io(url, { withCredentials: true, transports: ["websocket", "polling"] });
     socketRef.current = socket;
 
     socket.on("connect", () => {
