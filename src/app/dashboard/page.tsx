@@ -8,7 +8,7 @@ import { InvestorView } from "@/components/dashboard/views/InvestorView";
 import { B2BView } from "@/components/dashboard/views/B2BView";
 import type { Role } from "@/lib/roles";
 
-/** Maps each role to its dashboard view. The layout guards auth + role presence. */
+/** Maps each role to its dashboard view. The layout guards auth + role presence. test */
 const VIEW_BY_ROLE: Record<Role, React.ComponentType> = {
   super_admin: SuperAdminView,
   admin: AdminView,
