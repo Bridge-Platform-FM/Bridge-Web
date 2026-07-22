@@ -1,50 +1,41 @@
 /**
- * Auth token storage — dedicated localStorage keys, separate from the onboarding blob.
- * Tokens are issued once both OTP channels are verified (registration completes).
+ * Auth tokens now live in httpOnly cookies set by the backend — JavaScript can no
+ * longer read or write them (that's the point: XSS can't steal them). The server sets
+ * them via Set-Cookie at login/verify-otp/refresh/registration and clears them at logout.
+ *
+ * Client-side identity the UI still needs (role, userId, name) lives in
+ * `auth-session.ts` (non-sensitive, localStorage). This module only handles local
+ * cleanup of the onboarding blob.
  */
 
-const ACCESS_TOKEN_KEY =
-  process.env.NEXT_PUBLIC_ACCESS_TOKEN_KEY ?? "bridge-platform.accessToken";
-const REFRESH_TOKEN_KEY =
-  process.env.NEXT_PUBLIC_REFRESH_TOKEN_KEY ?? "bridge-platform.refreshToken";
 const STORAGE_KEY = process.env.NEXT_PUBLIC_STORAGE_KEY ?? "bridge-platform.onboarding";
 
-export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-}
+// Legacy localStorage keys tokens USED to live in (pre-cookie migration). Tokens are
+// httpOnly cookies now, but a browser that logged in before the migration may still
+// hold these — purge them defensively so no token lingers in localStorage.
+const LEGACY_TOKEN_KEYS = [
+  process.env.NEXT_PUBLIC_ACCESS_TOKEN_KEY ?? "bridge-platform.accessToken",
+  process.env.NEXT_PUBLIC_REFRESH_TOKEN_KEY ?? "bridge-platform.refreshToken",
+  process.env.NEXT_PUBLIC_MFA_TOKEN_KEY ?? "bridge-platform.mfaToken",
+];
 
-/** Persist the access + refresh tokens. */
-export function setTokens({ accessToken, refreshToken }: AuthTokens) {
+/** Remove any legacy token keys left in localStorage from before the cookie migration.
+ *  Safe to call on every app load — tokens are httpOnly cookies now, so these should
+ *  never exist; this just cleans up browsers that logged in before the migration. */
+export function purgeLegacyTokens() {
   try {
-    localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
-    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    for (const key of LEGACY_TOKEN_KEYS) localStorage.removeItem(key);
   } catch {
-    /* ignore storage quota/availability errors */
+    /* ignore */
   }
 }
 
-export function getAccessToken(): string | null {
-  try {
-    return localStorage.getItem(ACCESS_TOKEN_KEY);
-  } catch {
-    return null;
-  }
-}
-
-export function getRefreshToken(): string | null {
-  try {
-    return localStorage.getItem(REFRESH_TOKEN_KEY);
-  } catch {
-    return null;
-  }
-}
-
+/** Local cleanup — clears the onboarding blob and purges any legacy token keys.
+ *  Auth cookies are cleared server-side on logout. */
 export function clearTokens() {
   try {
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(STORAGE_KEY);
+    purgeLegacyTokens();
   } catch {
     /* ignore */
   }

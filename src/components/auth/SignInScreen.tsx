@@ -10,8 +10,6 @@ import { Card } from "@/components/ui/Card";
 import { Loader } from "@/components/common/loader";
 import { Input } from "@/components/ui/input";
 import { loginUser, type Portal } from "@/services/auth.service";
-import { setTokens } from "@/lib/auth-tokens";
-import { setSession } from "@/lib/auth-session";
 import { normalizeRole, type Role } from "@/lib/roles";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { EMAIL_REGEX } from "@/lib/validation";
@@ -132,27 +130,23 @@ export function SignInScreen({
   const onSubmit = async (values: LoginForm) => {
     try {
       const res = await loginUser({ email: values.email, password: values.password }, portal);
-      if (res.data?.accessToken && res.data?.refreshToken) {
-        setTokens(res.data);
-      } else {
+      // Login sets ONLY a short-lived MFA-pending cookie (httpOnly) — no real
+      // access/refresh tokens and no session until OTP is verified. This is what
+      // prevents jumping straight to /dashboard before MFA.
+      if (!res.data) {
         throw { message: ERROR_MESSAGES.NO_SESSION } as ApiError;
       }
-      // Persist the role so the dashboard can render the role-specific view once
-      // MFA completes (we never decode the JWT). Prefer the backend's enum
-      // (normalized to our Role); for staff portals fall back to the role implied
-      // by the route so a missing `role` field doesn't bounce us off /dashboard.
+      // Resolve the role now (backend enum, else the role implied by the portal
+      // route) and carry it — plus the login email — to the verify-otp step,
+      // which creates the real session once MFA succeeds. We never decode the JWT.
       const role = normalizeRole(res.data.role) ?? PORTAL_ROLE[portal] ?? null;
-      if (role) {
-        // Show the real name in the dashboard when the backend returns it; the
-        // sidebar falls back to the email when `name` is empty.
-        const fullName = [res.data.first_name, res.data.last_name].filter(Boolean).join(" ").trim();
-        setSession({ role, user: { email: values.email, name: fullName || undefined } });
-      }
-      // Persist the masked contact info for the verification-channel screen. Both
-      // values arrive already masked from the backend — no client-side masking.
+      // Persist the masked contact info for the channel screen (already masked by
+      // the backend) plus the values verify-otp needs to build the session.
       setData({
         maskedEmail: res.data.maskedEmail ?? "",
         maskedMobile: res.data.maskedMobile ?? "",
+        loginEmail: values.email,
+        loginRole: role ?? undefined,
       });
       toast.success(res.message ?? SUCCESS_MESSAGES.LOGIN);
       router.push(`${basePath}/select-channel`);

@@ -188,6 +188,12 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
     setMeetingsRefreshKey((k) => k + 1);
     if (!meeting.createdByMe) toast.success(`New meeting scheduled: ${meeting.title}`);
   }, []);
+  // Either side edited a meeting (including my own, echoed back) — refetch so the
+  // "Upcoming Meetings" card reflects the change live, and toast the counterparty.
+  const onMeetingUpdated = useCallback((meeting: ScheduledMeeting) => {
+    setMeetingsRefreshKey((k) => k + 1);
+    if (!meeting.createdByMe) toast.success(`Meeting updated: ${meeting.title}`);
+  }, []);
 
   // Either side sends/counters a funding offer (including my own, echoed back) — bump a
   // counter so the side panel's Funding Offer card refetches live.
@@ -230,6 +236,7 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
     onStageResponded,
     onPresenceChange,
     onMeetingScheduled,
+    onMeetingUpdated,
     onFundingOfferCreated,
     onFundingOfferResponded,
     onTermSheetUpdated,

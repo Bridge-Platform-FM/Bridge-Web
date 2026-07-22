@@ -9,8 +9,8 @@ import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { verifyMfaOtp, selectMfaChannel, type Portal } from "@/services/auth.service";
 import { getSessionLimitStatus } from "@/services/session.service";
 import { OTP_LENGTH, type OtpChannel } from "@/lib/validation";
-import { normalizeRole } from "@/lib/roles";
-import { getSession, setSession } from "@/lib/auth-session";
+import { normalizeRole, isRole } from "@/lib/roles";
+import { setSession } from "@/lib/auth-session";
 import { ERROR_MESSAGES } from "@/lib/messages";
 import type { ActiveSession } from "@/types/api.types";
 import type { ApiError } from "@/lib/axios";
@@ -57,16 +57,28 @@ export function VerifyOtpScreen({
 
   const handleVerify = async (code: string) => {
     const res = await verifyMfaOtp({ channel, otp: code }, portal);
+    // OTP verified — the backend set the REAL access/refresh tokens as httpOnly
+    // cookies (nothing to store client-side). Only now can the app reach /dashboard.
+    if (!res.data) {
+      throw { message: ERROR_MESSAGES.NO_SESSION } as ApiError;
+    }
     const destination = res.data?.redirectRoute || SUCCESS_ROUTE;
     setRedirectRoute(destination);
-    // Persist the real name + role echoed back here so the dashboard sidebar shows
-    // the actual signed-in user (login only had the email at that point). The
-    // dashboard's AuthProvider reads this from localStorage on mount.
-    const current = getSession();
+    // Persist the non-sensitive identity (role, name, userId) the UI needs. Prefer
+    // the role echoed here; fall back to the role resolved at login (carried via the
+    // onboarding store). The dashboard's AuthProvider reads this from localStorage.
+    const loginRole = isRole(data.loginRole) ? data.loginRole : null;
     const fullName = [res.data?.first_name, res.data?.last_name].filter(Boolean).join(" ").trim();
-    const nextRole = normalizeRole(res.data?.role) ?? current?.role ?? null;
+    const nextRole = normalizeRole(res.data?.role) ?? loginRole;
     if (nextRole) {
-      setSession({ role: nextRole, user: { ...current?.user, name: fullName || current?.user?.name } });
+      setSession({
+        role: nextRole,
+        user: {
+          email: String(data.loginEmail ?? "") || undefined,
+          name: fullName || undefined,
+          userId: res.data?.userId,
+        },
+      });
     }
     // Check the active-session limit before redirecting. If at the limit, open
     // the chooser modal instead. Falls back to normal redirect on check failure

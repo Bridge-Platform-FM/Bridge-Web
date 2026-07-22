@@ -36,8 +36,12 @@ export interface LoginResponse {
   success?: boolean;
   message?: string;
   data?: {
-    accessToken: string;
-    refreshToken: string;
+    /**
+     * Short-lived MFA-pending token. Authorizes ONLY the MFA OTP endpoints; the
+     * real access/refresh tokens are issued by verify-otp. No access/refresh
+     * token exists until MFA is verified.
+     */
+    mfaToken: string;
     redirectTo?: string;
     /** Raw role string from the backend (e.g. "INVESTOR"); normalize via normalizeRole. */
     role?: string;
@@ -96,6 +100,14 @@ export interface VerifyMfaOtpResponse {
   success?: boolean;
   message?: string;
   data?: {
+    /**
+     * The real tokens are delivered as httpOnly cookies now; these body fields may
+     * still be present for backward compatibility but the client no longer stores them.
+     */
+    accessToken?: string;
+    refreshToken?: string;
+    /** Numeric user id — stored in the session to drive deal-room "mine vs theirs" UI. */
+    userId?: number;
     /** Route the backend wants the client to land on after verification. */
     redirectRoute?: string;
     /** Authenticated user's profile, echoed back on successful verification. */

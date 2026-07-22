@@ -14,7 +14,7 @@ import { TermsModal } from "@/components/onboarding/TermsModal";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { toast } from "sonner";
 import { registerCompany } from "@/services/auth.service";
-import { setTokens, clearTokens } from "@/lib/auth-tokens";
+import { clearTokens } from "@/lib/auth-tokens";
 import { clearSession } from "@/lib/auth-session";
 import { GST_REGEX, CIN_REGEX, PHONE_REGEX, PASSWORD_REGEX, EMAIL_REGEX } from "@/lib/validation";
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "@/lib/messages";
@@ -109,12 +109,11 @@ export default function RegisterPage() {
 
     try {
       const res = await registerCompany(payload);
-      // Tokens are issued here now — persist them so all subsequent APIs are authenticated.
-      if (res.data?.accessToken && res.data?.refreshToken) {
-        setTokens(res.data);
-      } else {
-        // Backend returned success without tokens — treat as a failure rather than
-        // advancing into an unauthenticated flow.
+      // Tokens are issued here as httpOnly cookies (set by the backend) — nothing to
+      // store client-side. Guard on a success payload before advancing.
+      if (!res.data) {
+        // Backend returned no data — treat as a failure rather than advancing into
+        // an unauthenticated flow.
         throw { message: ERROR_MESSAGES.NO_SESSION } as ApiError;
       }
       toast.success(res.message ?? SUCCESS_MESSAGES.REGISTRATION);

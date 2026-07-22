@@ -43,3 +43,12 @@ export async function revokeSelectedSessions(
   );
   return data;
 }
+
+/**
+ * Log out the current session. Best-effort: the backend revokes this session row and
+ * clears the httpOnly auth cookies (the cookie is sent automatically via withCredentials).
+ * Callers wrap this in try/catch so a failure never blocks local logout.
+ */
+export async function logoutSession(): Promise<void> {
+  await api.post(API_ENDPOINTS.SESSION_LOGOUT, {});
+}

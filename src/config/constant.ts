@@ -32,6 +32,8 @@ export const API_ENDPOINTS = {
   MFA_SELECT_CHANNEL: `${AUTH}/mfa/trigger-otp`,
   // Login MFA: verify the OTP the user entered for the chosen channel.
   MFA_VERIFY_OTP: `${AUTH}/mfa/verify-otp`,
+  // Exchange the httpOnly refresh cookie for a fresh access-token cookie.
+  REFRESH: `${AUTH}/refresh`,
   // Password reset (standalone flow, all portals): trigger an OTP to the email,
   // verify it (returns a short-lived reset access token), then set the new password.
   RESET_PASSWORD_TRIGGER_OTP: `${AUTH}/reset-password/trigger-otp`,
@@ -71,6 +73,8 @@ export const API_ENDPOINTS = {
   SESSION_LIMIT_STATUS: `${SESSIONS}/limit-status`,
   // Revoke one or more sessions by id (called from the session-chooser modal).
   REVOKE_SELECTED_SESSIONS: `${SESSIONS}/revoke-selected`,
+  // Log out the current session (revokes it server-side and clears the auth cookies).
+  SESSION_LOGOUT: `${SESSIONS}/logout`,
 
   // ----- Admin / Super-Admin back-office -----
   // User Management list + detail. TODO: replace with the real paths from the curl.

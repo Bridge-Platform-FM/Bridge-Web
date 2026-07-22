@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { OtpVerifyCard } from "@/components/auth/OtpVerifyCard";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { verifyResetPasswordOtp, triggerResetPasswordOtp } from "@/services/auth.service";
-import { setTokens } from "@/lib/auth-tokens";
 import { maskEmail } from "@/lib/mask";
 import { OTP_LENGTH } from "@/lib/validation";
 import { ERROR_MESSAGES } from "@/lib/messages";
@@ -36,9 +35,8 @@ export function ResetVerifyOtpScreen({ from = "/login" }: { from?: string }) {
     if (!res.data?.accessToken) {
       throw { message: ERROR_MESSAGES.INVALID_OTP } as ApiError;
     }
-    // Store the reset token the same way auth tokens are stored; the request
-    // interceptor attaches it as Bearer on the step-3 reset call.
-    setTokens({ accessToken: res.data.accessToken, refreshToken: "" });
+    // The backend set the short-lived reset token as an httpOnly cookie; it's sent
+    // automatically (withCredentials) on the step-3 reset call — nothing to store here.
     router.push(`/reset-password/new-password${fromQuery}`);
     return { message: res.message ?? undefined };
   };

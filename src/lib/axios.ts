@@ -1,24 +1,21 @@
-import axios, { AxiosError } from "axios";
+import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { toast } from "sonner";
-import { getAccessToken, clearTokens } from "@/lib/auth-tokens";
+import { clearTokens } from "@/lib/auth-tokens";
 import { clearSession } from "@/lib/auth-session";
+import { refreshAccessTokenOnce } from "@/lib/token-refresh";
 
 /**
  * Shared axios instance for all API calls.
  * Base URL comes from NEXT_PUBLIC_API_BASE_URL (set in .env.local).
+ *
+ * `withCredentials` makes the browser send/receive the httpOnly auth cookies. The access
+ * token is no longer attached via an Authorization header — the cookie travels automatically.
  */
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL ?? "",
   headers: { "Content-Type": "application/json" },
+  withCredentials: true,
   // timeout: 30000,
-});
-
-// Attach the access token (issued at registration) so every later call is authenticated.
-api.interceptors.request.use((config) => {
-  const token = getAccessToken();
-  // Don't clobber an Authorization header a caller set explicitly per-request.
-  if (token && !config.headers.Authorization) config.headers.Authorization = `Bearer ${token}`;
-  return config;
 });
 
 /** A normalized error shape surfaced to callers/UI. */
@@ -31,10 +28,22 @@ export interface ApiError {
 // Guards against firing the logout/redirect more than once for a burst of 401s.
 let isLoggingOut = false;
 
+/** True for endpoints where a 401 is a real credential failure, NOT an expired session —
+ *  so we never try to refresh (or logout-redirect) on them. */
+function isAuthEndpoint(url?: string): boolean {
+  if (!url) return false;
+  return (
+    url.includes("/auth/login") ||
+    url.includes("/auth/mfa/") ||
+    url.includes("/auth/refresh") ||
+    url.includes("/auth/company-registration") ||
+    url.includes("/reset-password")
+  );
+}
+
 /**
- * On an expired/invalid token (401) anywhere in the app: clear the stored tokens
- * + session and bounce to the sign-in screen. Skipped on the auth screens
- * themselves (a 401 there is a normal "wrong credentials", not a dead session).
+ * On a truly-dead session (refresh failed): clear local state and bounce to sign-in.
+ * Skipped on the auth screens themselves (a 401 there is a normal "wrong credentials").
  */
 function handleUnauthorized() {
   if (typeof window === "undefined" || isLoggingOut) return;
@@ -44,8 +53,6 @@ function handleUnauthorized() {
     path.startsWith("/login") ||
     path.startsWith("/admin/login") ||
     path.startsWith("/registration") ||
-    // The reset flow uses a short-lived reset token; an expired one should surface
-    // an inline error on the reset screen, not bounce the (logged-out) user away.
     path.startsWith("/reset-password")
   ) {
     return;
@@ -55,15 +62,30 @@ function handleUnauthorized() {
   clearTokens();
   clearSession();
   toast.error("Your session has expired. Please sign in again.");
-  // Send staff back to the admin sign-in, everyone else to the user sign-in.
   window.location.href = path.startsWith("/admin") ? "/admin/login" : "/login";
 }
 
-// Normalize errors so callers get a predictable shape.
+// Normalize errors so callers get a predictable shape, and transparently refresh on 401.
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<{ message?: string }>) => {
-    if (error.response?.status === 401) handleUnauthorized();
+    const original = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
+
+    // Access token expired → refresh once (shared single-flight) and retry the original
+    // request. Only for non-auth endpoints and only once per request.
+    if (
+      error.response?.status === 401 &&
+      original &&
+      !original._retry &&
+      !isAuthEndpoint(original.url)
+    ) {
+      original._retry = true;
+      const refreshed = await refreshAccessTokenOnce();
+      if (refreshed) {
+        return api(original); // cookie was rotated server-side; browser sends the new one
+      }
+      handleUnauthorized();
+    }
 
     let data: unknown = error.response?.data;
     if (data instanceof Blob) {

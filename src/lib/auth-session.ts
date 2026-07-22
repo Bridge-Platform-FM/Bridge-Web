@@ -16,6 +16,9 @@ export interface SessionUser {
   name?: string;
   email?: string;
   organizationName?: string;
+  /** Numeric user id, echoed at verify-otp. Drives deal-room "mine vs theirs" UI now
+   *  that the access token is httpOnly and can't be decoded client-side. */
+  userId?: number;
 }
 
 export interface Session {

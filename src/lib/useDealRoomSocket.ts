@@ -3,7 +3,8 @@
 import { useEffect, useRef } from "react";
 import { io, type Socket } from "socket.io-client";
 import { toast } from "sonner";
-import { getAccessToken } from "@/lib/auth-tokens";
+import { getSession } from "@/lib/auth-session";
+import { refreshAccessTokenOnce } from "@/lib/token-refresh";
 import {
   normalizeFundingOffer,
   normalizeMessage,
@@ -121,6 +122,9 @@ interface DealRoomSocketHandlers {
   /** Fired when either side schedules a meeting — including my own echoed back, so
    *  every open tab (mine and the counterparty's) can refresh the meetings list live. */
   onMeetingScheduled?: (meeting: ScheduledMeeting) => void;
+  /** Fired when either side edits an existing meeting — including my own echoed back, so
+   *  the meetings list/card refreshes live on both sides. */
+  onMeetingUpdated?: (meeting: ScheduledMeeting) => void;
   /** Fired when either side sends/counters a funding offer — including my own, echoed back. */
   onFundingOfferCreated?: (offer: DealFundingOffer) => void;
   /** Fired once a pending funding offer is accepted/rejected. */
@@ -173,20 +177,40 @@ export function useDealRoomSocket(dealRoomId: string, handlers: DealRoomSocketHa
   const typingActiveRef = useRef(false);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTypingEmitRef = useRef(0);
+  // Guards against an infinite refresh↔reconnect loop; reset on a successful connect.
+  const authRetriedRef = useRef(false);
 
   useEffect(() => {
     if (!dealRoomId) return;
-    const token = getAccessToken();
-    if (!token) return;
+    // No local session → user isn't logged in on this browser; don't attempt to connect.
+    if (!getSession()) return;
 
     const url = process.env.NEXT_PUBLIC_API_BASE_URL || undefined;
-    const socket = io(url, { auth: { token }, transports: ["websocket", "polling"] });
+    // withCredentials makes the browser send the httpOnly access cookie in the handshake;
+    // the server reads it (no JS-readable token needed).
+    const socket = io(url, { withCredentials: true, transports: ["websocket", "polling"] });
     socketRef.current = socket;
 
     socket.on("connect", () => {
+      authRetriedRef.current = false;
       socket.emit("join_deal_room", { dealRoomId });
       // Opening the room clears any unread messages for me.
       socket.emit("mark_read", { dealRoomId });
+    });
+
+    // If the handshake is rejected because the access cookie expired, refresh once
+    // (shared single-flight) then reconnect — the new cookie will be sent automatically.
+    socket.on("connect_error", async (err: Error) => {
+      const isAuth = /unauthorized|forbidden|jwt|token/i.test(err.message);
+      if (isAuth && !authRetriedRef.current) {
+        authRetriedRef.current = true;
+        const refreshed = await refreshAccessTokenOnce();
+        if (refreshed) {
+          socket.connect();
+          return;
+        }
+        toast.error("Your session has expired. Please sign in again.");
+      }
     });
 
     socket.on("new_message", (raw: RawMessage) => {
@@ -220,6 +244,10 @@ export function useDealRoomSocket(dealRoomId: string, handlers: DealRoomSocketHa
 
     socket.on("meeting_scheduled", (raw: Parameters<typeof toScheduledMeeting>[0]) => {
       handlersRef.current.onMeetingScheduled?.(toScheduledMeeting(raw));
+    });
+
+    socket.on("meeting_updated", (raw: Parameters<typeof toScheduledMeeting>[0]) => {
+      handlersRef.current.onMeetingUpdated?.(toScheduledMeeting(raw));
     });
 
     // A new offer and a counter-offer are both "a new Pending row now exists" — same

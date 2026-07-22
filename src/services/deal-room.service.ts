@@ -232,10 +232,13 @@ export async function unarchiveDealRoom(id: string): Promise<void> {
   await api.put(API_ENDPOINTS.DEAL_ROOM_UNARCHIVE(id));
 }
 
-/** Fetch a room's message history (returned newest-first; reversed to chronological). */
+/** Fetch a room's message history. The backend merges text + media and returns them in
+ *  chronological order (oldest-first, `created_at ASC`), which is exactly the order the
+ *  chat renders top-to-bottom — so no reversal here. (A stale `.reverse()` used to flip
+ *  the thread newest-first, pushing newer media above older texts after a reload.) */
 export async function fetchDealRoomMessages(id: string): Promise<DealMessage[]> {
   const { data } = await api.get<{ data?: RawMessage[] }>(API_ENDPOINTS.DEAL_ROOM_MESSAGES(id));
-  return (data.data ?? []).map(normalizeMessage).reverse();
+  return (data.data ?? []).map(normalizeMessage);
 }
 
 /** Close a deal room (both sides become read-only). PUT, optional reason. */

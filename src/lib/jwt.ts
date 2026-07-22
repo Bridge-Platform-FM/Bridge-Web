@@ -1,31 +1,16 @@
 /**
- * Minimal JWT payload access — no external dependency. The backend signs the access
- * token with `userId`, `roleId`, `role`, `companyId`, etc. (see Bridge-Server
- * tokenService). We only ever READ the payload client-side (never trust it for auth —
- * the server re-verifies), e.g. to know the current user's id for the Deal Room:
- * picking the counterparty and marking a message as mine vs theirs.
+ * Current-user identity for the client UI.
+ *
+ * The access token is now an httpOnly cookie, so JavaScript can no longer decode it.
+ * The user id is instead carried in the (non-sensitive) session, populated at verify-otp
+ * from the backend response. Used e.g. in the Deal Room to pick the counterparty and mark
+ * a message/offer as mine vs theirs. Never trusted for auth — the server re-verifies.
  */
 
-import { getAccessToken } from "./auth-tokens";
+import { getSession } from "./auth-session";
 
-/** Base64url-decode + JSON-parse a JWT's payload segment. Returns null if malformed. */
-function decodePayload(token: string): Record<string, unknown> | null {
-  const part = token.split(".")[1];
-  if (!part) return null;
-  try {
-    const base64 = part.replace(/-/g, "+").replace(/_/g, "/");
-    const json = typeof atob === "function" ? atob(base64) : Buffer.from(base64, "base64").toString("utf8");
-    return JSON.parse(json) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-}
-
-/** The current user's numeric id from the stored access token, or null if unavailable. */
+/** The current user's numeric id from the stored session, or null if unavailable. */
 export function getCurrentUserId(): number | null {
-  const token = getAccessToken();
-  if (!token) return null;
-  const payload = decodePayload(token);
-  const id = payload?.userId;
+  const id = getSession()?.user?.userId;
   return typeof id === "number" ? id : typeof id === "string" && id !== "" ? Number(id) : null;
 }

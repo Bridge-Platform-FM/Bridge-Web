@@ -76,7 +76,12 @@ export async function selectMfaChannel(
   payload: SelectChannelPayload,
   portal: Portal = "user",
 ): Promise<SelectChannelResponse> {
-  const { data } = await api.post<SelectChannelResponse>(AUTH_BY_PORTAL[portal].MFA_SELECT_CHANNEL, payload);
+  // The MFA-pending token rides in an httpOnly cookie (set at login) and is sent
+  // automatically via withCredentials — no manual Authorization header needed.
+  const { data } = await api.post<SelectChannelResponse>(
+    AUTH_BY_PORTAL[portal].MFA_SELECT_CHANNEL,
+    payload,
+  );
   return data;
 }
 
@@ -89,7 +94,12 @@ export async function verifyMfaOtp(
   payload: VerifyMfaOtpPayload,
   portal: Portal = "user",
 ): Promise<VerifyMfaOtpResponse> {
-  const { data } = await api.post<VerifyMfaOtpResponse>(AUTH_BY_PORTAL[portal].MFA_VERIFY_OTP, payload);
+  // The MFA-pending token rides in an httpOnly cookie (set at login) and is sent
+  // automatically via withCredentials — no manual Authorization header needed.
+  const { data } = await api.post<VerifyMfaOtpResponse>(
+    AUTH_BY_PORTAL[portal].MFA_VERIFY_OTP,
+    payload,
+  );
   return data;
 }
 
