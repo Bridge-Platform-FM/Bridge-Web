@@ -6,23 +6,21 @@ import { normalizeRole, type Role } from "@/lib/roles";
 import {
   getSession,
   setSession as persistSession,
-  clearSession,
   type Session,
   type SessionUser,
 } from "@/lib/auth-session";
-import { setTokens, clearTokens, getAccessToken } from "@/lib/auth-tokens"; // added getAccessToken
 import { switchRole as switchRoleRequest } from "@/services/auth.service";
 
 // ---------------------------------------------------------------------------
 // The backend base URL. Reads NEXT_PUBLIC_API_URL from .env.local if set,
-// otherwise falls back to localhost for local development. Matches the same
-// pattern auth-tokens.ts uses for its NEXT_PUBLIC_* env vars.
+// otherwise falls back to localhost for local development.
 // ---------------------------------------------------------------------------
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
 
 interface AuthContextValue {
   role: Role | null;
   user: SessionUser | undefined;
+  tokenType: string | undefined;
   /** True once the persisted session has been read from localStorage. */
   isLoaded: boolean;
   /** Persist a session (e.g. right after login). */
@@ -53,44 +51,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const switchRole = useCallback(
     async (target: Role) => {
+      // Tokens are httpOnly cookies now — the backend sets the re-issued cookie
+      // directly on this response, so there's nothing for the client to store.
       const res = await switchRoleRequest({ role: target });
       const data = res.data;
-      if (!data?.accessToken || !data?.refreshToken) {
-        throw { message: res.message ?? "Couldn't switch account type." };
-      }
-      setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
-      const next: Session = { role: normalizeRole(data.role) ?? target, user: session?.user };
+      // A role switch doesn't change the token type or the user's own id — only carry
+      // `role` forward from the response; tokenType/userId must be preserved from the
+      // current session or the dashboard guard (tokenType) and getUserId() drop to
+      // undefined right after switching, breaking both until a full logout/login.
+      const next: Session = {
+        role: normalizeRole(data?.role) ?? target,
+        user: session?.user,
+        tokenType: session?.tokenType,
+        userId: session?.userId,
+      };
       persistSession(next);
       setSessionState(next);
     },
-    [session?.user]
+    [session?.user, session?.tokenType, session?.userId]
   );
 
   const logout = useCallback(async () => {
     /*
      * Step 1 — best-effort backend revocation.
      *
-     * Call POST /api/v1/sessions/logout with the current access token so
-     * the backend flips is_revoked = true on this session row immediately.
-     * This means any subsequent request using this token is rejected with
-     * 401 right away, instead of remaining valid for up to 15 more minutes
-     * until the JWT naturally expires.
+     * Call POST /api/v1/sessions/logout so the backend flips is_revoked = true
+     * on this session row immediately (instead of waiting for natural token
+     * expiry), AND clears the httpOnly auth cookies via Set-Cookie on this same
+     * response. The access token is an httpOnly cookie now — the browser
+     * attaches it automatically via credentials: "include"; there's nothing
+     * for JS to read or put in a header.
      *
-     * The token must be read BEFORE clearTokens() removes it from
-     * localStorage — that's why this block comes first.
-     *
-     * The whole block is wrapped in try/catch so a network failure, server
-     * error, or already-expired token never blocks the user from logging
-     * out locally. The finally block always runs.
+     * Wrapped in try/catch so a network failure or already-expired session
+     * never blocks the user from logging out locally. The finally block
+     * always runs.
      */
     try {
-      const token = getAccessToken();
-      if (token) {
-        await fetch(`${API_BASE_URL}/api/v1/sessions/logout`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      }
+      await fetch(`${API_BASE_URL}/api/v1/sessions/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
     } catch {
       // Ignore — local logout always completes in the finally block below.
     } finally {
@@ -98,12 +98,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
        * Step 2 — local cleanup.
        *
        * Always runs, even if the backend call threw or returned an error.
-       * Order: clear storage first, then update React state, then navigate
-       * (so there's no brief window where the UI still shows authenticated
-       * content while the token is already gone from storage).
+       * The cookies themselves are cleared server-side above; here we wipe
+       * localStorage entirely (not just the known session key) so nothing —
+       * session metadata, onboarding form data, anything added later — is left
+       * behind for the next person to use this browser/device.
        */
-      clearTokens();
-      clearSession();
+      try {
+        localStorage.clear();
+      } catch {
+        /* ignore storage unavailability */
+      }
       setSessionState(null);
       router.push("/login");
     }
@@ -113,6 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       role: session?.role ?? null,
       user: session?.user,
+      tokenType: session?.tokenType,
       isLoaded,
       setSession,
       switchRole,

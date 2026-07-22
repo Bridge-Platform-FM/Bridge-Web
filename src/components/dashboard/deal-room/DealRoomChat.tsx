@@ -45,6 +45,9 @@ interface DealRoomChatProps {
   /** Bumped whenever a `meeting_scheduled` socket event lands, so the side panel's
    *  "Upcoming Meetings" list refetches live. Omit (demo page) to disable this. */
   meetingsRefreshKey?: number;
+  /** Bumped whenever a `new_message` socket event carries a file attachment, so the
+   *  side panel's Shared Files preview refetches live. Omit (demo page) to disable this. */
+  filesRefreshKey?: number;
   /** Ask the counterparty to move to the next stage. */
   onRequestNextStage: () => void;
   /** Accept the counterparty's pending stage-update request. */
@@ -97,6 +100,7 @@ export function DealRoomChat({
   counterpartyOnline = false,
   isLastStage,
   meetingsRefreshKey,
+  filesRefreshKey,
   onRequestNextStage,
   onAcceptStage,
   onRejectStage,
@@ -514,6 +518,7 @@ export function DealRoomChat({
               closed={closed}
               isLastStage={isLastStage}
               meetingsRefreshKey={meetingsRefreshKey}
+              filesRefreshKey={filesRefreshKey}
               onPreview={openPreview}
               onRequestNextStage={onRequestNextStage}
               onAcceptStage={onAcceptStage}

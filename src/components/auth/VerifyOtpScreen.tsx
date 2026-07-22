@@ -56,6 +56,10 @@ export function VerifyOtpScreen({
   const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([]);
 
   const handleVerify = async (code: string) => {
+    // MFA passed — the backend sets the full access+refresh token pair as httpOnly
+    // cookies directly on this response; nothing for the client to store. It also
+    // echoes userId/tokenType in the body since the client can no longer decode the
+    // (now-invisible) cookie itself.
     const res = await verifyMfaOtp({ channel, otp: code }, portal);
     const destination = res.data?.redirectRoute || SUCCESS_ROUTE;
     setRedirectRoute(destination);
@@ -66,7 +70,12 @@ export function VerifyOtpScreen({
     const fullName = [res.data?.first_name, res.data?.last_name].filter(Boolean).join(" ").trim();
     const nextRole = normalizeRole(res.data?.role) ?? current?.role ?? null;
     if (nextRole) {
-      setSession({ role: nextRole, user: { ...current?.user, name: fullName || current?.user?.name } });
+      setSession({
+        role: nextRole,
+        user: { ...current?.user, name: fullName || current?.user?.name },
+        userId: res.data?.userId ?? current?.userId,
+        tokenType: res.data?.tokenType ?? current?.tokenType,
+      });
     }
     // Check the active-session limit before redirecting. If at the limit, open
     // the chooser modal instead. Falls back to normal redirect on check failure

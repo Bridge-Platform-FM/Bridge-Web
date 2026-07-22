@@ -10,7 +10,6 @@ import { Card } from "@/components/ui/Card";
 import { Loader } from "@/components/common/loader";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { resetPassword } from "@/services/auth.service";
-import { clearTokens } from "@/lib/auth-tokens";
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "@/lib/messages";
 import type { ApiError } from "@/lib/axios";
 
@@ -33,9 +32,10 @@ const STRENGTH_LABELS = ["Too weak", "Weak", "Fair", "Good", "Strong"];
 /**
  * Step 3 of the password-reset flow: choose a new password. Built from the Stitch
  * "Forgot Password – Reset" screen. The reset is authorized by the short-lived
- * reset token stored at the verify step (attached by the axios interceptor). On
- * success it clears the token + flow data and advances to the success screen.
- * `from` is the originating portal sign-in (for the cancel / success links).
+ * reset token cookie set at the verify step (sent automatically by the browser).
+ * On success the backend clears that cookie itself; here we just reset the local
+ * flow data and advance to the success screen. `from` is the originating portal
+ * sign-in (for the cancel / success links).
  */
 export function ResetPasswordScreen({ from = "/login" }: { from?: string }) {
   const router = useRouter();
@@ -66,12 +66,17 @@ export function ResetPasswordScreen({ from = "/login" }: { from?: string }) {
   const onSubmit = async (values: ResetPasswordForm) => {
     try {
       const res = await resetPassword({ newPassword: values.newPassword });
-      clearTokens(); // drop the short-lived reset token + flow data
       resetOnboarding();
       toast.success(res.message ?? SUCCESS_MESSAGES.RESET_PASSWORD_SUCCESS);
       router.push(`/reset-password/success${fromQuery}`);
     } catch (err) {
-      toast.error((err as ApiError).message ?? ERROR_MESSAGES.RESET_PASSWORD_FAILED);
+      const apiErr = err as ApiError;
+      if (apiErr.status === 401) {
+        toast.error("Your verification has expired. Please restart the password reset process.");
+        router.push(`/reset-password${fromQuery}`);
+        return;
+      }
+      toast.error(apiErr.message ?? ERROR_MESSAGES.RESET_PASSWORD_FAILED);
     }
   };
 

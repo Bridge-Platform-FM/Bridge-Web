@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 import { io, type Socket } from "socket.io-client";
 import { toast } from "sonner";
-import { getAccessToken } from "@/lib/auth-tokens";
 import {
   normalizeFundingOffer,
   normalizeMessage,
@@ -174,19 +173,39 @@ export function useDealRoomSocket(dealRoomId: string, handlers: DealRoomSocketHa
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTypingEmitRef = useRef(0);
 
+  // socket.io retries the connection automatically (default behavior) — without this,
+  // a persistent auth/CORS failure would re-fire connect_error every retry and spam
+  // the toast. Reset to false on a successful connect so a later failure (e.g. after
+  // the cookie expires mid-session) can surface again.
+  const connectErrorShownRef = useRef(false);
+
   useEffect(() => {
     if (!dealRoomId) return;
-    const token = getAccessToken();
-    if (!token) return;
 
+    // The access token is an httpOnly cookie now — withCredentials makes the browser
+    // attach it to the socket.io handshake automatically (server reads it from the
+    // handshake's Cookie header); there's no token for JS to read or pass explicitly.
     const url = process.env.NEXT_PUBLIC_API_BASE_URL || undefined;
-    const socket = io(url, { auth: { token }, transports: ["websocket", "polling"] });
+    const socket = io(url, { withCredentials: true, transports: ["websocket", "polling"] });
     socketRef.current = socket;
 
     socket.on("connect", () => {
+      connectErrorShownRef.current = false;
       socket.emit("join_deal_room", { dealRoomId });
       // Opening the room clears any unread messages for me.
       socket.emit("mark_read", { dealRoomId });
+    });
+    // Without this, an auth/CORS failure on the handshake fails completely silently —
+    // no console output, no user-visible sign that real-time updates (chat, meetings,
+    // file shares, funding offers, term sheets — all share this one connection) aren't
+    // working. Surface it once (not on every automatic retry) so a failure is at least
+    // visible instead of invisible.
+    socket.on("connect_error", (err) => {
+      console.error("Deal room socket failed to connect:", err.message);
+      if (!connectErrorShownRef.current) {
+        connectErrorShownRef.current = true;
+        toast.error("Live updates are unavailable — reconnecting…");
+      }
     });
 
     socket.on("new_message", (raw: RawMessage) => {

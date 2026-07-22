@@ -1,24 +1,18 @@
 import axios, { AxiosError } from "axios";
 import { toast } from "sonner";
-import { getAccessToken, clearTokens } from "@/lib/auth-tokens";
 import { clearSession } from "@/lib/auth-session";
 
 /**
  * Shared axios instance for all API calls.
  * Base URL comes from NEXT_PUBLIC_API_BASE_URL (set in .env.local).
+ * Auth tokens are httpOnly cookies now — withCredentials makes the browser attach
+ * them automatically; there's no token for JS to read or set a header with.
  */
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL ?? "",
   headers: { "Content-Type": "application/json" },
+  withCredentials: true,
   // timeout: 30000,
-});
-
-// Attach the access token (issued at registration) so every later call is authenticated.
-api.interceptors.request.use((config) => {
-  const token = getAccessToken();
-  // Don't clobber an Authorization header a caller set explicitly per-request.
-  if (token && !config.headers.Authorization) config.headers.Authorization = `Bearer ${token}`;
-  return config;
 });
 
 /** A normalized error shape surfaced to callers/UI. */
@@ -32,9 +26,11 @@ export interface ApiError {
 let isLoggingOut = false;
 
 /**
- * On an expired/invalid token (401) anywhere in the app: clear the stored tokens
- * + session and bounce to the sign-in screen. Skipped on the auth screens
+ * On an expired/invalid token (401) anywhere in the app: clear the local session
+ * metadata and bounce to the sign-in screen. Skipped on the auth screens
  * themselves (a 401 there is a normal "wrong credentials", not a dead session).
+ * The httpOnly auth cookies themselves expire/get cleared server-side (logout,
+ * natural expiry) — there's nothing for JS to clear here anymore.
  */
 function handleUnauthorized() {
   if (typeof window === "undefined" || isLoggingOut) return;
@@ -52,7 +48,6 @@ function handleUnauthorized() {
   }
 
   isLoggingOut = true;
-  clearTokens();
   clearSession();
   toast.error("Your session has expired. Please sign in again.");
   // Send staff back to the admin sign-in, everyone else to the user sign-in.
