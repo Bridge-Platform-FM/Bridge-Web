@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { CheckCircle, Loader2 } from "lucide-react";
 import {
@@ -12,16 +11,6 @@ import {
 import type { SubscriptionPlan, UserSubscriptionData } from "@/types/api.types";
 import type { ApiError } from "@/lib/axios";
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
-
-/** Format an ISO date string (YYYY-MM-DD) to a human-readable form. */
-function formatDate(iso: string): string {
-  try {
-    return format(parseISO(iso), "dd MMM yyyy");
-  } catch {
-    return iso;
-  }
-}
 
 // ─── sub-components ───────────────────────────────────────────────────────────
 
@@ -57,7 +46,7 @@ function PlanCard({ plan, isCurrentPlan, isLoading, onSelect }: PlanCardProps) {
       <p className="mt-1 text-sm text-gray-500">
         Valid till&nbsp;
         <span className="font-medium text-gray-700">
-          {formatDate(plan.valid_till_preview)}
+          {plan.valid_till_preview}
         </span>
       </p>
 
@@ -178,7 +167,7 @@ export function SubscriptionPlansScreen() {
         <div className="mb-6 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
           <span className="font-medium">{currentSubscription.plan_name}</span>
           {" "}is active until{" "}
-          <span className="font-medium">{formatDate(currentSubscription.end_date)}</span>.
+          <span className="font-medium">{currentSubscription.end_date}</span>.
         </div>
       )}
 
