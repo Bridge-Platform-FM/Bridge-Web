@@ -21,6 +21,8 @@ const DEAL_ROOMS = `${BASE}/deal-rooms`;
 const MEETINGS = `${BASE}/meetings`;
 // FAQs — active FAQ entries visible to all logged-in users.
 const FAQS = `${BASE}/faqs`;
+// SUBSCRIPTIONS — user subscription.
+const SUBSCRIPTIONS = `${BASE}/subscriptions`;
 
 /** API endpoint paths (relative to NEXT_PUBLIC_API_BASE_URL host). */
 export const API_ENDPOINTS = {
@@ -178,4 +180,13 @@ export const API_ENDPOINTS = {
   // ----- FAQs -----
   // Fetch all active FAQs for the logged-in user. GET.
   FAQS,
+
+  // ----- Subscription Plans -----
+  // List all active plans (GET). Returns plan_name, plan_benefits, validity_days
+  // and a valid_till_preview date (today + validity_days, server-calculated).
+  SUBSCRIPTION_PLANS: `${SUBSCRIPTIONS}/plans`,
+  // Select a plan for the authenticated user (POST). Body: { plan_id }.
+  SUBSCRIPTION_SELECT: `${SUBSCRIPTIONS}/select`,
+  // Fetch the authenticated user's active subscription with plan details (GET).
+  SUBSCRIPTION_MY: `${SUBSCRIPTIONS}/my`,
 } as const;

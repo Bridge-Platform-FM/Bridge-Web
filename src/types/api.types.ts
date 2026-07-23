@@ -771,3 +771,66 @@ export interface FaqActionResponse {
   message?: string;
   data?: { id?: number };
 }
+
+/* ===========================================================================
+ * Subscription Plans
+ * GET  /api/v1/subscriptions/plans   — list active plans
+ * POST /api/v1/subscriptions/select  — select a plan  { plan_id }
+ * GET  /api/v1/subscriptions/my      — current user's active subscription
+ * ======================================================================== */
+ 
+/**
+ * One plan row returned by GET /api/v1/subscriptions/plans.
+ * valid_till_preview is computed server-side as today + validity_days (ISO date).
+ */
+export interface SubscriptionPlan {
+  id: number;
+  plan_name: string;
+  plan_benefits: string[];
+  validity_days: number;
+  /** ISO date string (YYYY-MM-DD): what end_date would be if subscribed today. */
+  valid_till_preview: string;
+}
+ 
+/** Envelope returned by GET /api/v1/subscriptions/plans. */
+export interface SubscriptionPlansResponse {
+  success?: boolean;
+  message?: string;
+  data?: SubscriptionPlan[];
+}
+ 
+/** Payload for POST /api/v1/subscriptions/select. */
+export interface SelectPlanPayload {
+  plan_id: number;
+}
+ 
+/** Envelope returned by POST /api/v1/subscriptions/select. */
+export interface SelectPlanResponse {
+  success?: boolean;
+  message?: string;
+  data?: {
+    subscription_id: number;
+    plan_name: string;
+    start_date: string;
+    end_date: string;
+    status: "pending" | "active" | "expired" | "cancelled";
+  };
+}
+ 
+/** Shape returned by GET /api/v1/subscriptions/my. */
+export interface UserSubscriptionData {
+  subscription_id: number;
+  plan_id: number;
+  plan_name: string;
+  plan_benefits: string[];
+  start_date: string;
+  end_date: string;
+  status: "pending" | "active" | "expired" | "cancelled";
+}
+ 
+/** Envelope returned by GET /api/v1/subscriptions/my. */
+export interface UserSubscriptionResponse {
+  success?: boolean;
+  message?: string;
+  data?: UserSubscriptionData;
+}
