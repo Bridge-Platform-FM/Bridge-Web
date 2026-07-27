@@ -77,6 +77,12 @@ export function VerifyOtpScreen({
         tokenType: res.data?.tokenType ?? current?.tokenType,
       });
     }
+    // Session limit check only applies to the user portal — admin and superadmin
+    // bypass it entirely and redirect straight to the dashboard.
+    if (portal !== "user") {
+      router.push(destination);
+      return { message: res.message ?? undefined };
+    }
     // Check the active-session limit before redirecting. If at the limit, open
     // the chooser modal instead. Falls back to normal redirect on check failure
     // so OTP verification is never blocked by a secondary service outage.

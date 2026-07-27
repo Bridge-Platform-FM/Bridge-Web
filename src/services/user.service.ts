@@ -76,8 +76,8 @@ export async function searchUsers(query: string, signal?: AbortSignal): Promise<
  * value/isEditable/type), rendered read-only before sending a connection request.
  */
 export async function getUserRoleDetails(params: {
-  userId: number;
-  companyId: number;
+  userId: string;
+  companyId?: string;
   roleId: number;
 }): Promise<ProfileField[]> {
   const { data } = await api.get<GetProfileResponse>(API_ENDPOINTS.USER_ROLE_DETAILS, { params });

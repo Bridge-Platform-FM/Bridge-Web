@@ -20,13 +20,13 @@ export type DealRoomTab = "ACTIVE" | "CLOSED" | "ARCHIVED";
 
 /** The other party in a deal room (derived from the accepted connection). */
 export interface DealCounterparty {
-  /** Numeric user id — sent as `recipientUserId` when scheduling a meeting. */
-  userId: number;
+  /** UUID — sent as `recipientUserId` when scheduling a meeting. */
+  userId: string;
   /** Numeric role id — needed (with companyId) to open the counterparty's profile
    *  preview page (GET /users/role-details). */
   roleId: number;
-  /** Numeric company id — see roleId. */
-  companyId: number;
+  /** UUID — see roleId. */
+  companyId: string;
   name: string;
   /** Job title, e.g. "Managing Partner". */
   title: string;
@@ -114,7 +114,7 @@ export interface DealStageRequest {
   requestedStage: string;
   /** Who asked — compare against the logged-in user id to tell "I requested" from
    *  "they requested, I can accept/reject". */
-  requestedByUserId: number;
+  requestedByUserId: string;
 }
 
 export type FundingOfferStatus = "Draft" | "Pending" | "Accepted" | "Rejected" | "Countered";
@@ -128,11 +128,11 @@ export interface DealFundingOffer {
   id: string;
   status: FundingOfferStatus;
   /** Who sent THIS version — compare to getCurrentUserId() for "mine vs theirs". */
-  createdByUserId: number;
+  createdByUserId: string;
   /** First + last name of whoever sent this version. */
   offeredByName: string;
   /** Who this version is addressed to (flips on each counter). */
-  recipientUserId: number;
+  recipientUserId: string;
   /** First + last name of the recipient of this version. */
   recipientName: string;
   amount: number;
@@ -155,7 +155,7 @@ export interface DealFundingOffer {
   /** ISO timestamp this version was sent to the recipient. */
   sentAt?: string;
   /** Who accepted/rejected/countered this version, if it's been actioned yet. */
-  respondedByUserId?: number;
+  respondedByUserId?: string;
   respondedByName?: string;
   /** ISO timestamp this version was actioned; null/undefined while still Pending. */
   respondedAt?: string | null;
@@ -185,7 +185,7 @@ export interface B2BTermSheet {
   currency: string;
   paymentTerms: string;
   supplyLogisticsTerms: string;
-  updatedByUserId: number;
+  updatedByUserId: string;
   /** First + last name of whoever saved this version. */
   updatedByName: string;
   updatedAt: string;

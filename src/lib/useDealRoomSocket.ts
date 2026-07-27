@@ -24,31 +24,31 @@ import type {
 /** Payload for the server's `messages_read` broadcast. */
 export interface MessagesReadPayload {
   dealRoomId: string;
-  readBy: number;
+  readBy: string;
 }
 /** Payload for the server's `user_typing` broadcast. */
 export interface UserTypingPayload {
   dealRoomId: string;
-  userId: number;
+  userId: string;
   typing: boolean;
 }
 /** Payload for the server's `user_presence` broadcast. `online` means that user currently
  *  has this deal room open in another tab/socket — presence is scoped to this room, not a
  *  global "logged in anywhere" signal. */
 export interface UserPresencePayload {
-  userId: number;
+  userId: string;
   online: boolean;
 }
 /** Raw `stage_update_requested` broadcast (Bridge-Server's `DealRoomStageRequest` row). */
 interface RawStageRequested {
   id: number | string;
   requested_stage: string;
-  requested_by_user_id: number;
+  requested_by_user_id: string;
 }
 /** Raw `stage_update_responded` broadcast: the responded-to request + the room's new
  *  stage (only present when the decision was "Accepted"). */
 interface RawStageResponded {
-  request: { id: number | string; status: "Accepted" | "Rejected"; requested_by_user_id: number };
+  request: { id: number | string; status: "Accepted" | "Rejected"; requested_by_user_id: string };
   dealRoom: { stage: string };
 }
 /** Decision passed to `respondStageUpdate`. */
@@ -91,7 +91,7 @@ export interface RawB2BTermSheet {
   currency: string;
   payment_terms: string;
   supply_logistics_terms: string;
-  updated_by_user_id: number;
+  updated_by_user_id: string;
   updated_at: string;
 }
 /** Payload for saving a term sheet edit (either B2B party may call this). */
