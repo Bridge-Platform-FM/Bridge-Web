@@ -28,27 +28,12 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       router.replace("/login");
       return;
     }
-    let cancelled = false;
-    setCheckError(false);
-    getSessionLimitStatus()
-      .then(() => {
-        if (!cancelled) setVerified(true);
-      })
-      .catch((err: ApiError) => {
-        if (cancelled) return;
-        // A 401 here is handled globally by lib/axios.ts's response interceptor
-        // (clears the session + redirects to /login) — nothing extra to do here.
-        if (err?.status !== 401) setCheckError(true);
-      });
-    return () => {
-      cancelled = true;
-    };
   }, [isLoaded, role, hasFullSession, router, retryKey]);
 
   if (checkError) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 text-on-surface-variant">
-        <p>Couldn't verify your session — check your connection.</p>
+        <p>Couldn&apos;t verify your session — check your connection.</p>
         <button
           type="button"
           onClick={() => setRetryKey((k) => k + 1)}
@@ -60,10 +45,10 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!isLoaded || !role || !hasFullSession || !verified) {
+  if (!isLoaded || !role || !hasFullSession) {
     return (
       <div className="flex h-full items-center justify-center text-on-surface-variant">
-        Loading…
+        <h1>Loading...</h1>
       </div>
     );
   }
