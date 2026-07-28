@@ -31,13 +31,25 @@ const SUBSCRIPTION: NavItem = { key: "subscription", label: "Subscription", icon
 const PROFILE: NavItem = { key: "profile", label: "Profile", icon: "account_circle", route: "/dashboard/profile" };
 
 // Shared staff (admin / super_admin) menu — declared once, reused for both roles.
-const STAFF_NAV: NavItem[] = [
+const ADMIN_OPT: NavItem[] = [
   DASHBOARD,
   { key: "matching-engine", label: "Matching Engine", icon: "join_inner", route: "/dashboard/matching-engine" },
   { key: "suggestion-weights", label: "Suggestion Weights", icon: "tune", route: "/dashboard/suggestion-weights" },
   { key: "user-management", label: "User Management", icon: "manage_accounts", route: "/dashboard/user-management" },
   { key: "kyc-review", label: "KYC Review", icon: "verified_user", route: "/dashboard/kyc-review" },
   { key: "faq-management", label: "FAQ Management", icon: "quiz", route: "/dashboard/faq-management" },
+  PROFILE,
+];
+
+const SUPER_ADMIN_OPT: NavItem[] = [
+  DASHBOARD,
+  { key: "matching-engine", label: "Matching Engine", icon: "join_inner", route: "/dashboard/matching-engine" },
+  { key: "suggestion-weights", label: "Suggestion Weights", icon: "tune", route: "/dashboard/suggestion-weights" },
+  { key: "user-management", label: "User Management", icon: "manage_accounts", route: "/dashboard/user-management" },
+  { key: "kyc-review", label: "KYC Review", icon: "verified_user", route: "/dashboard/kyc-review" },
+  { key: "faq-management", label: "FAQ Management", icon: "quiz", route: "/dashboard/faq-management" },
+  { key: "admin-management", label: "Admin Management", icon: "admin_panel_settings", route: "/dashboard/admin-management" },
+  { key: "system-management", label: "System Management", icon: "admin_panel_settings", route: "/dashboard/system-management" },
   PROFILE,
 ];
 
@@ -48,8 +60,8 @@ const STAFF_NAV: NavItem[] = [
 export const SUPPORT_NAV: NavItem = { key: "support", label: "Support", icon: "support_agent", route: "/dashboard/faq" };
 
 export const DASHBOARD_NAV: Record<Role, NavItem[]> = {
-  super_admin: STAFF_NAV,
-  admin: STAFF_NAV,
+  super_admin: SUPER_ADMIN_OPT,
+  admin: ADMIN_OPT,
   startup: [
     DASHBOARD,
     // { key: "find-investors", label: "Find Investors", icon: "savings", route: "/dashboard/find-investors" },
