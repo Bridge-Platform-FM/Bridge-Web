@@ -841,3 +841,57 @@ export interface UserSubscriptionResponse {
   message?: string;
   data?: UserSubscriptionData;
 }
+
+export interface MatchingEngineConnectionBreakdown {
+  status: string;
+  count: number;
+}
+ 
+export interface ZeroEngagementProfile {
+  userId: string;
+  name: string;
+  role: string;
+  company: string;
+  joinedAt: string | null;
+}
+ 
+export interface MatchingEngineAlgorithmDistribution {
+  algorithmType: string;
+  count: number;
+  /** Percentage of total shown matches (0–100) */
+  percentage: number;
+}
+ 
+export interface MatchingEngineBehavioralSignal {
+  /** 'skipped' | 'irrelevant_flag' | 'connection_sent' | 'deal_room_opened' */
+  action: string;
+  count: number;
+}
+ 
+export interface MatchingEngineTopSector {
+  sector: string;
+  count: number;
+}
+ 
+export interface MatchingEngineStats {
+  // ── From existing tables (connection, deal_room, user) ──
+  totalProfiles: number;
+  totalConnections: number;
+  acceptedConnections: number;
+  acceptanceRate: number;
+  activeDealRooms: number;
+  connectionStatusBreakdown: MatchingEngineConnectionBreakdown[];
+  zeroEngagementProfiles: ZeroEngagementProfile[];
+ 
+  // ── From matching_events table (FRD 12.3 new metrics) ──
+  matchesGenerated: {
+    today: number;
+    thisWeek: number;
+    thisMonth: number;
+  };
+  /** null = no data yet (matching_events table is empty) */
+  avgCompatibilityScore: number | null;
+  topSectorsByVolume: MatchingEngineTopSector[];
+  algorithmDistribution: MatchingEngineAlgorithmDistribution[];
+  behavioralSignals: MatchingEngineBehavioralSignal[];
+}
