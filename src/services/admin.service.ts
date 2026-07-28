@@ -14,6 +14,7 @@ import type {
   ReviewKycResponse,
   UserLimitConfig,
   UpdateUserLimitConfigPayload,
+  MatchingEngineStats,
 } from "@/types/api.types";
 
 /**
@@ -209,4 +210,11 @@ export async function updateUserLimitConfig(
 ): Promise<UserLimitConfig> {
   const { data } = await api.put(API_ENDPOINTS.ADMIN_USER_LIMIT_CONFIG(userId), payload);
   return data.data as UserLimitConfig;
+}
+
+export async function fetchMatchingEngineStats(): Promise<MatchingEngineStats> {
+  const { data } = await api.get<{ success: boolean; data: MatchingEngineStats; message: string }>(
+    API_ENDPOINTS.ADMIN_MATCHING_ENGINE_STATS,
+  );
+  return data.data;
 }

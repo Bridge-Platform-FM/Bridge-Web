@@ -95,6 +95,11 @@ export const API_ENDPOINTS = {
   ADMIN_FAQ_CREATE: `${ADMIN}/faqs`,
   // Update an existing FAQ by id. PUT. Body: { question?, answer?, is_active? }.
   ADMIN_FAQ_UPDATE: (id: string) => `${ADMIN}/faqs/${id}`,
+  // Matching Engine Dashboard stats (GET).
+  ADMIN_MATCHING_ENGINE_STATS: `${ADMIN}/matching-engine/stats`,
+
+   // Matching Engine (log events for analytics)
+  MATCHING_LOG_EVENT: `${MATCHING}/events`,
 
   // ----- Matching Engine (Explore) -----
   // Compatibility matches for a profile. TODO: switch to `${MATCHING}/me`
