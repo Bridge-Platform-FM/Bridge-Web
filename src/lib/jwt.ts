@@ -9,7 +9,7 @@
 
 import { getUserId } from "@/lib/auth-session";
 
-/** The current user's numeric id, or null if unavailable. */
-export function getCurrentUserId(): number | null {
+/** The current user's UUID, or null if unavailable. */
+export function getCurrentUserId(): string | null {
   return getUserId();
 }

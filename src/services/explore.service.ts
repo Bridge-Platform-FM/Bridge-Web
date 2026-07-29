@@ -48,7 +48,7 @@ export async function fetchExploreConnectionLimit(): Promise<ExploreConnectionLi
 //   no-op that resolves immediately so the deck advances optimistically.
  
 export function submitExploreDecision(
-  profileId: number,
+  profileId: string,
   decision: ExploreDecision,
 ): Promise<void> {
   // No-op until the endpoint exists; referenced so the signature stays honest.

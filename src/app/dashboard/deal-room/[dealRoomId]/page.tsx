@@ -108,7 +108,7 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
 
   // The counterparty read the room → mark all MY messages as seen (double blue tick).
   // (mark_read sets read_at on every message where I'm the sender.)
-  const onMessagesRead = useCallback((payload: { readBy: number }) => {
+  const onMessagesRead = useCallback((payload: { readBy: string }) => {
     if (payload.readBy === getCurrentUserId()) return;
     setRoom((prev) =>
       prev
@@ -119,7 +119,7 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
 
   // The other side started/stopped typing. Auto-clear as a safety net if a stop event
   // is ever missed.
-  const onUserTyping = useCallback((payload: { userId: number; typing: boolean }) => {
+  const onUserTyping = useCallback((payload: { userId: string; typing: boolean }) => {
     if (payload.userId === getCurrentUserId()) return;
     setCounterpartyTyping(payload.typing);
     if (typingClearRef.current) clearTimeout(typingClearRef.current);
@@ -132,7 +132,7 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
 
   // The counterparty opened/closed this deal room (server sends the current status right
   // after we join, then pushes updates as they join/leave/disconnect).
-  const onPresenceChange = useCallback((payload: { userId: number; online: boolean }) => {
+  const onPresenceChange = useCallback((payload: { userId: string; online: boolean }) => {
     if (payload.userId === getCurrentUserId()) return;
     setCounterpartyOnline(payload.online);
   }, []);

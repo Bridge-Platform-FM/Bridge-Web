@@ -34,8 +34,7 @@ import type {
 
 /** One flat deal-room row from `GET /deal-rooms` (snake_case, both participants inline). */
 interface RawRoom {
-  // The backend's `id` column is a Postgres INTEGER, so this actually arrives as a
-  // number, not a string — `toDealRoom` coerces it with `String(...)`.
+  // deal_room_id is a UUID string (deal_room.id was already UUID before this migration).
   deal_room_id: number | string;
   title: string | null;
   deal_room_status: string; // "Active" | "Closed"
@@ -44,7 +43,8 @@ interface RawRoom {
   // Per-user archive timestamp (LEFT JOIN deal_room_archive) — null when the caller
   // hasn't archived this room, an ISO string when they have.
   archived_at?: string | null;
-  requester_user_id: number;
+  /** UUID of the requester user. */
+  requester_user_id: string;
   requester_first_name?: string;
   requester_last_name?: string;
   requester_role_code?: string;
@@ -52,7 +52,8 @@ interface RawRoom {
   // participant's profile preview page (GET /users/role-details), same ids the
   // navbar search result already returns as role_id/company_id.
   requester_role_id?: number;
-  requester_company_id?: number;
+  /** UUID of the requester company. */
+  requester_company_id?: string;
   requester_company_name?: string;
   // `*_country` comes from the `user` table (GET /deal-rooms now joins it). `*_state`
   // doesn't exist anywhere in Bridge-Server's schema — no state/province column on
@@ -60,13 +61,15 @@ interface RawRoom {
   // renders a state if that column is ever added.
   requester_state?: string;
   requester_country?: string;
-  recipient_user_id: number;
+  /** UUID of the recipient user. */
+  recipient_user_id: string;
   recipient_first_name?: string;
   recipient_last_name?: string;
   recipient_role_code?: string;
   // TODO: confirm with backend — see requester_role_id/requester_company_id above.
   recipient_role_id?: number;
-  recipient_company_id?: number;
+  /** UUID of the recipient company. */
+  recipient_company_id?: string;
   recipient_company_name?: string;
   recipient_state?: string;
   recipient_country?: string;
@@ -76,7 +79,8 @@ interface RawRoom {
 export interface RawMessage {
   id: number;
   deal_room_id?: string;
-  sender_user_id: number;
+  /** UUID of the sender user. */
+  sender_user_id: string;
   message: string | null;
   message_type?: string; // TEXT | IMAGE | DOCUMENT | AUDIO | VIDEO
   attachment_file_name?: string | null;
@@ -86,7 +90,7 @@ export interface RawMessage {
   download_allowed?: boolean | null;
   read_at?: string | null;
   created_at: string;
-  sender?: { id: number; first_name?: string; last_name?: string } | null;
+  sender?: { id: string; first_name?: string; last_name?: string } | null;
 }
 
 const fullName = (first?: string, last?: string) => [first, last].filter(Boolean).join(" ").trim();
@@ -119,7 +123,7 @@ function readDownloadAllowed(raw: Record<string, unknown>): boolean {
 /** Build a DealRoom from a flat row, picking the counterparty relative to the current user. */
 function toDealRoom(raw: RawRoom): DealRoom {
   const me = getCurrentUserId();
-  // The counterparty is whichever side isn't me; default to the recipient if unknown.
+  // Both me and raw.*_user_id are now UUID strings — strict equality works correctly.
   const iAmRequester = me != null && me === raw.requester_user_id;
   const cp = iAmRequester
     ? {
@@ -144,9 +148,6 @@ function toDealRoom(raw: RawRoom): DealRoom {
       };
 
   return {
-    // `deal_room_id` comes back as a Postgres integer (deserialized to a JS number), but
-    // callers (route params, `fetchDealRoom`) always compare against a string — coerce so
-    // `r.id === id` doesn't silently fail.
     id: String(raw.deal_room_id),
     title: raw.title || cp.company || "Deal Room",
     counterparty: {
@@ -155,7 +156,8 @@ function toDealRoom(raw: RawRoom): DealRoom {
       // _company_id to GET /deal-rooms (see RawRoom above) — the profile preview link
       // won't resolve correctly until then.
       roleId: cp.roleId ?? 0,
-      companyId: cp.companyId ?? 0,
+      // companyId is now a UUID string; fall back to empty string instead of 0.
+      companyId: cp.companyId ?? "",
       name: cp.name || cp.company || "—",
       title: "", // backend has no designation field
       company: cp.company,
@@ -176,6 +178,7 @@ function toDealRoom(raw: RawRoom): DealRoom {
 /** Normalize one raw message into a UI DealMessage. Exported for the socket handler. */
 export function normalizeMessage(raw: RawMessage): DealMessage {
   const me = getCurrentUserId();
+  // Both me and raw.sender_user_id are now UUID strings.
   const mine = me != null && raw.sender_user_id === me;
   const attachment: DealAttachment | undefined = raw.attachment_file_name
     ? {
@@ -269,7 +272,8 @@ export async function exportDealRoom(id: string): Promise<void> {
 interface RawStageRequest {
   id: number | string;
   requested_stage: string;
-  requested_by_user_id: number;
+  /** UUID of the user who requested the stage change. */
+  requested_by_user_id: string;
 }
 
 /** The room's currently pending stage-update request, if any. GET — used on load so a
@@ -335,7 +339,8 @@ export interface SharedFileItem {
 interface RawSharedFile {
   id?: number | string;
   message_id?: number | string;
-  sender_user_id?: number;
+  /** UUID of the sender user. */
+  sender_user_id?: string;
   attachment_file_name?: string | null;
   file_name?: string | null;
   attachment_file_size?: number | null;
@@ -347,13 +352,14 @@ interface RawSharedFile {
   download_allowed?: boolean | string | null;
   view_only?: boolean | string | null;
   created_at?: string;
-  sender?: { id?: number; first_name?: string; last_name?: string } | null;
+  sender?: { id?: string; first_name?: string; last_name?: string } | null;
   stage?: string | null;
 }
 
 /** Map a raw files-list row into a UI SharedFileItem. */
 function toSharedFile(raw: RawSharedFile): SharedFileItem {
   const me = getCurrentUserId();
+  // Both me and raw.sender_user_id are now UUID strings.
   const mine = me != null && raw.sender_user_id === me;
   const mime = raw.attachment_mime_type ?? raw.mime_type ?? undefined;
   const s3Key = raw.attachment_s3_key ?? raw.s3_key ?? undefined;
@@ -383,7 +389,8 @@ export async function fetchDealRoomFiles(id: string): Promise<SharedFileItem[]> 
 /** Body for `POST /meetings`. */
 export interface ScheduleMeetingPayload {
   dealRoomId: string;
-  recipientUserId: number;
+  /** UUID of the recipient user. */
+  recipientUserId: string;
   title: string;
   agenda: string;
   meetingLink: string;
@@ -416,8 +423,9 @@ export interface RawMeeting {
   scheduled_at?: string;
   scheduledAt?: string;
   duration?: string;
-  created_by?: number;
-  createdBy?: number;
+  /** UUID of the user who created the meeting. */
+  created_by?: string;
+  createdBy?: string;
   created_at?: string;
   createdAt?: string;
   requester_user_first_name?: string;
@@ -456,6 +464,7 @@ export function toScheduledMeeting(
   const scheduledAt = raw.scheduled_at ?? raw.scheduledAt ?? fallback.scheduledAt ?? "";
   const createdAt = raw.created_at ?? raw.createdAt ?? "";
   const createdBy = raw.created_by ?? raw.createdBy;
+  // Both createdBy and getCurrentUserId() are now UUID strings.
   const createdByMe = createdBy != null ? createdBy === getCurrentUserId() : (fallback.createdByMe ?? false);
   const requesterName = [
     raw.requester_user_first_name ?? raw.requesterUserFirstName,
@@ -520,7 +529,8 @@ export async function updateMeeting(meetingId: string, payload: UpdateMeetingPay
 
 /** A joined user reference on an offer row (`offeredBy` / `recipient` / `respondedBy`). */
 interface RawOfferUser {
-  id: number;
+  /** UUID of the user. */
+  id: string;
   first_name?: string;
   last_name?: string;
 }
@@ -530,8 +540,10 @@ interface RawOfferUser {
 export interface RawFundingOffer {
   id: number | string;
   status: FundingOfferStatus;
-  offered_by_user_id: number;
-  recipient_user_id: number;
+  /** UUID of the user who made the offer. */
+  offered_by_user_id: string;
+  /** UUID of the recipient user. */
+  recipient_user_id: string;
   investment_amount: number | string;
   currency: string;
   equity_percentage: number | string;
@@ -545,7 +557,8 @@ export interface RawFundingOffer {
   version: number;
   created_at: string;
   sent_at?: string;
-  responded_by_user_id?: number | null;
+  /** UUID of the user who responded; null when pending. */
+  responded_by_user_id?: string | null;
   responded_at?: string | null;
   offeredBy?: RawOfferUser | null;
   recipient?: RawOfferUser | null;
@@ -607,7 +620,8 @@ export async function fetchAllFundingOfferThreads(dealRoomId: string): Promise<D
 
 /** A joined user reference on a term-sheet row (`updatedBy`). */
 interface RawTermSheetUser {
-  id: number;
+  /** UUID of the user. */
+  id: string;
   first_name?: string;
   last_name?: string;
 }
@@ -622,7 +636,8 @@ export interface RawB2BTermSheet {
   currency: string;
   payment_terms: string;
   supply_logistics_terms: string;
-  updated_by_user_id: number;
+  /** UUID of the user who last updated the term sheet. */
+  updated_by_user_id: string;
   updated_at: string;
   updatedBy?: RawTermSheetUser | null;
 }
@@ -660,4 +675,3 @@ export async function fetchTermSheetHistory(dealRoomId: string): Promise<B2BTerm
   );
   return (data.data ?? []).map(normalizeTermSheet);
 }
-

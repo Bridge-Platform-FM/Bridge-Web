@@ -107,8 +107,8 @@ function UserProfilePageContent() {
   const params = useParams<{ userId: string }>();
   const searchParams = useSearchParams();
   const roleId = Number(searchParams.get("roleId"));
-  const companyId = Number(searchParams.get("companyId"));
-  const userId = Number(params.userId);
+  const companyId = searchParams.get("companyId") ?? undefined;
+  const userId = params.userId;
 
   const [fields, setFields] = useState<ProfileField[] | null>(null);
   const [loading, setLoading] = useState(true);
