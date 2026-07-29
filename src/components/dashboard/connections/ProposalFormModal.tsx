@@ -27,9 +27,9 @@ interface ProposalFormValues {
 /** Recipient identifiers sent to the backend, plus display identity (name/role/company)
  *  shown read-only in the modal — sourced from the Explore match the request is sent from. */
 export interface ProposalRecipient {
-  id: number;
+  id: string;
   roleId?: number;
-  companyId?: number;
+  companyId?: string;
   name: string;
   company: string;
   role: Role | null;
