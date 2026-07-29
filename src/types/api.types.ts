@@ -112,8 +112,8 @@ export interface VerifyMfaOtpResponse {
     last_name?: string | null;
     /** Raw role string (e.g. "STARTUP"); normalize via normalizeRole. */
     role?: string | null;
-    /** The authenticated user's numeric id — the token itself is no longer client-readable. */
-    userId?: number;
+    /** The authenticated user's UUID — the token itself is no longer client-readable. */
+    userId?: string;
     /** The access token's `type` claim (e.g. "AUTH_ACCESS_TOKEN"), echoed back for the same reason. */
     tokenType?: string;
   };
@@ -387,14 +387,14 @@ export type KycStatus = "VERIFIED" | "PENDING" | "REJECTED";
 
 /**
  * One row in the User Management table, normalized from the `get-user-list`
- * response. Keyed by `company_email`; `userId` carries the numeric PK needed
+ * response. Keyed by `company_email`; `userId` carries the UUID needed
  * for per-user admin operations (e.g. limit-config).
  */
 export interface AdminUserListItem {
   /** Stable identifier — `company_email`. */
   id: string;
-  /** Numeric PK from the `user` table — used for admin per-user API calls. */
-  userId?: number;
+  /** UUID from the `user` table — used for admin per-user API calls. */
+  userId?: string;
   /** `first_name + last_name`, falling back to company name / email. */
   name: string;
   /** `company_email`. */
@@ -454,8 +454,8 @@ export interface KycDocument {
 export interface KycSubmissionListItem {
   /** Stable identifier — backend `uid`. */
   id: string;
-  /** Backend `company_id` — the key the overall review-action endpoint expects. */
-  companyId?: number;
+  /** Backend `company_id` (UUID) — the key the overall review-action endpoint expects. */
+  companyId?: string;
   applicantName: string;
   email?: string;
   countryCode?: string | null;
@@ -510,10 +510,12 @@ export type ExploreMatchRole = "INVESTOR" | "B2B" | "STARTUP";
  */
 export interface ExploreMatch {
   // ---- common ----
-  profileId: number;
+  /** UUID of the matched user. */
+  profileId: string;
   /** Recipient identifiers used when sending a connection request. */
   roleId: number;
-  companyId: number;
+  /** UUID of the matched company. */
+  companyId: string;
   role: ExploreMatchRole;
   /** Overall compatibility score, 0–100. */
   compatibility: number;
@@ -567,8 +569,8 @@ export interface ExploreMatch {
 export interface ExploreMatchesResponse {
   success: boolean;
   data: {
-    /** The id of the profile these matches were computed for. */
-    profileId: number;
+    /** The UUID of the profile these matches were computed for. */
+    profileId: string;
     matches: ExploreMatch[];
     /** Daily connection-request cap for the current profile. */
     requestLimit?: number;
@@ -587,9 +589,11 @@ export interface ExploreMatchesResponse {
  * ------------------------------------------------------------------ */
 /** One suggestion row returned by GET /api/v1/users/search?q=. */
 export interface UserSearchResult {
-  user_id: number;
+  /** UUID of the matched user. */
+  user_id: string;
   role_id: number;
-  company_id: number;
+  /** UUID of the matched company. */
+  company_id: string;
   first_name: string;
   last_name: string;
   company_name: string;
@@ -604,9 +608,11 @@ export type ExploreDecision = "reject" | "skip" | "send";
 
 /** Body sent to POST /api/v1/connection (keys per backend). */
 export interface SendConnectionRequestPayload {
-  recipientUserId: number;
+  /** UUID of the recipient user. */
+  recipientUserId: string;
   recipientRoleId?: number;
-  recipientCompanyId?: number;
+  /** UUID of the recipient company. */
+  recipientCompanyId?: string;
   personalMessage: string;
   bussinessIntent: string[];
   expectedDealSize: string;
@@ -686,7 +692,8 @@ export interface ConnectionsListResponse {
  * values shown are the system-wide defaults.
  */
 export interface UserLimitConfig {
-  user_id: number;
+  /** UUID of the user this config belongs to. */
+  user_id: string;
   allowed_connections: number;
   allowed_free_trial_days: number;
   allowed_premium_days: number;
@@ -833,4 +840,58 @@ export interface UserSubscriptionResponse {
   success?: boolean;
   message?: string;
   data?: UserSubscriptionData;
+}
+
+export interface MatchingEngineConnectionBreakdown {
+  status: string;
+  count: number;
+}
+ 
+export interface ZeroEngagementProfile {
+  userId: string;
+  name: string;
+  role: string;
+  company: string;
+  joinedAt: string | null;
+}
+ 
+export interface MatchingEngineAlgorithmDistribution {
+  algorithmType: string;
+  count: number;
+  /** Percentage of total shown matches (0–100) */
+  percentage: number;
+}
+ 
+export interface MatchingEngineBehavioralSignal {
+  /** 'skipped' | 'irrelevant_flag' | 'connection_sent' | 'deal_room_opened' */
+  action: string;
+  count: number;
+}
+ 
+export interface MatchingEngineTopSector {
+  sector: string;
+  count: number;
+}
+ 
+export interface MatchingEngineStats {
+  // ── From existing tables (connection, deal_room, user) ──
+  totalProfiles: number;
+  totalConnections: number;
+  acceptedConnections: number;
+  acceptanceRate: number;
+  activeDealRooms: number;
+  connectionStatusBreakdown: MatchingEngineConnectionBreakdown[];
+  zeroEngagementProfiles: ZeroEngagementProfile[];
+ 
+  // ── From matching_events table (FRD 12.3 new metrics) ──
+  matchesGenerated: {
+    today: number;
+    thisWeek: number;
+    thisMonth: number;
+  };
+  /** null = no data yet (matching_events table is empty) */
+  avgCompatibilityScore: number | null;
+  topSectorsByVolume: MatchingEngineTopSector[];
+  algorithmDistribution: MatchingEngineAlgorithmDistribution[];
+  behavioralSignals: MatchingEngineBehavioralSignal[];
 }

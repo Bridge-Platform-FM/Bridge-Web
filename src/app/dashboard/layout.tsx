@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
+import { isUserRole } from "@/lib/roles";
 import { DashboardSidebar } from "@/components/layout/sidebar";
 import { DashboardNavbar } from "@/components/layout/navbar";
 import { getSessionLimitStatus } from "@/services/session.service";

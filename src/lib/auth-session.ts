@@ -22,8 +22,8 @@ export interface SessionUser {
 export interface Session {
   role: Role;
   user?: SessionUser;
-  /** The authenticated user's numeric id, echoed back by the backend on login/verify. */
-  userId?: number;
+  /** The authenticated user's UUID, echoed back by the backend on login/verify. */
+  userId?: string;
   /**
    * The access token's `type` claim (e.g. "AUTH_ACCESS_TOKEN" vs "MFA_ACCESS_TOKEN"),
    * echoed back in the response body — the token itself is an httpOnly cookie the
@@ -57,7 +57,7 @@ export function getRole(): Role | null {
   return getSession()?.role ?? null;
 }
 
-export function getUserId(): number | null {
+export function getUserId(): string | null {
   return getSession()?.userId ?? null;
 }
 

@@ -10,7 +10,7 @@ import type { DealFundingOffer } from "./types";
 /** Show a party's name, "You" for the current user, or a "User #id" fallback when the
  *  backend didn't include the joined user (fullName() returns "" then — never render a
  *  blank "Sent by  to "). Mirrors the backend export service's `User #<id>` convention. */
-function nameFor(name: string, userId: number): string {
+function nameFor(name: string, userId: string): string {
   if (userId === getCurrentUserId()) return "You";
   return name.trim() || `User #${userId}`;
 }

@@ -14,6 +14,7 @@ import type {
   ReviewKycResponse,
   UserLimitConfig,
   UpdateUserLimitConfigPayload,
+  MatchingEngineStats,
 } from "@/types/api.types";
 
 /**
@@ -48,7 +49,8 @@ function toUserListItem(raw: Record<string, unknown>): AdminUserListItem {
   const name = [first, last].filter(Boolean).join(" ").trim() || (raw.company_name as string) || email || "—";
   return {
     id: email || String(raw.id ?? ""),
-    userId: raw.user_id != null ? Number(raw.user_id) : undefined,
+    // user_id is now a UUID string — coerce to string (was Number() before)
+    userId: raw.user_id != null ? String(raw.user_id) : undefined,
     name,
     email,
     companyName: (raw.company_name as string | undefined) ?? undefined,
@@ -129,7 +131,8 @@ function toKycSubmission(raw: Record<string, unknown>): KycSubmissionListItem {
 
   return {
     id: String(raw.uid ?? email),
-    companyId: raw.company_id != null ? Number(raw.company_id) : undefined,
+    // company_id is now a UUID string — coerce to string (was Number() before)
+    companyId: raw.company_id != null ? String(raw.company_id) : undefined,
     applicantName: name,
     email,
     countryCode: (raw.country_code as string | null) ?? null,
@@ -160,8 +163,9 @@ export async function fetchKycSubmissions(): Promise<KycSubmissionListResponse> 
 /**
  * Approve / reject a whole KYC submission via `review-action` (PUT). The backend
  * keys on `company_id`; a reject must carry a `rejection_reason` (the admin note).
+ * `companyId` is now a UUID string.
  */
-export async function reviewKyc(companyId: number, payload: ReviewKycPayload): Promise<ReviewKycResponse> {
+export async function reviewKyc(companyId: string, payload: ReviewKycPayload): Promise<ReviewKycResponse> {
   const body: Record<string, unknown> = {
     company_id: companyId,
     action: payload.action.toLowerCase(),
@@ -188,20 +192,29 @@ export async function reviewKycDocument(kycId: number, action: "APPROVE" | "REJE
 /**
  * Fetch the connection limit config for a user. Returns system defaults when no
  * custom config has been saved yet (`is_custom` will be false in that case).
+ * `userId` is now a UUID string.
  */
-export async function fetchUserLimitConfig(userId: number): Promise<UserLimitConfig> {
-  const { data } = await api.get(API_ENDPOINTS.ADMIN_USER_LIMIT_CONFIG(String(userId)));
+export async function fetchUserLimitConfig(userId: string): Promise<UserLimitConfig> {
+  const { data } = await api.get(API_ENDPOINTS.ADMIN_USER_LIMIT_CONFIG(userId));
   return data.data as UserLimitConfig;
 }
 
 /**
  * Create or update the connection limit config for a user (upsert). All fields are
  * optional — at least one must be provided (enforced server-side by Joi).
+ * `userId` is now a UUID string.
  */
 export async function updateUserLimitConfig(
-  userId: number,
+  userId: string,
   payload: UpdateUserLimitConfigPayload
 ): Promise<UserLimitConfig> {
-  const { data } = await api.put(API_ENDPOINTS.ADMIN_USER_LIMIT_CONFIG(String(userId)), payload);
+  const { data } = await api.put(API_ENDPOINTS.ADMIN_USER_LIMIT_CONFIG(userId), payload);
   return data.data as UserLimitConfig;
+}
+
+export async function fetchMatchingEngineStats(): Promise<MatchingEngineStats> {
+  const { data } = await api.get<{ success: boolean; data: MatchingEngineStats; message: string }>(
+    API_ENDPOINTS.ADMIN_MATCHING_ENGINE_STATS,
+  );
+  return data.data;
 }
