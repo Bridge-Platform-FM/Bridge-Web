@@ -12,20 +12,54 @@ import type {
  * Backed by the live `GET /api/v1/matching` endpoint. The access token is
  * attached automatically by the axios interceptor.
  *
- * TODO(api): the current user's profileId is hard-coded for testing. Once the
- * backend exposes a token-derived route (e.g. `/matching/me`), drop the id and call
- * `API_ENDPOINTS.MATCHING_ME` instead — no component changes needed.
+ * Matching events are logged to the backend (POST /api/v1/matching/events)
+ * fire-and-forget so analytics never block the user experience.
  */
 
-/** Temporary: the profile to fetch matches for until `/matching/me` exists. */
-// const EXPLORE_TEST_PROFILE_ID = 14;
+/** Map frontend swipe decisions to backend matching_events action strings. */
+const DECISION_ACTION: Record<ExploreDecision, string> = {
+  send:   'connection_sent',
+  skip:   'skipped',
+  reject: 'irrelevant_flag',  // stronger negative signal than skip
+};
 
-/** Fetch the current profile's compatibility matches for the Explore views. */
+/**
+ * Fire-and-forget helper: log a matching event without blocking the UX.
+ * Swallows all errors so the explore page is never affected by analytics failures.
+ */
+function logEvent(payload: {
+  matchProfileId: string;
+  action: string;
+  algorithmType?: string;
+  compatibilityScore?: number | null;
+  matchSector?: string | null;
+}): void {
+  api.post(API_ENDPOINTS.MATCHING_LOG_EVENT, payload).catch(() => {
+    // Silent — analytics must never block user flows
+  });
+}
+
+/** Fetch the current profile's compatibility matches for the Explore views.
+ *  Logs a 'shown' event for each match returned so the admin dashboard can track
+ *  match volume, avg compatibility score, top sectors, and algorithm distribution. */
 export async function fetchExploreMatches(): Promise<ExploreMatch[]> {
   const { data } = await api.get<ExploreMatchesResponse>(
     API_ENDPOINTS.MATCHING(),
   );
-  return data.data.matches;
+  const matches = data.data.matches;
+
+  // Log 'shown' events for every match received — fire-and-forget
+  matches.forEach((m) => {
+    logEvent({
+      matchProfileId:    m.profileId,
+      action:            'shown',
+      algorithmType:     'rule_based',   // update to 'ml_model' once ML engine is live
+      compatibilityScore: m.compatibility ?? null,
+      matchSector:       m.primary_sector?.[0] ?? null,
+    });
+  });
+
+  return matches;
 }
 
 export interface ExploreConnectionLimit {
@@ -43,16 +77,21 @@ export async function fetchExploreConnectionLimit(): Promise<ExploreConnectionLi
   return { remaining, total };
 }
 
-//  Record a swipe decision (connect / skip / reject) for a matched profile.
-//  TODO(api): POST to the connect/reject endpoint once available. For now this is a
-//   no-op that resolves immediately so the deck advances optimistically.
- 
-export function submitExploreDecision(
+/**
+ * Record a swipe decision (connect / skip / reject) for a matched profile.
+ * Now actively posts to POST /api/v1/matching/events to power the behavioral
+ * signal breakdown in the Matching Engine Dashboard (FRD 12.3).
+ *
+ * send   → 'connection_sent'  (positive signal)
+ * skip   → 'skipped'          (mild negative signal)
+ * reject → 'irrelevant_flag'  (strong negative signal)
+ */
+export async function submitExploreDecision(
   profileId: string,
   decision: ExploreDecision,
 ): Promise<void> {
-  // No-op until the endpoint exists; referenced so the signature stays honest.
-  void profileId;
-  void decision;
-  return Promise.resolve();
+  await api.post(API_ENDPOINTS.MATCHING_LOG_EVENT, {
+    matchProfileId: profileId,
+    action:         DECISION_ACTION[decision] ?? 'skipped',
+  });
 }
