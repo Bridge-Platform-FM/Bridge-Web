@@ -235,7 +235,7 @@ export async function unarchiveDealRoom(id: string): Promise<void> {
 /** Fetch a room's message history (returned newest-first; reversed to chronological). */
 export async function fetchDealRoomMessages(id: string): Promise<DealMessage[]> {
   const { data } = await api.get<{ data?: RawMessage[] }>(API_ENDPOINTS.DEAL_ROOM_MESSAGES(id));
-  return (data.data ?? []).map(normalizeMessage).reverse();
+  return (data.data ?? []).map(normalizeMessage);
 }
 
 /** Close a deal room (both sides become read-only). PUT, optional reason. */
