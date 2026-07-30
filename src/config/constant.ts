@@ -98,6 +98,12 @@ export const API_ENDPOINTS = {
   // Matching Engine Dashboard stats (GET).
   ADMIN_MATCHING_ENGINE_STATS: `${ADMIN}/matching-engine/stats`,
 
+  // ----- Super Admin: System Management -----
+  // Platform-wide settings (GET to fetch, PUT to save). PLACEHOLDER path — swap in the
+  // real one from the curl; the request/response keys live in
+  // `services/system-management.service.ts`.
+  ADMIN_SYSTEM_SETTINGS: `${ADMIN}/system-settings`,
+
    // Matching Engine (log events for analytics)
   MATCHING_LOG_EVENT: `${MATCHING}/events`,
 

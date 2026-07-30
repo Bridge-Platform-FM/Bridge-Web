@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
+import { FIELD_STYLES, type FieldVariant } from "@/components/ui/input";
 import type { Option } from "@/lib/startup-profile-options";
 
 interface BaseProps {
@@ -19,6 +20,8 @@ interface BaseProps {
   recommended?: boolean;
   /** Show a search box in the panel. Defaults to true when options.length > 6. */
   searchable?: boolean;
+  /** Field chrome — see `field-variants.ts`. Ignored when `className` is supplied. */
+  variant?: FieldVariant;
   "aria-label"?: string;
   className?: string;
   panelClassName?: string;
@@ -45,7 +48,7 @@ export type SelectProps = SingleProps | MultiProps;
  * and stays open while toggling. Closes on outside-click / Esc.
  */
 export function Select(props: SelectProps) {
-  const { label, error, placeholder = "Select…", options, id, disabled, required, optional, recommended, searchable, className } = props;
+  const { label, error, placeholder = "Select…", options, id, disabled, required, optional, recommended, searchable, variant = "filled", className } = props;
   const ariaLabel = props["aria-label"];
   const displayValueOnly = props.displayValueOnly === true;
   const multiple = props.multiple === true;
@@ -102,10 +105,7 @@ export function Select(props: SelectProps) {
   return (
     <div className="flex w-full flex-col gap-2">
       {label && (
-        <label
-          htmlFor={id}
-          className="px-1 font-label text-xs font-bold tracking-wide text-on-surface-variant"
-        >
+        <label htmlFor={id} className={FIELD_STYLES[variant].label}>
           {label}
           {required && <span className="align-middle text-base leading-none text-error"> *</span>}
           {optional && <span className="font-medium normal-case text-primary"> (Optional)</span>}
@@ -120,7 +120,7 @@ export function Select(props: SelectProps) {
           aria-label={ariaLabel}
           disabled={disabled}
           onClick={toggle}
-          className={className || `flex w-full items-center justify-between gap-2 rounded-lg border border-outline-variant/30 bg-surface-container-low px-3.5 text-left text-sm text-on-surface transition-all duration-200 hover:border-outline-variant/60 focus:border-primary focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-60 ${multiple ? "min-h-10 py-2" : "h-10"} ${error ? "border-error/80 ring-2 ring-error/10" : ""}`}
+          className={className || `flex w-full items-center justify-between gap-2 text-left text-sm text-on-surface transition-all duration-200 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 ${FIELD_STYLES[variant].control} ${multiple ? "min-h-10 py-2" : "h-10"} ${error ? FIELD_STYLES[variant].error : ""}`}
         >
           {selectedValues.length === 0 ? (
             <span className="text-on-surface-variant">{placeholder}</span>

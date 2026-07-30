@@ -895,3 +895,45 @@ export interface MatchingEngineStats {
   algorithmDistribution: MatchingEngineAlgorithmDistribution[];
   behavioralSignals: MatchingEngineBehavioralSignal[];
 }
+/* ----- Super Admin: System Management ----- */
+
+/** OTP gateway configuration (System Management → OTP Configuration). */
+export interface OtpSettings {
+  primaryProvider: string;
+  failoverProvider: string;
+  maxAttempts: number;
+  expirySeconds: number;
+  cooldownMinutes: number;
+  sandboxMode: boolean;
+}
+
+/** Trial window + conversion behaviour (System Management → Trial Management). */
+export interface TrialSettings {
+  defaultDurationDays: number;
+  maxExtensionDays: number;
+  manualExtension: boolean;
+  autoDowngrade: boolean;
+  expiryNotifications: boolean;
+}
+
+/** Global feature flags (System Management → Platform Controls). */
+export interface PlatformFlags {
+  maintenanceMode: boolean;
+  registrationOpen: boolean;
+  aiMatchingEngine: boolean;
+  externalApiAccess: boolean;
+  experimentalFeatures: boolean;
+  realTimeMetrics: boolean;
+}
+
+/** The whole System Management payload — one GET, one PUT. */
+export interface SystemSettings {
+  otp: OtpSettings;
+  trial: TrialSettings;
+  flags: PlatformFlags;
+  /** Read-only delivery health shown in the OTP card header. */
+  otpStats?: { successRate: number; latencySeconds: number };
+  /** ISO timestamp + author of the last save, shown in the action bar. */
+  lastSavedAt?: string;
+  lastSavedBy?: string;
+}
