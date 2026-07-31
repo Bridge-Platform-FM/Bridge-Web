@@ -9,10 +9,11 @@ import { Select } from "@/components/ui/Select";
 import { AsyncState } from "@/components/ui/AsyncState";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { UserDetailDrawer } from "@/components/dashboard/UserDetailDrawer";
+import { TablePager } from "@/components/dashboard/TablePager";
 import { KYC_STATUS_META, StatusPill } from "@/components/dashboard/kyc-status";
 import { fetchUsers } from "@/services/admin.service";
 import { initials } from "@/lib/admin-format";
-import { isStaffRole, ROLE_META } from "@/lib/roles";
+import { isStaffRole, ROLE_META, USER_ROLES } from "@/lib/roles";
 import type { AdminUserListItem } from "@/types/api.types";
 import type { ApiError } from "@/lib/axios";
 
@@ -24,12 +25,22 @@ const STATUS_OPTIONS = [
   { value: "PENDING", label: "KYC Pending" },
 ];
 
+/**
+ * Startup / Investor / B2B Enterprise — derived from `USER_ROLES` + `ROLE_META` rather than
+ * spelled out, so a role added or relabelled in `lib/roles.ts` shows up here automatically.
+ */
+const ROLE_OPTIONS = [
+  { value: "", label: "All Roles" },
+  ...USER_ROLES.map((r) => ({ value: r, label: ROLE_META[r].label })),
+];
+
 export default function UserManagementPage() {
   const router = useRouter();
   const { role, isLoaded } = useAuth();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
   const [page, setPage] = useState(1);
 
   const [users, setUsers] = useState<AdminUserListItem[]>([]);
@@ -61,6 +72,7 @@ export default function UserManagementPage() {
     const q = search.trim().toLowerCase();
     return users.filter((u) => {
       if (statusFilter && u.kycStatus !== statusFilter) return false;
+      if (roleFilter && u.role !== roleFilter) return false;
       if (!q) return true;
       return (
         u.name.toLowerCase().includes(q) ||
@@ -69,7 +81,7 @@ export default function UserManagementPage() {
         (u.mobileNumber ?? "").includes(q)
       );
     });
-  }, [users, search, statusFilter]);
+  }, [users, search, statusFilter, roleFilter]);
 
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -84,6 +96,10 @@ export default function UserManagementPage() {
   };
   const onStatus = (v: string) => {
     setStatusFilter(v);
+    setPage(1);
+  };
+  const onRole = (v: string) => {
+    setRoleFilter(v);
     setPage(1);
   };
 
@@ -101,14 +117,21 @@ export default function UserManagementPage() {
 
       {/* Filters */}
       <Card surface="lowest" padding="sm" className="mb-4">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
-          <Input
-            placeholder="Search by name, email, company, phone…"
-            value={search}
-            onChange={(e) => onSearch(e.target.value)}
-            adornment={<Icon name="search" size={18} />}
-          />
-          <div className="sm:w-52">
+        {/* Search takes the slack; both dropdowns keep a fixed, equal width so the row
+            stays balanced. Stacks only below `sm`. */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="min-w-0 flex-1">
+            <Input
+              placeholder="Search by name, email, company, phone…"
+              value={search}
+              onChange={(e) => onSearch(e.target.value)}
+              adornment={<Icon name="search" size={18} />}
+            />
+          </div>
+          <div className="shrink-0 sm:w-44">
+            <Select aria-label="User role" options={ROLE_OPTIONS} value={roleFilter} onChange={onRole} placeholder="All Roles" />
+          </div>
+          <div className="shrink-0 sm:w-44">
             <Select aria-label="KYC status" options={STATUS_OPTIONS} value={statusFilter} onChange={onStatus} placeholder="All Statuses" />
           </div>
         </div>
@@ -174,36 +197,19 @@ export default function UserManagementPage() {
             </table>
           </div>
 
-          {/* Pagination */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-outline/10 px-5 py-4">
-            <p className="text-sm text-on-surface-variant">
-              Showing {rangeStart}–{rangeEnd} of {total} users
-            </p>
-            <div className="flex items-center gap-1">
-              <PageButton icon="chevron_left" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)} />
-              <span className="px-3 text-sm font-semibold text-on-surface">
-                {safePage} / {totalPages}
-              </span>
-              <PageButton icon="chevron_right" disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)} />
-            </div>
-          </div>
+          <TablePager
+            page={safePage}
+            totalPages={totalPages}
+            rangeStart={rangeStart}
+            rangeEnd={rangeEnd}
+            total={total}
+            noun="users"
+            onPage={setPage}
+          />
         </AsyncState>
       </Card>
 
       <UserDetailDrawer user={selected} onClose={() => setSelected(null)} />
     </div>
-  );
-}
-
-function PageButton({ icon, disabled, onClick }: { icon: string; disabled: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className="flex size-9 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container-high disabled:opacity-40 disabled:hover:bg-transparent"
-    >
-      <Icon name={icon} size={20} />
-    </button>
   );
 }

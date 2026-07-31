@@ -895,3 +895,80 @@ export interface MatchingEngineStats {
   algorithmDistribution: MatchingEngineAlgorithmDistribution[];
   behavioralSignals: MatchingEngineBehavioralSignal[];
 }
+/* ----- Super Admin: System Management ----- */
+
+/**
+ * One row of `otp_config_master` as returned by GET /super-admin/config/otp-config.
+ * `lookup` is the backend's key (SENT_OTP_TTL, MAX_OTP_VERIFY_ATTEMPTS, …) and is the
+ * key the UI labels the field with and the key the PUT body is built from — the screen
+ * never invents its own names for these settings.
+ */
+export interface OtpConfigEntry {
+  id: number;
+  /** Backend key, e.g. "SENT_OTP_TTL". Doubles as the field label. */
+  lookup: string;
+  /** Current value. Kept as a string — the backend column is a varchar. */
+  value: string;
+  /** Shipped value, the "Reset Defaults" target for this row. */
+  defaultValue: string;
+  /** "integer" | "boolean" | … — decides which control renders. */
+  dataType: string;
+  /** "second" | "number" | … — shown next to the label. */
+  unit: string;
+  description?: string;
+  updatedAt?: string;
+}
+
+/** Trial window + conversion behaviour (System Management → Trial Management). */
+export interface TrialSettings {
+  defaultDurationDays: number;
+  maxExtensionDays: number;
+  manualExtension: boolean;
+  autoDowngrade: boolean;
+  expiryNotifications: boolean;
+}
+
+/** Global feature flags (System Management → Platform Controls). */
+export interface PlatformFlags {
+  maintenanceMode: boolean;
+  registrationOpen: boolean;
+  aiMatchingEngine: boolean;
+  geoLocationMatching: boolean;
+}
+
+/**
+ * NOTE: there is deliberately no composite `SystemSettings` type. Each card on the System
+ * Management screen owns its own GET/PUT pair and edits independently, so the three shapes
+ * above are kept separate.
+ */
+
+/* ----- Super Admin: Admin Management ----- */
+
+export type AdminAccountStatus = "ACTIVE" | "SUSPENDED";
+
+/** One staff account in the Admin Management table. */
+export interface AdminAccount {
+  id: string;
+  name: string;
+  email: string;
+  mobileNumber?: string;
+  countryCode?: string | null;
+  role: "admin" | "super_admin";
+  /** Named permission preset, e.g. "Compliance Analyst". */
+  roleProfile?: string;
+  /** Module keys this admin can reach — empty for a super admin (implicitly all). */
+  permissions: string[];
+  status: AdminAccountStatus;
+  createdAt?: string;
+  lastLoginAt?: string;
+}
+
+/** Body of the "Create New Admin" form. */
+export interface CreateAdminPayload {
+  name: string;
+  email: string;
+  mobileNumber: string;
+  password: string;
+  permissions: string[];
+  sendWelcomeEmail: boolean;
+}
