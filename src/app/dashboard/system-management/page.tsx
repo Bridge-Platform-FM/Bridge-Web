@@ -45,7 +45,8 @@ const TRIAL_TOGGLES: { key: keyof TrialSettings; label: string; description: str
 const PLATFORM_FLAGS: { key: keyof PlatformFlags; label: string; description: string; icon: string }[] = [
   { key: "maintenanceMode",  label: "Maintenance Mode",  description: "Lock all public access and show status page.", icon: "engineering" },
   { key: "registrationOpen", label: "Registration Open", description: "Allow new users to create accounts.",          icon: "how_to_reg"  },
-  { key: "aiMatchingEngine", label: "AI Matching Engine", description: "Enable automated connection suggestions.",    icon: "memory"      },
+  { key: "aiMatchingEngine", label: "AI Matching Engine", description: "Rule-based connection matching.",      icon: "memory"      },
+  { key: "geoLocationMatching", label: "Geo Location Matching", description: "Factor proximity into match scoring.",  icon: "location_on" },
 ];
 
 /** Number inputs: empty string → 0 rather than NaN. */
@@ -210,20 +211,10 @@ export default function SystemManagementPage() {
     trial.setValue((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleTrialReset = () => {
-    trial.setValue(DEFAULT_TRIAL_SETTINGS);
-    toast.info("Reverted to the default configuration. Save to apply.");
-  };
-
   /* ----- Platform Controls ----- */
 
   const setFlag = <K extends keyof PlatformFlags>(key: K, value: PlatformFlags[K]) => {
     flags.setValue((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const handleFlagsReset = () => {
-    flags.setValue(DEFAULT_PLATFORM_FLAGS);
-    toast.info("Reverted to the default configuration. Save to apply.");
   };
 
   if (!isLoaded || !isSuperAdmin(role)) return null;
@@ -289,7 +280,6 @@ export default function SystemManagementPage() {
             dirty={trial.dirty}
             saving={trial.saving}
             onSave={() => void saveSection(trial, () => updateTrialSettings(trial.value), "Trial settings")}
-            onReset={handleTrialReset}
           >
             <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:gap-12">
               <div className="space-y-6 rounded-lg bg-surface-container-low p-6">
@@ -341,7 +331,6 @@ export default function SystemManagementPage() {
             dirty={flags.dirty}
             saving={flags.saving}
             onSave={() => void saveSection(flags, () => updatePlatformFlags(flags.value), "Platform controls")}
-            onReset={handleFlagsReset}
           >
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               {PLATFORM_FLAGS.map((flag) => (

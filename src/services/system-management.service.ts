@@ -125,6 +125,7 @@ export const DEFAULT_PLATFORM_FLAGS: PlatformFlags = {
   maintenanceMode: false,
   registrationOpen: true,
   aiMatchingEngine: true,
+  geoLocationMatching: true,
 };
 
 export function toPlatformFlags(raw: Record<string, unknown>): PlatformFlags {
@@ -133,6 +134,7 @@ export function toPlatformFlags(raw: Record<string, unknown>): PlatformFlags {
     maintenanceMode: bool(raw.maintenance_mode, d.maintenanceMode),
     registrationOpen: bool(raw.registration_open, d.registrationOpen),
     aiMatchingEngine: bool(raw.ai_matching_engine, d.aiMatchingEngine),
+    geoLocationMatching: bool(raw.geo_location_matching, d.geoLocationMatching),
   };
 }
 
@@ -141,6 +143,7 @@ function toPlatformFlagsPayload(flags: PlatformFlags): Record<string, unknown> {
     maintenance_mode: flags.maintenanceMode,
     registration_open: flags.registrationOpen,
     ai_matching_engine: flags.aiMatchingEngine,
+    geo_location_matching: flags.geoLocationMatching,
   };
 }
 

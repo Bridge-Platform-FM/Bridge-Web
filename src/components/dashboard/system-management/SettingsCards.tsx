@@ -30,7 +30,9 @@ interface SettingsSectionProps {
   /** This card's save is in flight. */
   saving: boolean;
   onSave: () => void;
-  onReset: () => void;
+  /** Omit to hide the Reset Defaults button — only cards with a meaningful shipped
+   *  default offer one. */
+  onReset?: () => void;
   children: React.ReactNode;
 }
 
@@ -78,11 +80,15 @@ export function SettingsSection({
       {children}
 
       {editing && (
-        <div className="mt-8 flex flex-wrap items-center justify-end gap-4 border-t border-outline-variant/30 pt-6">
-          <Button variant="ghost" onClick={onReset} disabled={saving}>
-            Reset Defaults
-          </Button>
-          <Button variant="primary" onClick={onSave} disabled={!dirty || saving}>
+        // Compact actions: `Button` ships at h-12/text-base, which is CTA-sized and too
+        // heavy for a per-card footer, so both are stepped down to h-10/text-sm together.
+        <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+          {onReset && (
+            <Button variant="ghost" onClick={onReset} disabled={saving} className="h-10 px-4 text-sm">
+              Reset Defaults
+            </Button>
+          )}
+          <Button variant="primary" onClick={onSave} disabled={!dirty || saving} className="h-10 px-5 text-sm">
             {saving ? "Saving…" : "Save Changes"}
           </Button>
         </div>

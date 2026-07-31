@@ -933,6 +933,7 @@ export interface PlatformFlags {
   maintenanceMode: boolean;
   registrationOpen: boolean;
   aiMatchingEngine: boolean;
+  geoLocationMatching: boolean;
 }
 
 /**
