@@ -70,7 +70,7 @@ function toUserListItem(raw: Record<string, unknown>): AdminUserListItem {
     companyId: raw.company_id != null ? String(raw.company_id) : undefined,
     // Suspension writes `is_user_active`, but the list query currently selects `is_active`
     // — read whichever is present so the pill is right either way. Absent → active.
-    suspended: (raw.is_user_active ?? raw.is_active) === false,
+    suspended: (raw.is_user_active) === false,
   };
 }
 

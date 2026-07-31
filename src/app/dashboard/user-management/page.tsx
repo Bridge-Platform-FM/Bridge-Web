@@ -193,30 +193,31 @@ export default function UserManagementPage() {
         <p className="mt-1 text-on-surface-variant">Oversee and manage your growing ecosystem of users.</p>
       </div>
 
-      {/* Filters */}
-      <Card surface="lowest" padding="sm" className="mb-4">
+      {/* Filters + table — one card, so the filter row reads as this table's toolbar
+          rather than as a separate panel floating above it. No `overflow-hidden` here:
+          it would clip the dropdowns' popovers. */}
+      <Card surface="lowest" padding="none">
         {/* Search takes the slack; both dropdowns keep a fixed, equal width so the row
             stays balanced. Stacks only below `sm`. */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="min-w-0 flex-1">
-            <Input
-              placeholder="Search by name, email, company, phone…"
-              value={search}
-              onChange={(e) => onSearch(e.target.value)}
-              adornment={<Icon name="search" size={18} />}
-            />
-          </div>
-          <div className="shrink-0 sm:w-44">
-            <Select aria-label="User role" options={ROLE_OPTIONS} value={roleFilter} onChange={onRole} placeholder="All Roles" />
-          </div>
-          <div className="shrink-0 sm:w-44">
-            <Select aria-label="KYC status" options={STATUS_OPTIONS} value={statusFilter} onChange={onStatus} placeholder="All Statuses" />
+        <div className="border-b border-outline/10 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="min-w-0 flex-1">
+              <Input
+                placeholder="Search by name, email, company, phone…"
+                value={search}
+                onChange={(e) => onSearch(e.target.value)}
+                adornment={<Icon name="search" size={18} />}
+              />
+            </div>
+            <div className="shrink-0 sm:w-44">
+              <Select aria-label="User role" options={ROLE_OPTIONS} value={roleFilter} onChange={onRole} placeholder="All Roles" />
+            </div>
+            <div className="shrink-0 sm:w-44">
+              <Select aria-label="KYC status" options={STATUS_OPTIONS} value={statusFilter} onChange={onStatus} placeholder="All Statuses" />
+            </div>
           </div>
         </div>
-      </Card>
 
-      {/* Table */}
-      <Card surface="lowest" padding="none" className="overflow-hidden">
         <AsyncState
           loading={loading}
           error={error}
@@ -225,14 +226,18 @@ export default function UserManagementPage() {
           emptyIcon="group_off"
           emptyText="No users match these filters."
         >
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] border-collapse text-left">
+          {/* Fixed viewport of exactly PAGE_SIZE rows (header 41px + 10 × 69px), so the card
+              keeps its height on a short last page and the rows — not the header — scroll.
+              `border-separate` (not `collapse`) is required for the sticky header to keep
+              its bottom rule; row rules therefore live on the `td`s. */}
+          <div className="h-[500px] overflow-auto">
+            <table className="w-full min-w-[760px] border-separate border-spacing-0 text-left">
               <thead>
-                <tr className="border-b border-outline/10">
+                <tr>
                   {COLUMNS.map((col) => (
                     <th
                       key={col.label}
-                      className={`px-5 py-3 text-xs font-bold uppercase tracking-wide text-on-surface-variant ${col.className ?? ""}`}
+                      className={`sticky top-0 z-10 border-b border-outline/10 bg-surface-container-lowest px-5 py-3 text-xs font-bold uppercase tracking-wide text-on-surface-variant ${col.className ?? ""}`}
                     >
                       {col.label}
                     </th>
@@ -243,7 +248,7 @@ export default function UserManagementPage() {
                 {pageRows.map((u) => (
                   <tr
                     key={u.id}
-                    className="group border-b border-outline/5 transition-colors last:border-0 hover:bg-surface-container-low"
+                    className="group transition-colors last:[&>td]:border-0 hover:bg-surface-container-low [&>td]:border-b [&>td]:border-outline/5"
                   >
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
@@ -270,7 +275,7 @@ export default function UserManagementPage() {
                       <StatusPill {...USER_STATUS_META[u.suspended ? "SUSPENDED" : "ACTIVE"]} />
                     </td>
                     <td className="py-4 pl-5 pr-8">
-                      <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+                      <div className="flex items-center justify-end gap-1">
                         <RowAction
                           icon="visibility"
                           label={`View ${u.name}`}
@@ -343,7 +348,7 @@ export default function UserManagementPage() {
       >
         {confirming && (
           <div className="space-y-5">
-            {/* Name the user explicitly — the action is triggered from a hover-revealed icon. */}
+            {/* Name the user explicitly — the action is triggered from a small row icon. */}
             <div className="flex items-center gap-3 rounded-xl border border-outline-variant/30 bg-surface-container-low p-3">
               <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-container text-sm font-bold text-on-primary-container">
                 {initials(confirming.name)}
