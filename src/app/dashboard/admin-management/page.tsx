@@ -14,6 +14,7 @@ import { Modal } from "@/components/modal/Modal";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { StatusPill } from "@/components/dashboard/kyc-status";
 import { TablePager } from "@/components/dashboard/TablePager";
+import { RowAction } from "@/components/dashboard/RowAction";
 import {
   ADMIN_STATUS_META,
   AdminDetailDrawer,
@@ -423,46 +424,6 @@ export default function AdminManagementPage() {
           </div>
         )}
       </Modal>
-    </div>
-  );
-}
-
-/** One icon button in the Actions cell. */
-function RowAction({
-  icon,
-  label,
-  title,
-  danger = false,
-  onClick,
-}: {
-  icon: string;
-  label: string;
-  title: string;
-  danger?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    // `title` would render the browser's black native tooltip; this is the same styled
-    // flyout the deal-room stepper uses. Named group so it doesn't fire on row hover.
-    <div className="group/action relative">
-      <button
-        type="button"
-        onClick={onClick}
-        aria-label={label}
-        className={`flex size-9 items-center justify-center rounded-lg transition-colors ${
-          danger
-            ? "text-error hover:bg-error-container/30"
-            : "text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
-        }`}
-      >
-        <Icon name={icon} size={20} />
-      </button>
-      <span
-        role="tooltip"
-        className="pointer-events-none absolute right-0 top-full z-20 mt-1 w-max scale-95 rounded-lg bg-surface-container-highest px-2.5 py-1.5 text-xs font-medium text-on-surface opacity-0 shadow-lg transition-all duration-150 group-hover/action:scale-100 group-hover/action:opacity-100 group-focus-within/action:scale-100 group-focus-within/action:opacity-100"
-      >
-        {title}
-      </span>
     </div>
   );
 }

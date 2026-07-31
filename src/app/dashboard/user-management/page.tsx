@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Card } from "@/components/ui/Card";
+import { Modal } from "@/components/modal/Modal";
+import { Textarea } from "@/components/ui/Textarea";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/Select";
@@ -10,14 +13,32 @@ import { AsyncState } from "@/components/ui/AsyncState";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { UserDetailDrawer } from "@/components/dashboard/UserDetailDrawer";
 import { TablePager } from "@/components/dashboard/TablePager";
+import { RowAction } from "@/components/dashboard/RowAction";
 import { KYC_STATUS_META, StatusPill } from "@/components/dashboard/kyc-status";
-import { fetchUsers } from "@/services/admin.service";
+import { fetchUsers, setUserSuspension } from "@/services/admin.service";
 import { initials } from "@/lib/admin-format";
 import { isStaffRole, ROLE_META, USER_ROLES } from "@/lib/roles";
 import type { AdminUserListItem } from "@/types/api.types";
 import type { ApiError } from "@/lib/axios";
 
 const PAGE_SIZE = 10;
+
+/** Table headers. `className` carries per-column alignment, as in Admin Management. */
+const COLUMNS: { label: string; className?: string }[] = [
+  { label: "User", className: "pl-8" },
+  { label: "Company" },
+  { label: "Phone" },
+  { label: "Email" },
+  { label: "KYC Status" },
+  { label: "Status" },
+  { label: "Actions", className: "pr-8 text-right" },
+];
+
+/** Neutral status pill metadata, matching Admin Management's ADMIN_STATUS_META. */
+const USER_STATUS_META = {
+  ACTIVE: { label: "Active", icon: "check_circle" },
+  SUSPENDED: { label: "Suspended", icon: "block" },
+} as const;
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
@@ -47,6 +68,12 @@ export default function UserManagementPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<AdminUserListItem | null>(null);
+
+  // Suspend / reactivate confirmation — same shape as Admin Management's dialog.
+  const [confirming, setConfirming] = useState<AdminUserListItem | null>(null);
+  const [statusSaving, setStatusSaving] = useState(false);
+  const [reason, setReason] = useState("");
+  const [reasonError, setReasonError] = useState("");
 
   // Staff-only — covers direct URL access (sidebar already hides for others).
   useEffect(() => {
@@ -103,6 +130,57 @@ export default function UserManagementPage() {
     setPage(1);
   };
 
+  const openConfirm = (user: AdminUserListItem) => {
+    setConfirming(user);
+    setReason("");
+    setReasonError("");
+  };
+
+  const closeConfirm = () => {
+    setConfirming(null);
+    setReason("");
+    setReasonError("");
+  };
+
+  /** Suspend / reactivate, confirmed through the dialog below. */
+  const handleToggleSuspension = async () => {
+    if (!confirming?.userId) return;
+    const suspending = !confirming.suspended;
+
+    // The backend only *requires* a reason when suspending, but it records one on the
+    // suspension history row either way — so ask for it on both paths.
+    const trimmed = reason.trim();
+    if (!trimmed) {
+      setReasonError(
+        suspending
+          ? "Give a reason for suspending this user."
+          : "Give a reason for reactivating this user."
+      );
+      return;
+    }
+
+    setStatusSaving(true);
+    try {
+      await setUserSuspension({
+        userId: confirming.userId,
+        companyId: confirming.companyId,
+        isSuspended: suspending,
+        suspensionReason: trimmed,
+      });
+      setUsers((prev) =>
+        prev.map((u) => (u.id === confirming.id ? { ...u, suspended: suspending } : u))
+      );
+      toast.success(
+        suspending ? `${confirming.name} was suspended.` : `${confirming.name} was reactivated.`
+      );
+      closeConfirm();
+    } catch (err) {
+      toast.error((err as ApiError).message || "Couldn't update the user. Please try again.");
+    } finally {
+      setStatusSaving(false);
+    }
+  };
+
   if (!isLoaded || !isStaffRole(role)) return null;
 
   return (
@@ -151,16 +229,22 @@ export default function UserManagementPage() {
             <table className="w-full min-w-[760px] border-collapse text-left">
               <thead>
                 <tr className="border-b border-outline/10">
-                  {["User", "Company", "Phone", "Email", "KYC Status", ""].map((h, i) => (
-                    <th key={i} className="px-5 py-3 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
-                      {h}
+                  {COLUMNS.map((col) => (
+                    <th
+                      key={col.label}
+                      className={`px-5 py-3 text-xs font-bold uppercase tracking-wide text-on-surface-variant ${col.className ?? ""}`}
+                    >
+                      {col.label}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {pageRows.map((u) => (
-                  <tr key={u.id} className="border-b border-outline/5 transition-colors last:border-0 hover:bg-surface-container-low">
+                  <tr
+                    key={u.id}
+                    className="group border-b border-outline/5 transition-colors last:border-0 hover:bg-surface-container-low"
+                  >
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
                         <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-container text-sm font-bold text-on-primary-container">
@@ -182,14 +266,28 @@ export default function UserManagementPage() {
                     <td className="px-5 py-4">
                       <StatusPill {...KYC_STATUS_META[u.kycStatus]} />
                     </td>
-                    <td className="px-5 py-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() => setSelected(u)}
-                        className="text-xs font-bold uppercase tracking-wide text-primary transition-colors hover:text-primary-dim"
-                      >
-                        View Profile
-                      </button>
+                    <td className="px-5 py-4">
+                      <StatusPill {...USER_STATUS_META[u.suspended ? "SUSPENDED" : "ACTIVE"]} />
+                    </td>
+                    <td className="py-4 pl-5 pr-8">
+                      <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+                        <RowAction
+                          icon="visibility"
+                          label={`View ${u.name}`}
+                          title="View Profile"
+                          onClick={() => setSelected(u)}
+                        />
+                        <RowAction
+                          icon={u.suspended ? "restart_alt" : "block"}
+                          label={`${u.suspended ? "Reactivate" : "Suspend"} ${u.name}`}
+                          title={u.suspended ? "Reactivate User" : "Suspend User"}
+                          danger={!u.suspended}
+                          // The suspension endpoint is keyed by `userId`; a row without one
+                          // can't be actioned, so don't offer a button that would fail.
+                          disabled={!u.userId}
+                          onClick={() => openConfirm(u)}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -210,6 +308,84 @@ export default function UserManagementPage() {
       </Card>
 
       <UserDetailDrawer user={selected} onClose={() => setSelected(null)} />
+
+      {/* Suspend / reactivate confirmation — same dialog shape as Admin Management. */}
+      <Modal
+        open={confirming !== null}
+        onClose={closeConfirm}
+        title={confirming?.suspended ? "Reactivate user?" : "Suspend user?"}
+        maxWidthClass="max-w-md"
+        bodyClassName="p-6"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={closeConfirm}
+              disabled={statusSaving}
+              className="flex h-11 items-center rounded-xl px-5 text-sm font-bold text-on-surface-variant transition-colors hover:bg-surface-container disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleToggleSuspension}
+              disabled={statusSaving}
+              className={`flex h-11 items-center gap-2 rounded-xl px-6 text-sm font-bold transition-colors disabled:opacity-50 ${
+                confirming?.suspended
+                  ? "bg-primary text-on-primary hover:bg-primary-dim"
+                  : "bg-error text-on-error hover:bg-error/90"
+              }`}
+            >
+              {statusSaving ? "Saving…" : confirming?.suspended ? "Reactivate" : "Suspend"}
+            </button>
+          </>
+        }
+      >
+        {confirming && (
+          <div className="space-y-5">
+            {/* Name the user explicitly — the action is triggered from a hover-revealed icon. */}
+            <div className="flex items-center gap-3 rounded-xl border border-outline-variant/30 bg-surface-container-low p-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-container text-sm font-bold text-on-primary-container">
+                {initials(confirming.name)}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-on-surface">{confirming.name}</p>
+                <p className="truncate text-xs text-on-surface-variant">{confirming.email}</p>
+              </div>
+              {confirming.role && (
+                <span className="ml-auto shrink-0 rounded bg-surface-container-high px-2 py-1 text-[10px] font-bold uppercase tracking-tight text-on-surface-variant">
+                  {ROLE_META[confirming.role].label}
+                </span>
+              )}
+            </div>
+
+            <p className="text-sm text-on-surface-variant">
+              {confirming.suspended
+                ? "They will regain access to the platform immediately."
+                : "They will lose access to the platform immediately. You can reactivate them later."}
+            </p>
+
+            {/* Asked for on both paths — it lands on the suspension history either way. */}
+            <Textarea
+              id="user-suspension-reason"
+              label={confirming.suspended ? "Reason for reactivation" : "Reason for suspension"}
+              required
+              rows={3}
+              placeholder={
+                confirming.suspended
+                  ? "e.g. Appeal upheld — account restored after review."
+                  : "e.g. Repeated policy violations reported by two counterparties."
+              }
+              value={reason}
+              error={reasonError}
+              onChange={(e) => {
+                setReason(e.target.value);
+                if (reasonError) setReasonError("");
+              }}
+            />
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
