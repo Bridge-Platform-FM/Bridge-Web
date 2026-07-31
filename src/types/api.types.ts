@@ -897,14 +897,26 @@ export interface MatchingEngineStats {
 }
 /* ----- Super Admin: System Management ----- */
 
-/** OTP gateway configuration (System Management → OTP Configuration). */
-export interface OtpSettings {
-  primaryProvider: string;
-  failoverProvider: string;
-  maxAttempts: number;
-  expirySeconds: number;
-  cooldownMinutes: number;
-  sandboxMode: boolean;
+/**
+ * One row of `otp_config_master` as returned by GET /super-admin/config/otp-config.
+ * `lookup` is the backend's key (SENT_OTP_TTL, MAX_OTP_VERIFY_ATTEMPTS, …) and is the
+ * key the UI labels the field with and the key the PUT body is built from — the screen
+ * never invents its own names for these settings.
+ */
+export interface OtpConfigEntry {
+  id: number;
+  /** Backend key, e.g. "SENT_OTP_TTL". Doubles as the field label. */
+  lookup: string;
+  /** Current value. Kept as a string — the backend column is a varchar. */
+  value: string;
+  /** Shipped value, the "Reset Defaults" target for this row. */
+  defaultValue: string;
+  /** "integer" | "boolean" | … — decides which control renders. */
+  dataType: string;
+  /** "second" | "number" | … — shown next to the label. */
+  unit: string;
+  description?: string;
+  updatedAt?: string;
 }
 
 /** Trial window + conversion behaviour (System Management → Trial Management). */
@@ -923,17 +935,11 @@ export interface PlatformFlags {
   aiMatchingEngine: boolean;
 }
 
-/** The whole System Management payload — one GET, one PUT. */
-export interface SystemSettings {
-  otp: OtpSettings;
-  trial: TrialSettings;
-  flags: PlatformFlags;
-  /** Read-only delivery health shown in the OTP card header. */
-  otpStats?: { successRate: number; latencySeconds: number };
-  /** ISO timestamp + author of the last save, shown in the action bar. */
-  lastSavedAt?: string;
-  lastSavedBy?: string;
-}
+/**
+ * NOTE: there is deliberately no composite `SystemSettings` type. Each card on the System
+ * Management screen owns its own GET/PUT pair and edits independently, so the three shapes
+ * above are kept separate.
+ */
 
 /* ----- Super Admin: Admin Management ----- */
 

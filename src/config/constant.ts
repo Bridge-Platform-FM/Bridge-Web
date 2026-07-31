@@ -11,6 +11,8 @@ const SESSIONS = `${BASE}/sessions`;
 // const KYC = `${BASE}/kyc`;
 // Admin/super-admin back-office (User Management + KYC Review).
 const ADMIN = `${BASE}/admin`;
+// Super Admin only — platform configuration (System Management).
+const SUPER_ADMIN = `${BASE}/super-admin`;
 // Matching Engine (Explore — compatibility matches).
 const MATCHING = `${BASE}/matching`;
 // Connection requests (proposals sent to matched profiles).
@@ -99,10 +101,18 @@ export const API_ENDPOINTS = {
   ADMIN_MATCHING_ENGINE_STATS: `${ADMIN}/matching-engine/stats`,
 
   // ----- Super Admin: System Management -----
-  // Platform-wide settings (GET to fetch, PUT to save). PLACEHOLDER path — swap in the
-  // real one from the curl; the request/response keys live in
+  // One endpoint pair (GET to fetch, PUT to save) per card on the screen — each section
+  // loads and saves independently. The request/response keys live in
   // `services/system-management.service.ts`.
-  ADMIN_SYSTEM_SETTINGS: `${ADMIN}/system-settings`,
+  //
+  // OTP Configuration — LIVE. The `otp_config_master` rows.
+  // GET → { data: [{ id, lookup, value, default_value, data_type, unit, description }] }
+  // PUT → body { otpConfig: { <lookup>: "<value>" } }, partial (only changed keys).
+  SUPER_ADMIN_OTP_CONFIG: `${SUPER_ADMIN}/config/otp-config`,
+  // Trial Management — PLACEHOLDER path, swap in the real one from the curl.
+  SUPER_ADMIN_TRIAL_CONFIG: `${SUPER_ADMIN}/config/trial-config`,
+  // Platform Controls (feature flags) — PLACEHOLDER path, swap in the real one.
+  SUPER_ADMIN_PLATFORM_FLAGS: `${SUPER_ADMIN}/config/platform-flags`,
 
   // ----- Super Admin: Admin Management -----
   // Staff accounts: GET to list, POST to create. PLACEHOLDER paths — the request /

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
@@ -8,7 +9,8 @@ import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 /**
  * The three building blocks of the System Management screen. They're only ever used
  * together, so they share a file (same idea as `dashboard/kyc-status.tsx`):
- *   SettingsSection  — the card shell with the tonal icon header
+ *   SettingsSection  — the card shell: tonal icon header, its own Edit toggle, and its
+ *                      own Reset/Save bar (each card saves to its own endpoint)
  *   SettingToggleRow — label/description left, switch right
  *   FeatureFlagCard  — one tile in the Platform Controls grid
  */
@@ -18,13 +20,38 @@ interface SettingsSectionProps {
   icon: string;
   title: string;
   description: string;
-  /** Optional right-aligned slot in the header (e.g. the OTP delivery stats chip). */
+  /** Optional slot left of the Edit toggle (e.g. a stats chip). */
   action?: React.ReactNode;
+  /** This card's own edit mode — every card on the screen toggles independently. */
+  editing: boolean;
+  onEditChange: (v: boolean) => void;
+  /** Enables Save — this card has unsaved changes. */
+  dirty: boolean;
+  /** This card's save is in flight. */
+  saving: boolean;
+  onSave: () => void;
+  onReset: () => void;
   children: React.ReactNode;
 }
 
-/** One System Management card: tonal icon tile + title/description, then its controls. */
-export function SettingsSection({ icon, title, description, action, children }: SettingsSectionProps) {
+/**
+ * One System Management card: tonal icon tile + title/description and an Edit toggle, its
+ * controls, then a Reset/Save bar while editing. Each card is self-contained because each
+ * one is backed by a separate GET/PUT pair.
+ */
+export function SettingsSection({
+  icon,
+  title,
+  description,
+  action,
+  editing,
+  onEditChange,
+  dirty,
+  saving,
+  onSave,
+  onReset,
+  children,
+}: SettingsSectionProps) {
   return (
     <Card surface="lowest" ambient={false} padding="none" className="border border-outline-variant/20 p-6 md:p-8">
       <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
@@ -37,9 +64,29 @@ export function SettingsSection({ icon, title, description, action, children }: 
             <p className="text-sm text-on-surface-variant">{description}</p>
           </div>
         </div>
-        {action}
+        <div className="flex items-center gap-4">
+          {action}
+          <ToggleSwitch
+            checked={editing}
+            onChange={onEditChange}
+            label={editing ? "Editing" : "Edit"}
+            disabled={saving}
+          />
+        </div>
       </header>
+
       {children}
+
+      {editing && (
+        <div className="mt-8 flex flex-wrap items-center justify-end gap-4 border-t border-outline-variant/30 pt-6">
+          <Button variant="ghost" onClick={onReset} disabled={saving}>
+            Reset Defaults
+          </Button>
+          <Button variant="primary" onClick={onSave} disabled={!dirty || saving}>
+            {saving ? "Saving…" : "Save Changes"}
+          </Button>
+        </div>
+      )}
     </Card>
   );
 }
