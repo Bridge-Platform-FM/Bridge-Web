@@ -279,9 +279,19 @@ export async function updateAdminPermissions(
   });
 }
 
-/** Suspend or reactivate an admin. */
-export async function setAdminStatus(id: string, status: AdminAccountStatus): Promise<void> {
-  await api.put(API_ENDPOINTS.ADMIN_ACCOUNT_STATUS(id), { status: status.toLowerCase() });
+/**
+ * Suspend or reactivate an admin. `reason` is collected by the suspend confirmation modal
+ * and is only sent when present, so the reactivate path keeps its original body.
+ */
+export async function setAdminStatus(
+  id: string,
+  status: AdminAccountStatus,
+  reason?: string
+): Promise<void> {
+  await api.put(API_ENDPOINTS.ADMIN_ACCOUNT_STATUS(id), {
+    status: status.toLowerCase(),
+    ...(reason ? { reason } : {}),
+  });
 }
 
 export async function fetchMatchingEngineStats(): Promise<MatchingEngineStats> {

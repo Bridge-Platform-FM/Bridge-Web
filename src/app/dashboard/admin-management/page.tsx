@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { AsyncState } from "@/components/ui/AsyncState";
@@ -52,6 +53,9 @@ export default function AdminManagementPage() {
   const [editing, setEditing] = useState<AdminAccount | null>(null);
   const [confirming, setConfirming] = useState<AdminAccount | null>(null);
   const [statusSaving, setStatusSaving] = useState(false);
+  /** Suspension reason — required when suspending, unused on the reactivate path. */
+  const [reason, setReason] = useState("");
+  const [reasonError, setReasonError] = useState("");
 
   // Super-admin only — covers direct URL access (the sidebar already hides it for others).
   useEffect(() => {
@@ -107,18 +111,40 @@ export default function AdminManagementPage() {
     setAdmins((prev) => prev.map((a) => (a.id === id ? { ...a, ...changes } : a)));
   }, []);
 
+  /** Open the confirm dialog on a fresh reason field. */
+  const openConfirm = (admin: AdminAccount) => {
+    setConfirming(admin);
+    setReason("");
+    setReasonError("");
+  };
+
+  const closeConfirm = () => {
+    setConfirming(null);
+    setReason("");
+    setReasonError("");
+  };
+
   /** Suspend / reactivate, confirmed through the dialog below. */
   const handleToggleStatus = async () => {
     if (!confirming) return;
-    const next = confirming.status === "ACTIVE" ? "SUSPENDED" : "ACTIVE";
+    const suspending = confirming.status === "ACTIVE";
+    const next = suspending ? "SUSPENDED" : "ACTIVE";
+
+    // A suspension goes on the admin's record — it needs a stated reason.
+    const trimmed = reason.trim();
+    if (suspending && !trimmed) {
+      setReasonError("Please give a reason for suspending this admin.");
+      return;
+    }
+
     setStatusSaving(true);
     try {
-      await setAdminStatus(confirming.id, next);
+      await setAdminStatus(confirming.id, next, suspending ? trimmed : undefined);
       patchAdmin(confirming.id, { status: next });
       toast.success(
         next === "SUSPENDED" ? `${confirming.name} was suspended.` : `${confirming.name} was reactivated.`
       );
-      setConfirming(null);
+      closeConfirm();
     } catch (err) {
       toast.error((err as ApiError).message || "Couldn't update the admin. Please try again.");
     } finally {
@@ -231,7 +257,7 @@ export default function AdminManagementPage() {
                           label={`${a.status === "ACTIVE" ? "Suspend" : "Reactivate"} ${a.name}`}
                           title={a.status === "ACTIVE" ? "Suspend Admin" : "Reactivate Admin"}
                           danger={a.status === "ACTIVE"}
-                          onClick={() => setConfirming(a)}
+                          onClick={() => openConfirm(a)}
                         />
                       </div>
                     </td>
@@ -264,7 +290,7 @@ export default function AdminManagementPage() {
 
       <Modal
         open={confirming !== null}
-        onClose={() => setConfirming(null)}
+        onClose={closeConfirm}
         title={confirming?.status === "ACTIVE" ? "Suspend admin?" : "Reactivate admin?"}
         maxWidthClass="max-w-md"
         bodyClassName="p-6"
@@ -272,7 +298,7 @@ export default function AdminManagementPage() {
           <>
             <button
               type="button"
-              onClick={() => setConfirming(null)}
+              onClick={closeConfirm}
               disabled={statusSaving}
               className="flex h-11 items-center rounded-xl px-5 text-sm font-bold text-on-surface-variant transition-colors hover:bg-surface-container disabled:opacity-50"
             >
@@ -289,19 +315,46 @@ export default function AdminManagementPage() {
           </>
         }
       >
-        <p className="text-sm text-on-surface-variant">
-          {confirming?.status === "ACTIVE" ? (
-            <>
-              <span className="font-semibold text-on-surface">{confirming?.name}</span> will lose access to the
-              admin dashboard immediately. You can reactivate them later.
-            </>
-          ) : (
-            <>
-              <span className="font-semibold text-on-surface">{confirming?.name}</span> will regain access to the
-              admin dashboard with their previous permissions.
-            </>
-          )}
-        </p>
+        {confirming && (
+          <div className="space-y-5">
+            {/* Who this is about — named explicitly so the wrong row can't be actioned
+                by mistake from a hover-revealed icon. */}
+            <div className="flex items-center gap-3 rounded-xl border border-outline-variant/30 bg-surface-container-low p-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-container text-sm font-bold text-on-primary-container">
+                {initials(confirming.name)}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-on-surface">{confirming.name}</p>
+                <p className="truncate text-xs text-on-surface-variant">{confirming.email}</p>
+              </div>
+              <span className="ml-auto shrink-0 rounded bg-surface-container-high px-2 py-1 text-[10px] font-bold uppercase tracking-tight text-on-surface-variant">
+                {confirming.role === "super_admin" ? "Super Admin" : "Admin"}
+              </span>
+            </div>
+
+            <p className="text-sm text-on-surface-variant">
+              {confirming.status === "ACTIVE"
+                ? "They will lose access to the admin dashboard immediately. You can reactivate them later."
+                : "They will regain access to the admin dashboard with their previous permissions."}
+            </p>
+
+            {confirming.status === "ACTIVE" && (
+              <Textarea
+                id="suspend-reason"
+                label="Reason for suspension"
+                required
+                rows={3}
+                placeholder="e.g. Offboarding — left the company on 12 Aug."
+                value={reason}
+                error={reasonError}
+                onChange={(e) => {
+                  setReason(e.target.value);
+                  if (reasonError) setReasonError("");
+                }}
+              />
+            )}
+          </div>
+        )}
       </Modal>
     </div>
   );
