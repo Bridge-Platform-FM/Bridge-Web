@@ -298,7 +298,7 @@ export default function SystemManagementPage() {
                   variant="underline"
                   type="number"
                   min={0}
-                  label="Hard Cap / Max Extension"
+                  label="No of connection"
                   value={trial.value.maxExtensionDays}
                   onChange={(e) => setTrial("maxExtensionDays", toNumber(e.target.value))}
                   disabled={!trial.editing}

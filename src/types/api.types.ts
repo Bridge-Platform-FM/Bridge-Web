@@ -961,6 +961,60 @@ export interface AdminAccount {
   status: AdminAccountStatus;
   createdAt?: string;
   lastLoginAt?: string;
+  /** Id of the admin who created this account. */
+  createdBy?: string;
+  /** Soft-delete flag; the list filters these out, the drawer surfaces it. */
+  isDeleted?: boolean;
+}
+
+/** One permission row from the admin detail endpoint — granted or explicitly denied. */
+export interface AdminPermission {
+  id: string;
+  /** Backend key, e.g. "KYC_REVIEW". */
+  permissionKey: string;
+  isAllowed: boolean;
+}
+
+/** One entry in an admin's audit trail (created / updated / suspended / activated…). */
+export interface AdminActivityLog {
+  id: string;
+  /** e.g. "CREATED", "SUSPENDED". */
+  action: string;
+  /** Supplied on actions that require one (suspend / delete). */
+  reason?: string;
+  createdAt?: string;
+  /** The account the action was performed on. */
+  adminId?: string;
+  /** Free-form snapshot of what changed — shape varies by action. */
+  metadata?: Record<string, unknown>;
+  /** The admin who performed the action, when the backend expands it. */
+  performedBy?: {
+    id?: string;
+    name: string;
+    email?: string;
+    role?: string;
+  };
+}
+
+/**
+ * GET /admin/management/admins/:id — the account plus its permission matrix and audit
+ * trail. Powers the detail drawer; the list response carries neither of the latter two.
+ */
+export interface AdminDetail {
+  admin: AdminAccount;
+  permissions: AdminPermission[];
+  activityLogs: AdminActivityLog[];
+}
+
+/**
+ * Editable fields of an existing admin (PUT /admin/management/admins/:id). Email, role and
+ * status are NOT updatable here — the schema rejects them. At least one field is required.
+ */
+export interface UpdateAdminPayload {
+  name?: string;
+  countryCode?: string;
+  mobileNumber?: string;
+  permissions?: { permissionKey: string; isAllowed: boolean }[];
 }
 
 /** Body of the "Create New Admin" form. */
@@ -968,7 +1022,17 @@ export interface CreateAdminPayload {
   name: string;
   email: string;
   mobileNumber: string;
+  /** Dialling code sent as `country_code`, e.g. "+91". */
+  countryCode: string;
   password: string;
-  permissions: string[];
+  /**
+   * Every module with its granted/denied state — the backend takes the full matrix, not
+   * just the granted keys, so an unticked module is sent as `is_allowed: false`.
+   */
+  permissions: { permissionKey: string; isAllowed: boolean }[];
+  /**
+   * UI-only. The create endpoint's Joi schema rejects unknown keys, so this is NOT sent
+   * until the backend accepts it.
+   */
   sendWelcomeEmail: boolean;
 }

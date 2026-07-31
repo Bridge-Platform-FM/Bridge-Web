@@ -13,6 +13,9 @@ const SESSIONS = `${BASE}/sessions`;
 const ADMIN = `${BASE}/admin`;
 // Super Admin only — platform configuration (System Management).
 const SUPER_ADMIN = `${BASE}/super-admin`;
+// Super Admin only — staff accounts (Admin Management). Every route in this group is
+// `/admins`-scoped: list, detail, create, update, delete, suspend, activate.
+const ADMIN_MANAGEMENT = `${ADMIN}/management`;
 // Matching Engine (Explore — compatibility matches).
 const MATCHING = `${BASE}/matching`;
 // Connection requests (proposals sent to matched profiles).
@@ -115,13 +118,18 @@ export const API_ENDPOINTS = {
   SUPER_ADMIN_PLATFORM_FLAGS: `${SUPER_ADMIN}/config/platform-flags`,
 
   // ----- Super Admin: Admin Management -----
-  // Staff accounts: GET to list, POST to create. PLACEHOLDER paths — the request /
-  // response keys live in the "Admin Accounts" section of `services/admin.service.ts`.
-  ADMIN_ACCOUNTS: `${ADMIN}/admins`,
-  // Replace an admin's module permissions (PUT, body: { role_profile, permissions }).
-  ADMIN_ACCOUNT_PERMISSIONS: (id: string) => `${ADMIN}/admins/${id}/permissions`,
-  // Suspend / reactivate an admin (PUT, body: { status }).
-  ADMIN_ACCOUNT_STATUS: (id: string) => `${ADMIN}/admins/${id}/status`,
+  // Staff accounts collection. The GET is LIVE:
+  //   GET → { data: { admins: [...], pagination: { total, page, limit, totalPages } } }
+  //   Query: page, limit (default 10, max 100), status, search.
+  // POST (create) hits the same path. The response keys live in the "Admin Accounts"
+  // section of `services/admin.service.ts`.
+  ADMIN_ACCOUNTS: `${ADMIN_MANAGEMENT}/admins`,
+  // One staff account: GET detail, PUT update (profile and/or permissions), DELETE.
+  ADMIN_ACCOUNT: (id: string) => `${ADMIN_MANAGEMENT}/admins/${id}`,
+  // Suspend / reactivate an admin. Both are PATCH and both REQUIRE a body
+  // { reason } of 5–500 characters.
+  ADMIN_ACCOUNT_SUSPEND: (id: string) => `${ADMIN_MANAGEMENT}/admins/${id}/suspend`,
+  ADMIN_ACCOUNT_ACTIVATE: (id: string) => `${ADMIN_MANAGEMENT}/admins/${id}/activate`,
 
    // Matching Engine (log events for analytics)
   MATCHING_LOG_EVENT: `${MATCHING}/events`,
