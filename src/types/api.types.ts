@@ -409,6 +409,18 @@ export interface AdminUserListItem {
   /** Derived from the backend `kyc_status` column: Approved → VERIFIED, Rejected →
    *  REJECTED, otherwise PENDING. */
   kycStatus: KycStatus;
+  /** `company_id` — required alongside `userId` by the suspension endpoint. */
+  companyId?: string;
+  /** Account state, derived from the user's active flag. */
+  suspended: boolean;
+}
+
+/** Body of PUT /admin/users/suspension. `suspensionReason` is required when suspending. */
+export interface UserSuspensionPayload {
+  userId: string;
+  companyId?: string;
+  isSuspended: boolean;
+  suspensionReason?: string;
 }
 
 /** The full `get-user-list` list (no pagination metadata from the backend yet). */

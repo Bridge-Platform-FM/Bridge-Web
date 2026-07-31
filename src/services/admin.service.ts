@@ -20,6 +20,7 @@ import type {
   ReviewKycResponse,
   UserLimitConfig,
   UpdateUserLimitConfigPayload,
+  UserSuspensionPayload,
   MatchingEngineStats,
 } from "@/types/api.types";
 
@@ -66,6 +67,10 @@ function toUserListItem(raw: Record<string, unknown>): AdminUserListItem {
     emailVerified: Boolean(raw.is_email_verified),
     mobileVerified: Boolean(raw.is_mobile_number_verified),
     kycStatus: toUserKycStatus(raw.kyc_status),
+    companyId: raw.company_id != null ? String(raw.company_id) : undefined,
+    // Suspension writes `is_user_active`, but the list query currently selects `is_active`
+    // — read whichever is present so the pill is right either way. Absent → active.
+    suspended: (raw.is_user_active ?? raw.is_active) === false,
   };
 }
 
@@ -79,6 +84,20 @@ export async function fetchUsers(): Promise<AdminUserListResponse> {
   const rows = ((data?.data ?? data) as Record<string, unknown>[]) ?? [];
   const list = Array.isArray(rows) ? rows : [];
   return { data: list.map(toUserListItem), total: list.length };
+}
+
+/**
+ * Suspend or reactivate a user. One endpoint for both directions, switched by
+ * `isSuspended`. The backend requires `suspensionReason` only when suspending, and a
+ * suspension applied by a SUPER_ADMIN can't later be changed by an ADMIN (403).
+ */
+export async function setUserSuspension(payload: UserSuspensionPayload): Promise<void> {
+  await api.put(API_ENDPOINTS.ADMIN_USER_SUSPENSION, {
+    userId: payload.userId,
+    companyId: payload.companyId,
+    isSuspended: payload.isSuspended,
+    ...(payload.suspensionReason ? { suspensionReason: payload.suspensionReason } : {}),
+  });
 }
 
 /* ----- KYC Review ----- */

@@ -83,6 +83,9 @@ export const API_ENDPOINTS = {
   // User Management list + detail. TODO: replace with the real paths from the curl.
   ADMIN_USERS: `${ADMIN}/get-user-list`,
   ADMIN_USER_DETAIL: (id: string) => `${ADMIN}/users/${id}`,
+  // Suspend / reactivate a user (PUT). Body: { userId, companyId, isSuspended,
+  // suspensionReason } — the reason is required only when suspending.
+  ADMIN_USER_SUSPENSION: `${ADMIN}/users/suspension`,
   // KYC Review list — returns every user with their `kyc_documents` inline, so the
   // review drawer reuses the list row (no separate detail endpoint).
   ADMIN_KYC: `${ADMIN}/get-user-kyc_docs`,
