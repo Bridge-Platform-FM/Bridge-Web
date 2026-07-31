@@ -9,6 +9,7 @@ import { Select } from "@/components/ui/Select";
 import { AsyncState } from "@/components/ui/AsyncState";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { UserDetailDrawer } from "@/components/dashboard/UserDetailDrawer";
+import { TablePager } from "@/components/dashboard/TablePager";
 import { KYC_STATUS_META, StatusPill } from "@/components/dashboard/kyc-status";
 import { fetchUsers } from "@/services/admin.service";
 import { initials } from "@/lib/admin-format";
@@ -174,36 +175,19 @@ export default function UserManagementPage() {
             </table>
           </div>
 
-          {/* Pagination */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-outline/10 px-5 py-4">
-            <p className="text-sm text-on-surface-variant">
-              Showing {rangeStart}–{rangeEnd} of {total} users
-            </p>
-            <div className="flex items-center gap-1">
-              <PageButton icon="chevron_left" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)} />
-              <span className="px-3 text-sm font-semibold text-on-surface">
-                {safePage} / {totalPages}
-              </span>
-              <PageButton icon="chevron_right" disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)} />
-            </div>
-          </div>
+          <TablePager
+            page={safePage}
+            totalPages={totalPages}
+            rangeStart={rangeStart}
+            rangeEnd={rangeEnd}
+            total={total}
+            noun="users"
+            onPage={setPage}
+          />
         </AsyncState>
       </Card>
 
       <UserDetailDrawer user={selected} onClose={() => setSelected(null)} />
     </div>
-  );
-}
-
-function PageButton({ icon, disabled, onClick }: { icon: string; disabled: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className="flex size-9 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container-high disabled:opacity-40 disabled:hover:bg-transparent"
-    >
-      <Icon name={icon} size={20} />
-    </button>
   );
 }

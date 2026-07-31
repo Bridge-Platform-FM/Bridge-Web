@@ -2,8 +2,11 @@ import { api } from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/constant";
 import { normalizeRole } from "@/lib/roles";
 import type {
+  AdminAccount,
+  AdminAccountStatus,
   AdminUserListItem,
   AdminUserListResponse,
+  CreateAdminPayload,
   KycDocument,
   KycDocumentSide,
   KycReviewStatus,
@@ -210,6 +213,75 @@ export async function updateUserLimitConfig(
 ): Promise<UserLimitConfig> {
   const { data } = await api.put(API_ENDPOINTS.ADMIN_USER_LIMIT_CONFIG(userId), payload);
   return data.data as UserLimitConfig;
+}
+
+/* ----- Admin Accounts (Super Admin → Admin Management) ----- */
+
+/**
+ * The staff-account endpoints don't exist on the backend yet. When the real curl
+ * arrives, change `ADMIN_ACCOUNTS` / `ADMIN_ACCOUNT_*` in `config/constant.ts` and the
+ * raw key strings in `toAdminAccount` + `createAdmin` below — nothing else.
+ */
+
+/** Map one raw admin row to our AdminAccount. Every field is defaulted. */
+function toAdminAccount(raw: Record<string, unknown>): AdminAccount {
+  const first = (raw.first_name as string | null) ?? "";
+  const last = (raw.last_name as string | null) ?? "";
+  const email = String(raw.email ?? raw.admin_email ?? "");
+  const name = String(raw.name ?? [first, last].filter(Boolean).join(" ").trim()) || email || "—";
+  const role = normalizeRole(raw.role) === "super_admin" ? "super_admin" : "admin";
+  const permsRaw = raw.permissions;
+
+  return {
+    id: String(raw.admin_id ?? raw.id ?? email),
+    name,
+    email,
+    mobileNumber: (raw.mobile_number as string | undefined) ?? undefined,
+    countryCode: (raw.country_code as string | null) ?? null,
+    role,
+    roleProfile: (raw.role_profile as string | undefined) ?? undefined,
+    permissions: Array.isArray(permsRaw) ? permsRaw.map(String) : [],
+    status: String(raw.status ?? "").toUpperCase() === "SUSPENDED" ? "SUSPENDED" : "ACTIVE",
+    createdAt: (raw.created_at as string | undefined) ?? undefined,
+    lastLoginAt: (raw.last_login_at as string | undefined) ?? undefined,
+  };
+}
+
+/** Fetch every staff account. Filtering + paging happen client-side in the page. */
+export async function fetchAdmins(): Promise<AdminAccount[]> {
+  const { data } = await api.get(API_ENDPOINTS.ADMIN_ACCOUNTS);
+  const rows = ((data?.data ?? data) as Record<string, unknown>[]) ?? [];
+  return Array.isArray(rows) ? rows.map(toAdminAccount) : [];
+}
+
+/** Create a staff account from the "Create New Admin" form. */
+export async function createAdmin(payload: CreateAdminPayload): Promise<AdminAccount> {
+  const { data } = await api.post(API_ENDPOINTS.ADMIN_ACCOUNTS, {
+    name: payload.name,
+    email: payload.email,
+    mobile_number: payload.mobileNumber,
+    password: payload.password,
+    permissions: payload.permissions,
+    send_welcome_email: payload.sendWelcomeEmail,
+  });
+  return toAdminAccount((data?.data ?? data ?? {}) as Record<string, unknown>);
+}
+
+/** Replace an admin's role profile + module permissions. */
+export async function updateAdminPermissions(
+  id: string,
+  roleProfile: string,
+  permissions: string[]
+): Promise<void> {
+  await api.put(API_ENDPOINTS.ADMIN_ACCOUNT_PERMISSIONS(id), {
+    role_profile: roleProfile,
+    permissions,
+  });
+}
+
+/** Suspend or reactivate an admin. */
+export async function setAdminStatus(id: string, status: AdminAccountStatus): Promise<void> {
+  await api.put(API_ENDPOINTS.ADMIN_ACCOUNT_STATUS(id), { status: status.toLowerCase() });
 }
 
 export async function fetchMatchingEngineStats(): Promise<MatchingEngineStats> {

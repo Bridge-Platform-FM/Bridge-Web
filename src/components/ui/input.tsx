@@ -62,7 +62,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={id}
             type={type}
-            className={`h-10 w-full text-sm text-on-surface transition-all duration-200 placeholder:text-outline-variant focus:outline-none ${
+            className={`h-10 w-full text-sm text-on-surface transition-all duration-200 placeholder:text-outline-variant focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 ${
               FIELD_STYLES[variant].control
             } ${error ? FIELD_STYLES[variant].error : ""} ${adornment ? "pr-10" : ""} ${className}`}
             {...props}

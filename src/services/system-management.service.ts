@@ -40,9 +40,6 @@ export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
     maintenanceMode: false,
     registrationOpen: true,
     aiMatchingEngine: true,
-    externalApiAccess: true,
-    experimentalFeatures: false,
-    realTimeMetrics: true,
   },
 };
 
@@ -91,9 +88,6 @@ export function toSystemSettings(raw: Record<string, unknown>): SystemSettings {
       maintenanceMode: bool(flags.maintenance_mode, d.flags.maintenanceMode),
       registrationOpen: bool(flags.registration_open, d.flags.registrationOpen),
       aiMatchingEngine: bool(flags.ai_matching_engine, d.flags.aiMatchingEngine),
-      externalApiAccess: bool(flags.external_api_access, d.flags.externalApiAccess),
-      experimentalFeatures: bool(flags.experimental_features, d.flags.experimentalFeatures),
-      realTimeMetrics: bool(flags.real_time_metrics, d.flags.realTimeMetrics),
     },
     otpStats:
       stats.success_rate != null || stats.latency_seconds != null
@@ -126,9 +120,6 @@ export function toSystemSettingsPayload(settings: SystemSettings): Record<string
       maintenance_mode: settings.flags.maintenanceMode,
       registration_open: settings.flags.registrationOpen,
       ai_matching_engine: settings.flags.aiMatchingEngine,
-      external_api_access: settings.flags.externalApiAccess,
-      experimental_features: settings.flags.experimentalFeatures,
-      real_time_metrics: settings.flags.realTimeMetrics,
     },
   };
 }

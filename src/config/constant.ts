@@ -104,6 +104,15 @@ export const API_ENDPOINTS = {
   // `services/system-management.service.ts`.
   ADMIN_SYSTEM_SETTINGS: `${ADMIN}/system-settings`,
 
+  // ----- Super Admin: Admin Management -----
+  // Staff accounts: GET to list, POST to create. PLACEHOLDER paths — the request /
+  // response keys live in the "Admin Accounts" section of `services/admin.service.ts`.
+  ADMIN_ACCOUNTS: `${ADMIN}/admins`,
+  // Replace an admin's module permissions (PUT, body: { role_profile, permissions }).
+  ADMIN_ACCOUNT_PERMISSIONS: (id: string) => `${ADMIN}/admins/${id}/permissions`,
+  // Suspend / reactivate an admin (PUT, body: { status }).
+  ADMIN_ACCOUNT_STATUS: (id: string) => `${ADMIN}/admins/${id}/status`,
+
    // Matching Engine (log events for analytics)
   MATCHING_LOG_EVENT: `${MATCHING}/events`,
 

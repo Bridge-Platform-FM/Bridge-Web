@@ -4,10 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
-import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/Select";
 import { AsyncState } from "@/components/ui/AsyncState";
+import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import {
   FeatureFlagCard,
   SettingToggleRow,
@@ -56,9 +56,6 @@ const PLATFORM_FLAGS: { key: keyof PlatformFlags; label: string; description: st
   { key: "maintenanceMode",      label: "Maintenance Mode",      description: "Lock all public access and show status page.", icon: "engineering" },
   { key: "registrationOpen",     label: "Registration Open",     description: "Allow new users to create accounts.",          icon: "how_to_reg"  },
   { key: "aiMatchingEngine",     label: "AI Matching Engine",    description: "Enable automated connection suggestions.",     icon: "memory"      },
-  { key: "externalApiAccess",    label: "External API Access",   description: "Allow 3rd party developer integrations.",      icon: "api"         },
-  { key: "experimentalFeatures", label: "Experimental Features", description: "Show beta labels and upcoming components.",    icon: "science"     },
-  { key: "realTimeMetrics",      label: "Real-time Metrics",     description: "Update dashboard counters in real-time.",      icon: "query_stats" },
 ];
 
 /** Groups of `SystemSettings` that hold editable fields. */
@@ -77,8 +74,8 @@ export default function SystemManagementPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  // True while the settings endpoint is unavailable — the form shows defaults instead.
-  const [offline, setOffline] = useState(false);
+  /** Read-only until the header toggle is switched on. */
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     if (isLoaded && !isSuperAdmin(role)) router.replace("/dashboard");
@@ -91,14 +88,12 @@ export default function SystemManagementPage() {
       const data = await fetchSystemSettings();
       setSettings(data);
       setInitial(data);
-      setOffline(false);
     } catch {
-      // The backend endpoint doesn't exist yet, so a failure falls back to the shipped
-      // defaults and flags the page as not-yet-connected. DELETE this fallback (and
-      // `offline`) once ADMIN_SYSTEM_SETTINGS is live — `setError` alone is then correct.
+      // The backend endpoint doesn't exist yet, so a failure silently falls back to the
+      // shipped defaults. DELETE this catch once ADMIN_SYSTEM_SETTINGS is live —
+      // `setError(err.message)` is the correct behaviour then.
       setSettings(DEFAULT_SYSTEM_SETTINGS);
       setInitial(DEFAULT_SYSTEM_SETTINGS);
-      setOffline(true);
     } finally {
       setLoading(false);
     }
@@ -119,6 +114,16 @@ export default function SystemManagementPage() {
 
   const dirty = JSON.stringify(settings) !== JSON.stringify(initial);
 
+  /** Leaving edit mode discards anything unsaved, so nothing pending hides behind a
+   *  read-only screen. */
+  const handleToggleEdit = (next: boolean) => {
+    setEditing(next);
+    if (!next && dirty) {
+      setSettings(initial);
+      toast.info("Unsaved changes were discarded.");
+    }
+  };
+
   const handleReset = () => {
     setSettings((prev) => ({ ...DEFAULT_SYSTEM_SETTINGS, otpStats: prev.otpStats }));
     toast.info("Reverted to the default configuration. Save to apply.");
@@ -130,7 +135,6 @@ export default function SystemManagementPage() {
       const saved = await updateSystemSettings(settings);
       setSettings(saved);
       setInitial(saved);
-      setOffline(false);
       toast.success("System settings saved.");
     } catch {
       toast.error("Couldn't save the settings. Please try again.");
@@ -144,30 +148,26 @@ export default function SystemManagementPage() {
   return (
     <div className="mx-auto max-w-[1280px] px-6 pt-8 md:px-8">
       {/* Header */}
-      <div className="mb-8">
-        <nav aria-label="Breadcrumb" className="mb-2 flex gap-2 font-label text-[10px] font-bold uppercase tracking-widest">
-          <span className="text-outline">Configuration</span>
-          <span className="text-outline">/</span>
-          <span className="text-surface-tint">System Management</span>
-        </nav>
-        <h1 className="mb-2 font-headline text-3xl font-bold tracking-[-0.02em] text-on-surface md:text-4xl">
-          System Management
-        </h1>
-        <p className="max-w-2xl text-on-surface-variant">
-          Manage platform-wide configuration, security protocols, and trial behaviors across the
-          BridgeConnect ecosystem.
-        </p>
+      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="mb-2 font-headline text-3xl font-bold tracking-[-0.02em] text-on-surface md:text-4xl">
+            System Management
+          </h1>
+          <p className="max-w-2xl text-on-surface-variant">
+            Manage platform-wide configuration, security protocols, and trial behaviors across the
+            BridgeConnect ecosystem.
+          </p>
+        </div>
+        <ToggleSwitch
+          checked={editing}
+          onChange={handleToggleEdit}
+          label={editing ? "Editing" : "Edit"}
+          disabled={loading || saving}
+        />
       </div>
 
       <AsyncState loading={loading} error={error} onRetry={load}>
         <>
-          {offline && (
-            <p className="mb-6 flex items-center gap-2 rounded-lg bg-surface-container-low px-4 py-3 text-xs text-on-surface-variant">
-              <Icon name="cloud_off" size={16} />
-              Showing the default configuration — the settings service isn&apos;t connected yet.
-            </p>
-          )}
-
           <div className="space-y-8">
             {/* OTP Configuration */}
             <SettingsSection
@@ -203,6 +203,7 @@ export default function SystemManagementPage() {
                     options={OTP_PROVIDER_OPTIONS}
                     value={settings.otp.primaryProvider}
                     onChange={(v) => setField("otp", "primaryProvider", v)}
+                    disabled={!editing}
                   />
                   <Select
                     id="otp-failover-provider"
@@ -211,6 +212,7 @@ export default function SystemManagementPage() {
                     options={OTP_FAILOVER_OPTIONS}
                     value={settings.otp.failoverProvider}
                     onChange={(v) => setField("otp", "failoverProvider", v)}
+                    disabled={!editing}
                   />
                 </div>
 
@@ -223,6 +225,7 @@ export default function SystemManagementPage() {
                     label="Max Attempts"
                     value={settings.otp.maxAttempts}
                     onChange={(e) => setField("otp", "maxAttempts", toNumber(e.target.value))}
+                    disabled={!editing}
                   />
                   <Input
                     id="otp-expiry"
@@ -232,6 +235,7 @@ export default function SystemManagementPage() {
                     label="Expiry Duration (sec)"
                     value={settings.otp.expirySeconds}
                     onChange={(e) => setField("otp", "expirySeconds", toNumber(e.target.value))}
+                    disabled={!editing}
                   />
                 </div>
 
@@ -244,6 +248,7 @@ export default function SystemManagementPage() {
                     label="Cooldown Period (min)"
                     value={settings.otp.cooldownMinutes}
                     onChange={(e) => setField("otp", "cooldownMinutes", toNumber(e.target.value))}
+                    disabled={!editing}
                   />
                   <div className="pt-4">
                     <SettingToggleRow
@@ -251,6 +256,7 @@ export default function SystemManagementPage() {
                       description="Skip real SMS sending"
                       checked={settings.otp.sandboxMode}
                       onChange={(v) => setField("otp", "sandboxMode", v)}
+                      disabled={!editing}
                     />
                   </div>
                 </div>
@@ -273,6 +279,7 @@ export default function SystemManagementPage() {
                     label="Default Duration (Days)"
                     value={settings.trial.defaultDurationDays}
                     onChange={(e) => setField("trial", "defaultDurationDays", toNumber(e.target.value))}
+                    disabled={!editing}
                   />
                   <Input
                     id="trial-max-extension"
@@ -282,6 +289,7 @@ export default function SystemManagementPage() {
                     label="Hard Cap / Max Extension"
                     value={settings.trial.maxExtensionDays}
                     onChange={(e) => setField("trial", "maxExtensionDays", toNumber(e.target.value))}
+                    disabled={!editing}
                   />
                 </div>
 
@@ -294,6 +302,7 @@ export default function SystemManagementPage() {
                       divider={i < TRIAL_TOGGLES.length - 1}
                       checked={settings.trial[toggle.key] as boolean}
                       onChange={(v) => setField("trial", toggle.key, v)}
+                      disabled={!editing}
                     />
                   ))}
                 </div>
@@ -315,28 +324,31 @@ export default function SystemManagementPage() {
                     description={flag.description}
                     checked={settings.flags[flag.key]}
                     onChange={(v) => setField("flags", flag.key, v)}
+                    disabled={!editing}
                   />
                 ))}
               </div>
             </SettingsSection>
           </div>
 
-          {/* Sticky action bar */}
-          <div className="sticky bottom-0 z-10 mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-outline-variant/30 bg-surface/90 py-4 backdrop-blur-xl">
-            <p className="text-xs italic text-on-surface-variant">
-              {settings.lastSavedAt
-                ? `Last saved: ${timeAgo(settings.lastSavedAt)}${settings.lastSavedBy ? ` by ${settings.lastSavedBy}` : ""}`
-                : "No changes saved yet."}
-            </p>
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" onClick={handleReset} disabled={saving}>
-                Reset Defaults
-              </Button>
-              <Button variant="primary" onClick={handleSave} disabled={!dirty || saving}>
-                {saving ? "Saving…" : "Save All Changes"}
-              </Button>
+          {/* Sticky action bar — edit mode only. */}
+          {editing && (
+            <div className="sticky bottom-0 z-10 mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-outline-variant/30 bg-surface/90 py-4 backdrop-blur-xl">
+              <p className="text-xs italic text-on-surface-variant">
+                {settings.lastSavedAt
+                  ? `Last saved: ${timeAgo(settings.lastSavedAt)}${settings.lastSavedBy ? ` by ${settings.lastSavedBy}` : ""}`
+                  : "No changes saved yet."}
+              </p>
+              <div className="flex items-center gap-4">
+                <Button variant="ghost" onClick={handleReset} disabled={saving}>
+                  Reset Defaults
+                </Button>
+                <Button variant="primary" onClick={handleSave} disabled={!dirty || saving}>
+                  {saving ? "Saving…" : "Save All Changes"}
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </>
       </AsyncState>
     </div>

@@ -8,7 +8,7 @@ import { BrandLockup } from "@/components/layout/navbar";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { SwitchUserModal } from "@/components/dashboard/SwitchUserModal";
 import { getNavForRole, SUPPORT_NAV } from "@/lib/dashboard-nav";
-import { ROLE_META, isUserRole } from "@/lib/roles";
+import { ROLE_META, isStaffRole, isUserRole } from "@/lib/roles";
 
 /** Width of the collapsed rail (`w-20`), in px — used to place the fixed tooltip. */
 const COLLAPSED_WIDTH = 80;
@@ -140,21 +140,24 @@ export function DashboardSidebar() {
           </div>
         </div>
 
-        {/* Support — visible to all roles, links to the FAQ page */}
-        <Link
-          href={SUPPORT_NAV.route}
-          aria-current={isActive(SUPPORT_NAV.route) ? "page" : undefined}
-          onMouseEnter={(e) => showLabel(e, SUPPORT_NAV.label)}
-          onMouseLeave={hideLabel}
-          className={`mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
-            isActive(SUPPORT_NAV.route)
-              ? "bg-primary-container/50 text-primary"
-              : "text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface"
-          }`}
-        >
-          <Icon name={SUPPORT_NAV.icon} size={20} filled={isActive(SUPPORT_NAV.route)} className="shrink-0" />
-          <RowLabel collapsed={collapsed}>{SUPPORT_NAV.label}</RowLabel>
-        </Link>
+        {/* Support — links to the FAQ page. Hidden for staff (admin / super_admin):
+            they manage the FAQs instead of raising support requests. */}
+        {!isStaffRole(role) && (
+          <Link
+            href={SUPPORT_NAV.route}
+            aria-current={isActive(SUPPORT_NAV.route) ? "page" : undefined}
+            onMouseEnter={(e) => showLabel(e, SUPPORT_NAV.label)}
+            onMouseLeave={hideLabel}
+            className={`mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
+              isActive(SUPPORT_NAV.route)
+                ? "bg-primary-container/50 text-primary"
+                : "text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface"
+            }`}
+          >
+            <Icon name={SUPPORT_NAV.icon} size={20} filled={isActive(SUPPORT_NAV.route)} className="shrink-0" />
+            <RowLabel collapsed={collapsed}>{SUPPORT_NAV.label}</RowLabel>
+          </Link>
+        )}
 
         <button
           type="button"

@@ -51,10 +51,12 @@ interface SettingToggleRowProps {
   onChange: (v: boolean) => void;
   /** Draw the hairline rule underneath (used between stacked rows). */
   divider?: boolean;
+  /** Read-only (the screen isn't in edit mode). */
+  disabled?: boolean;
 }
 
 /** Label + description on the left, switch on the right (Trial toggles + OTP sandbox mode). */
-export function SettingToggleRow({ label, description, checked, onChange, divider = false }: SettingToggleRowProps) {
+export function SettingToggleRow({ label, description, checked, onChange, divider = false, disabled = false }: SettingToggleRowProps) {
   return (
     <div
       className={`flex items-center justify-between gap-4 ${
@@ -65,7 +67,7 @@ export function SettingToggleRow({ label, description, checked, onChange, divide
         <span className="text-sm font-semibold text-on-surface">{label}</span>
         <p className="text-xs text-on-surface-variant">{description}</p>
       </div>
-      <ToggleSwitch checked={checked} onChange={onChange} label={label} hideLabel />
+      <ToggleSwitch checked={checked} onChange={onChange} label={label} hideLabel disabled={disabled} />
     </div>
   );
 }
@@ -77,15 +79,17 @@ interface FeatureFlagCardProps {
   description: string;
   checked: boolean;
   onChange: (v: boolean) => void;
+  /** Read-only (the screen isn't in edit mode). */
+  disabled?: boolean;
 }
 
 /** One tile in the Platform Controls grid: icon + compact switch above the copy. */
-export function FeatureFlagCard({ icon, label, description, checked, onChange }: FeatureFlagCardProps) {
+export function FeatureFlagCard({ icon, label, description, checked, onChange, disabled = false }: FeatureFlagCardProps) {
   return (
     <div className="rounded-lg border border-outline-variant/30 bg-surface-container-lowest p-6 transition-colors">
       <div className="mb-4 flex items-start justify-between">
         <Icon name={icon} size={24} className="text-surface-tint" />
-        <ToggleSwitch checked={checked} onChange={onChange} label={label} hideLabel size="sm" />
+        <ToggleSwitch checked={checked} onChange={onChange} label={label} hideLabel size="sm" disabled={disabled} />
       </div>
       <h3 className="mb-1 text-sm font-bold text-on-surface">{label}</h3>
       <p className="text-xs text-on-surface-variant">{description}</p>

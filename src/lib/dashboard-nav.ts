@@ -49,7 +49,7 @@ const SUPER_ADMIN_OPT: NavItem[] = [
   { key: "kyc-review", label: "KYC Review", icon: "verified_user", route: "/dashboard/kyc-review" },
   { key: "faq-management", label: "FAQ Management", icon: "quiz", route: "/dashboard/faq-management" },
   { key: "admin-management", label: "Admin Management", icon: "admin_panel_settings", route: "/dashboard/admin-management" },
-  { key: "system-management", label: "System Management", icon: "admin_panel_settings", route: "/dashboard/system-management" },
+  { key: "system-management", label: "System Management", icon: "settings", route: "/dashboard/system-management" },
   PROFILE,
 ];
 

@@ -14,8 +14,8 @@ import type { ApiError } from "@/lib/axios";
 /*  Helper components                                                          */
 /* -------------------------------------------------------------------------- */
 
-/** One label/value row inside the drawer. */
-function Field({ icon, label, value }: { icon: string; label: string; value?: string }) {
+/** One label/value row inside a detail drawer. Also used by AdminDetailDrawer. */
+export function Field({ icon, label, value }: { icon: string; label: string; value?: string }) {
   if (!value) return null;
   return (
     <div className="flex items-start gap-3 py-2.5">

@@ -921,9 +921,6 @@ export interface PlatformFlags {
   maintenanceMode: boolean;
   registrationOpen: boolean;
   aiMatchingEngine: boolean;
-  externalApiAccess: boolean;
-  experimentalFeatures: boolean;
-  realTimeMetrics: boolean;
 }
 
 /** The whole System Management payload — one GET, one PUT. */
@@ -936,4 +933,35 @@ export interface SystemSettings {
   /** ISO timestamp + author of the last save, shown in the action bar. */
   lastSavedAt?: string;
   lastSavedBy?: string;
+}
+
+/* ----- Super Admin: Admin Management ----- */
+
+export type AdminAccountStatus = "ACTIVE" | "SUSPENDED";
+
+/** One staff account in the Admin Management table. */
+export interface AdminAccount {
+  id: string;
+  name: string;
+  email: string;
+  mobileNumber?: string;
+  countryCode?: string | null;
+  role: "admin" | "super_admin";
+  /** Named permission preset, e.g. "Compliance Analyst". */
+  roleProfile?: string;
+  /** Module keys this admin can reach — empty for a super admin (implicitly all). */
+  permissions: string[];
+  status: AdminAccountStatus;
+  createdAt?: string;
+  lastLoginAt?: string;
+}
+
+/** Body of the "Create New Admin" form. */
+export interface CreateAdminPayload {
+  name: string;
+  email: string;
+  mobileNumber: string;
+  password: string;
+  permissions: string[];
+  sendWelcomeEmail: boolean;
 }
