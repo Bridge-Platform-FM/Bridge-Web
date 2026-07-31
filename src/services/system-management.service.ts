@@ -78,6 +78,16 @@ export async function updateOtpConfig(updates: Record<string, string>): Promise<
 }
 
 /* ----- Trial Management (LIVE: /super-admin/config/trial-config) ----- */
+/**
+ * Reset all OTP config rows to their `default_value` in the DB.
+ * PUT /super-admin/config/otp-config/reset — no body required.
+ * After the reset, call fetchOtpConfig() to re-hydrate the UI with the fresh DB values.
+ */
+export async function resetOtpConfig(): Promise<void> {
+  await api.put(API_ENDPOINTS.SUPER_ADMIN_OTP_CONFIG_RESET);
+}
+
+/* ----- Trial Management (placeholder endpoint) ----- */
 
 /** Our field name → the backend's `trialConfig` key. The single mapping for both directions. */
 const TRIAL_KEYS: Record<keyof TrialSettings, string> = {
