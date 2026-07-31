@@ -77,49 +77,76 @@ export async function updateOtpConfig(updates: Record<string, string>): Promise<
   await api.put(API_ENDPOINTS.SUPER_ADMIN_OTP_CONFIG, { otpConfig: updates });
 }
 
-/* ----- Trial Management (placeholder endpoint) ----- */
+/* ----- Trial Management (LIVE: /super-admin/config/trial-config) ----- */
 
-/**
- * Shipped trial values — the fallback for omitted fields, and what the card shows while
- * the endpoint is still a placeholder. `maxExtensionDays` backs the "No of connection"
- * field on the screen.
- */
-export const DEFAULT_TRIAL_SETTINGS: TrialSettings = {
-  defaultDurationDays: 7,
-  maxExtensionDays: 3,
-  manualExtension: true,
-  autoDowngrade: true,
-  expiryNotifications: true,
+/** Our field name → the backend's `trialConfig` key. The single mapping for both directions. */
+const TRIAL_KEYS: Record<keyof TrialSettings, string> = {
+  freeTrialDay: "free_trial_day",
+  freeTrialConnectionLimit: "free_trial_connection_limit",
+  manualExtension: "manual_extension",
+  autoDowngrade: "auto_downgrade",
+  expiryNotification: "expiry_notification",
 };
 
-export function toTrialSettings(raw: Record<string, unknown>): TrialSettings {
+/** Shipped trial values — the fallback for any field the response omits. */
+export const DEFAULT_TRIAL_SETTINGS: TrialSettings = {
+  freeTrialDay: 7,
+  freeTrialConnectionLimit: 3,
+  manualExtension: true,
+  autoDowngrade: true,
+  expiryNotification: true,
+};
+
+/**
+ * Accepts either shape the config endpoints use: a flat `{ free_trial_day: 14, … }`
+ * object, or `otp-config`-style rows `[{ lookup, value }]`. Both collapse to one lookup
+ * table before being read, so whichever the backend settles on works unchanged.
+ */
+export function toTrialSettings(raw: unknown): TrialSettings {
+  const flat: Record<string, unknown> = {};
+  if (Array.isArray(raw)) {
+    raw.forEach((entry) => {
+      const row = entry as Record<string, unknown>;
+      if (row?.lookup) flat[String(row.lookup)] = row.value;
+    });
+  } else if (raw && typeof raw === "object") {
+    Object.assign(flat, raw as Record<string, unknown>);
+  }
+
   const d = DEFAULT_TRIAL_SETTINGS;
   return {
-    defaultDurationDays: num(raw.default_duration_days, d.defaultDurationDays),
-    maxExtensionDays: num(raw.max_extension_days, d.maxExtensionDays),
-    manualExtension: bool(raw.manual_extension, d.manualExtension),
-    autoDowngrade: bool(raw.auto_downgrade, d.autoDowngrade),
-    expiryNotifications: bool(raw.expiry_notifications, d.expiryNotifications),
-  };
-}
-
-function toTrialSettingsPayload(trial: TrialSettings): Record<string, unknown> {
-  return {
-    default_duration_days: trial.defaultDurationDays,
-    max_extension_days: trial.maxExtensionDays,
-    manual_extension: trial.manualExtension,
-    auto_downgrade: trial.autoDowngrade,
-    expiry_notifications: trial.expiryNotifications,
+    freeTrialDay: num(flat[TRIAL_KEYS.freeTrialDay], d.freeTrialDay),
+    freeTrialConnectionLimit: num(
+      flat[TRIAL_KEYS.freeTrialConnectionLimit],
+      d.freeTrialConnectionLimit
+    ),
+    manualExtension: bool(flat[TRIAL_KEYS.manualExtension], d.manualExtension),
+    autoDowngrade: bool(flat[TRIAL_KEYS.autoDowngrade], d.autoDowngrade),
+    expiryNotification: bool(flat[TRIAL_KEYS.expiryNotification], d.expiryNotification),
   };
 }
 
 export async function fetchTrialSettings(): Promise<TrialSettings> {
   const { data } = await api.get(API_ENDPOINTS.SUPER_ADMIN_TRIAL_CONFIG);
-  return toTrialSettings((data?.data ?? data ?? {}) as Record<string, unknown>);
+  return toTrialSettings(data?.data ?? data ?? {});
 }
 
-export async function updateTrialSettings(trial: TrialSettings): Promise<void> {
-  await api.put(API_ENDPOINTS.SUPER_ADMIN_TRIAL_CONFIG, toTrialSettingsPayload(trial));
+/**
+ * Save trial config. Takes ONLY the changed fields — the caller diffs against the last
+ * saved snapshot — and wraps them exactly as the endpoint expects:
+ *
+ *   { "trialConfig": { "free_trial_day": 14, "manual_extension": true } }
+ *
+ * Values keep their native types (number / boolean), not strings.
+ */
+export async function updateTrialSettings(changes: Partial<TrialSettings>): Promise<void> {
+  const trialConfig: Record<string, number | boolean> = {};
+  (Object.keys(changes) as (keyof TrialSettings)[]).forEach((key) => {
+    const value = changes[key];
+    if (value !== undefined) trialConfig[TRIAL_KEYS[key]] = value;
+  });
+
+  await api.put(API_ENDPOINTS.SUPER_ADMIN_TRIAL_CONFIG, { trialConfig });
 }
 
 /* ----- Platform Controls (placeholder endpoint) ----- */

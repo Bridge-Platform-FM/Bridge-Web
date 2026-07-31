@@ -112,7 +112,8 @@ export const API_ENDPOINTS = {
   // GET → { data: [{ id, lookup, value, default_value, data_type, unit, description }] }
   // PUT → body { otpConfig: { <lookup>: "<value>" } }, partial (only changed keys).
   SUPER_ADMIN_OTP_CONFIG: `${SUPER_ADMIN}/config/otp-config`,
-  // Trial Management — PLACEHOLDER path, swap in the real one from the curl.
+  // Trial Management — LIVE.
+  // PUT → body { trialConfig: { free_trial_day, … } }, partial (only changed keys).
   SUPER_ADMIN_TRIAL_CONFIG: `${SUPER_ADMIN}/config/trial-config`,
   // Platform Controls (feature flags) — PLACEHOLDER path, swap in the real one.
   SUPER_ADMIN_PLATFORM_FLAGS: `${SUPER_ADMIN}/config/platform-flags`,

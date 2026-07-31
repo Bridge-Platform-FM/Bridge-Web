@@ -38,7 +38,7 @@ import type { OtpConfigEntry, PlatformFlags, TrialSettings } from "@/types/api.t
 const TRIAL_TOGGLES: { key: keyof TrialSettings; label: string; description: string }[] = [
   { key: "manualExtension", label: "Manual Extension", description: "Allows support to extend active trials" },
   { key: "autoDowngrade", label: "Auto Downgrade", description: "Move to free tier on expiry" },
-  { key: "expiryNotifications", label: "Expiry Notifications", description: "Email alerts 48h before end" },
+  { key: "expiryNotification", label: "Expiry Notifications", description: "Email alerts 48h before end" },
 ];
 
 /** The feature-flag tiles in the Platform Controls grid. */
@@ -157,7 +157,6 @@ export default function SystemManagementPage() {
   }, [hydrateOtp, hydrateTrial, hydrateFlags]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- load() sets loading; runs once on mount
     void load();
   }, [load]);
 
@@ -210,6 +209,17 @@ export default function SystemManagementPage() {
   const setTrial = <K extends keyof TrialSettings>(key: K, value: TrialSettings[K]) => {
     trial.setValue((prev) => ({ ...prev, [key]: value }));
   };
+
+  /** Only the fields the user actually changed — the PUT is a partial update. */
+  const trialChanges = (Object.keys(trial.value) as (keyof TrialSettings)[]).reduce<
+    Partial<TrialSettings>
+  >((acc, key) => {
+    if (trial.value[key] !== trial.saved[key]) {
+      // Assigning through a mapped key needs the cast; the types line up by construction.
+      (acc[key] as TrialSettings[typeof key]) = trial.value[key];
+    }
+    return acc;
+  }, {});
 
   /* ----- Platform Controls ----- */
 
@@ -279,7 +289,7 @@ export default function SystemManagementPage() {
             onEditChange={trial.toggleEdit}
             dirty={trial.dirty}
             saving={trial.saving}
-            onSave={() => void saveSection(trial, () => updateTrialSettings(trial.value), "Trial settings")}
+            onSave={() => void saveSection(trial, () => updateTrialSettings(trialChanges), "Trial settings")}
           >
             <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:gap-12">
               <div className="space-y-6 rounded-lg bg-surface-container-low p-6">
@@ -288,9 +298,9 @@ export default function SystemManagementPage() {
                   variant="underline"
                   type="number"
                   min={0}
-                  label="Default Duration (Days)"
-                  value={trial.value.defaultDurationDays}
-                  onChange={(e) => setTrial("defaultDurationDays", toNumber(e.target.value))}
+                  label="Free Trial Day"
+                  value={trial.value.freeTrialDay}
+                  onChange={(e) => setTrial("freeTrialDay", toNumber(e.target.value))}
                   disabled={!trial.editing}
                 />
                 <Input
@@ -298,9 +308,9 @@ export default function SystemManagementPage() {
                   variant="underline"
                   type="number"
                   min={0}
-                  label="No of connection"
-                  value={trial.value.maxExtensionDays}
-                  onChange={(e) => setTrial("maxExtensionDays", toNumber(e.target.value))}
+                  label="Free Trial connection limit"
+                  value={trial.value.freeTrialConnectionLimit}
+                  onChange={(e) => setTrial("freeTrialConnectionLimit", toNumber(e.target.value))}
                   disabled={!trial.editing}
                 />
               </div>

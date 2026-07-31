@@ -919,13 +919,17 @@ export interface OtpConfigEntry {
   updatedAt?: string;
 }
 
-/** Trial window + conversion behaviour (System Management → Trial Management). */
+/**
+ * Trial window + conversion behaviour (System Management → Trial Management).
+ * Field names mirror the backend's `trialConfig` keys one-for-one — `freeTrialDay` is
+ * `free_trial_day`, and so on — so the mapping stays obvious.
+ */
 export interface TrialSettings {
-  defaultDurationDays: number;
-  maxExtensionDays: number;
+  freeTrialDay: number;
+  freeTrialConnectionLimit: number;
   manualExtension: boolean;
   autoDowngrade: boolean;
-  expiryNotifications: boolean;
+  expiryNotification: boolean;
 }
 
 /** Global feature flags (System Management → Platform Controls). */
