@@ -18,10 +18,9 @@ import {
   ADMIN_STATUS_META,
   AdminDetailDrawer,
   CreateAdminModal,
-  EditPermissionsModal,
   roleProfileLabel,
 } from "@/components/dashboard/admin-management/AdminDialogs";
-import { fetchAdmins, setAdminStatus } from "@/services/admin.service";
+import { deleteAdmin, fetchAdmins, setAdminStatus } from "@/services/admin.service";
 import { formatDate, initials, timeAgo } from "@/lib/admin-format";
 import { isSuperAdmin } from "@/lib/roles";
 import type { AdminAccount } from "@/types/api.types";
@@ -33,6 +32,21 @@ const ROLE_OPTIONS = [
   { value: "", label: "All Roles" },
   { value: "super_admin", label: "Super Admin" },
   { value: "admin", label: "Admin" },
+];
+
+/**
+ * Table headers. `className` carries the per-column alignment overrides so the header row
+ * lines up with its cells — "Admin Name" is nudged in off the avatar's left edge, and
+ * "Actions" is right-aligned over the right-aligned icon buttons.
+ */
+const COLUMNS: { label: string; className?: string }[] = [
+  { label: "Admin Name", className: "pl-8" },
+  { label: "Role" },
+  { label: "Created Date" },
+  { label: "Last Login" },
+  { label: "Perms", className: "text-center" },
+  { label: "Status" },
+  { label: "Actions", className: "pr-8 text-right" },
 ];
 
 export default function AdminManagementPage() {
@@ -50,10 +64,11 @@ export default function AdminManagementPage() {
   // One piece of state per dialog — only one is ever open at a time.
   const [creating, setCreating] = useState(false);
   const [viewing, setViewing] = useState<AdminAccount | null>(null);
-  const [editing, setEditing] = useState<AdminAccount | null>(null);
   const [confirming, setConfirming] = useState<AdminAccount | null>(null);
+  /** Which destructive action the confirm dialog is for. */
+  const [confirmAction, setConfirmAction] = useState<"status" | "delete">("status");
   const [statusSaving, setStatusSaving] = useState(false);
-  /** Suspension reason — required when suspending, unused on the reactivate path. */
+  /** Reason for the status change — required by BOTH the suspend and activate endpoints. */
   const [reason, setReason] = useState("");
   const [reasonError, setReasonError] = useState("");
 
@@ -111,9 +126,10 @@ export default function AdminManagementPage() {
     setAdmins((prev) => prev.map((a) => (a.id === id ? { ...a, ...changes } : a)));
   }, []);
 
-  /** Open the confirm dialog on a fresh reason field. */
-  const openConfirm = (admin: AdminAccount) => {
+  /** Open the confirm dialog for one action, on a fresh reason field. */
+  const openConfirm = (admin: AdminAccount, action: "status" | "delete") => {
     setConfirming(admin);
+    setConfirmAction(action);
     setReason("");
     setReasonError("");
   };
@@ -124,26 +140,42 @@ export default function AdminManagementPage() {
     setReasonError("");
   };
 
-  /** Suspend / reactivate, confirmed through the dialog below. */
-  const handleToggleStatus = async () => {
+  /**
+   * Suspend / reactivate / delete — all three take the same confirm dialog because all
+   * three endpoints require a 5–500 character reason and record it on the audit trail.
+   */
+  const handleConfirm = async () => {
     if (!confirming) return;
-    const suspending = confirming.status === "ACTIVE";
-    const next = suspending ? "SUSPENDED" : "ACTIVE";
 
-    // A suspension goes on the admin's record — it needs a stated reason.
+    // Validate to the server's rule so a short note fails here with a clear message
+    // instead of coming back as a 400.
     const trimmed = reason.trim();
-    if (suspending && !trimmed) {
-      setReasonError("Please give a reason for suspending this admin.");
+    if (trimmed.length < 5) {
+      setReasonError("Give a reason of at least 5 characters.");
+      return;
+    }
+    if (trimmed.length > 500) {
+      setReasonError("Keep the reason under 500 characters.");
       return;
     }
 
+    const deleting = confirmAction === "delete";
+    const next = confirming.status === "ACTIVE" ? "SUSPENDED" : "ACTIVE";
+
     setStatusSaving(true);
     try {
-      await setAdminStatus(confirming.id, next, suspending ? trimmed : undefined);
-      patchAdmin(confirming.id, { status: next });
-      toast.success(
-        next === "SUSPENDED" ? `${confirming.name} was suspended.` : `${confirming.name} was reactivated.`
-      );
+      if (deleting) {
+        await deleteAdmin(confirming.id, trimmed);
+        // Soft-deleted server-side; the list filters `is_deleted`, so drop the row.
+        setAdmins((prev) => prev.filter((a) => a.id !== confirming.id));
+        toast.success(`${confirming.name} was deleted.`);
+      } else {
+        await setAdminStatus(confirming.id, next, trimmed);
+        patchAdmin(confirming.id, { status: next });
+        toast.success(
+          next === "SUSPENDED" ? `${confirming.name} was suspended.` : `${confirming.name} was reactivated.`
+        );
+      }
       closeConfirm();
     } catch (err) {
       toast.error((err as ApiError).message || "Couldn't update the admin. Please try again.");
@@ -200,9 +232,12 @@ export default function AdminManagementPage() {
             <table className="w-full min-w-[900px] border-collapse text-left">
               <thead>
                 <tr className="border-b border-outline/10">
-                  {["Admin Name", "Role", "Created Date", "Last Login", "Perms", "Status", ""].map((h, i) => (
-                    <th key={i} className="px-5 py-3 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
-                      {h}
+                  {COLUMNS.map((col) => (
+                    <th
+                      key={col.label}
+                      className={`px-5 py-3 text-xs font-bold uppercase tracking-wide text-on-surface-variant ${col.className ?? ""}`}
+                    >
+                      {col.label}
                     </th>
                   ))}
                 </tr>
@@ -243,21 +278,24 @@ export default function AdminManagementPage() {
                     <td className="px-5 py-4">
                       <StatusPill {...ADMIN_STATUS_META[a.status]} />
                     </td>
-                    <td className="px-5 py-4">
+                    <td className="py-4 pl-5 pr-8">
                       <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
                         <RowAction icon="visibility" label={`View ${a.name}`} title="View Details" onClick={() => setViewing(a)} />
-                        <RowAction
-                          icon="lock_open"
-                          label={`Edit permissions for ${a.name}`}
-                          title="Edit Permissions"
-                          onClick={() => setEditing(a)}
-                        />
                         <RowAction
                           icon={a.status === "ACTIVE" ? "block" : "restart_alt"}
                           label={`${a.status === "ACTIVE" ? "Suspend" : "Reactivate"} ${a.name}`}
                           title={a.status === "ACTIVE" ? "Suspend Admin" : "Reactivate Admin"}
                           danger={a.status === "ACTIVE"}
-                          onClick={() => openConfirm(a)}
+                          onClick={() => openConfirm(a, "status")}
+                        />
+                        {/* Permissions moved into the detail drawer's edit mode; this slot
+                            is the delete action now. */}
+                        <RowAction
+                          icon="delete"
+                          label={`Delete ${a.name}`}
+                          title="Delete Admin"
+                          danger
+                          onClick={() => openConfirm(a, "delete")}
                         />
                       </div>
                     </td>
@@ -281,17 +319,21 @@ export default function AdminManagementPage() {
 
       {/* Dialogs */}
       <CreateAdminModal open={creating} onClose={() => setCreating(false)} onCreated={load} />
-      <AdminDetailDrawer admin={viewing} onClose={() => setViewing(null)} />
-      <EditPermissionsModal
-        admin={editing}
-        onClose={() => setEditing(null)}
-        onSaved={(id, roleProfile, permissions) => patchAdmin(id, { roleProfile, permissions })}
+      <AdminDetailDrawer
+        admin={viewing}
+        onClose={() => setViewing(null)}
+        onSaved={patchAdmin}
       />
-
       <Modal
         open={confirming !== null}
         onClose={closeConfirm}
-        title={confirming?.status === "ACTIVE" ? "Suspend admin?" : "Reactivate admin?"}
+        title={
+          confirmAction === "delete"
+            ? "Delete admin?"
+            : confirming?.status === "ACTIVE"
+              ? "Suspend admin?"
+              : "Reactivate admin?"
+        }
         maxWidthClass="max-w-md"
         bodyClassName="p-6"
         footer={
@@ -306,11 +348,21 @@ export default function AdminManagementPage() {
             </button>
             <button
               type="button"
-              onClick={handleToggleStatus}
+              onClick={handleConfirm}
               disabled={statusSaving}
-              className="flex h-11 items-center gap-2 rounded-xl bg-primary px-6 text-sm font-bold text-on-primary transition-colors hover:bg-primary-dim disabled:opacity-50"
+              className={`flex h-11 items-center gap-2 rounded-xl px-6 text-sm font-bold transition-colors disabled:opacity-50 ${
+                confirmAction === "delete"
+                  ? "bg-error text-on-error hover:bg-error/90"
+                  : "bg-primary text-on-primary hover:bg-primary-dim"
+              }`}
             >
-              {statusSaving ? "Saving…" : confirming?.status === "ACTIVE" ? "Suspend" : "Reactivate"}
+              {statusSaving
+                ? "Saving…"
+                : confirmAction === "delete"
+                  ? "Delete"
+                  : confirming?.status === "ACTIVE"
+                    ? "Suspend"
+                    : "Reactivate"}
             </button>
           </>
         }
@@ -333,26 +385,41 @@ export default function AdminManagementPage() {
             </div>
 
             <p className="text-sm text-on-surface-variant">
-              {confirming.status === "ACTIVE"
-                ? "They will lose access to the admin dashboard immediately. You can reactivate them later."
-                : "They will regain access to the admin dashboard with their previous permissions."}
+              {confirmAction === "delete"
+                ? "They will be removed from the admin console and lose access immediately. This can't be undone from here."
+                : confirming.status === "ACTIVE"
+                  ? "They will lose access to the admin dashboard immediately. You can reactivate them later."
+                  : "They will regain access to the admin dashboard with their previous permissions."}
             </p>
 
-            {confirming.status === "ACTIVE" && (
-              <Textarea
-                id="suspend-reason"
-                label="Reason for suspension"
-                required
-                rows={3}
-                placeholder="e.g. Offboarding — left the company on 12 Aug."
-                value={reason}
-                error={reasonError}
-                onChange={(e) => {
-                  setReason(e.target.value);
-                  if (reasonError) setReasonError("");
-                }}
-              />
-            )}
+            {/* Required on both paths — the activate endpoint validates a reason too, and
+                it lands in the admin's audit trail either way. */}
+            <Textarea
+              id="status-reason"
+              label={
+                confirmAction === "delete"
+                  ? "Reason for deletion"
+                  : confirming.status === "ACTIVE"
+                    ? "Reason for suspension"
+                    : "Reason for reactivation"
+              }
+              required
+              rows={3}
+              maxLength={500}
+              placeholder={
+                confirmAction === "delete"
+                  ? "e.g. Admin violated security policy, escalated by compliance team."
+                  : confirming.status === "ACTIVE"
+                    ? "e.g. Offboarding — left the company on 12 Aug."
+                    : "e.g. Issue resolved, credentials changed, security audit passed."
+              }
+              value={reason}
+              error={reasonError}
+              onChange={(e) => {
+                setReason(e.target.value);
+                if (reasonError) setReasonError("");
+              }}
+            />
           </div>
         )}
       </Modal>
@@ -375,18 +442,27 @@ function RowAction({
   onClick: () => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={title}
-      aria-label={label}
-      className={`flex size-9 items-center justify-center rounded-lg transition-colors ${
-        danger
-          ? "text-error hover:bg-error-container/30"
-          : "text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
-      }`}
-    >
-      <Icon name={icon} size={20} />
-    </button>
+    // `title` would render the browser's black native tooltip; this is the same styled
+    // flyout the deal-room stepper uses. Named group so it doesn't fire on row hover.
+    <div className="group/action relative">
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={label}
+        className={`flex size-9 items-center justify-center rounded-lg transition-colors ${
+          danger
+            ? "text-error hover:bg-error-container/30"
+            : "text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
+        }`}
+      >
+        <Icon name={icon} size={20} />
+      </button>
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute right-0 top-full z-20 mt-1 w-max scale-95 rounded-lg bg-surface-container-highest px-2.5 py-1.5 text-xs font-medium text-on-surface opacity-0 shadow-lg transition-all duration-150 group-hover/action:scale-100 group-hover/action:opacity-100 group-focus-within/action:scale-100 group-focus-within/action:opacity-100"
+      >
+        {title}
+      </span>
+    </div>
   );
 }

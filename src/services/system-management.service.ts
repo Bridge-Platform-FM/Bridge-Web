@@ -79,10 +79,14 @@ export async function updateOtpConfig(updates: Record<string, string>): Promise<
 
 /* ----- Trial Management (placeholder endpoint) ----- */
 
-/** Shipped trial values — the fallback for omitted fields and the "Reset Defaults" target. */
+/**
+ * Shipped trial values — the fallback for omitted fields, and what the card shows while
+ * the endpoint is still a placeholder. `maxExtensionDays` backs the "No of connection"
+ * field on the screen.
+ */
 export const DEFAULT_TRIAL_SETTINGS: TrialSettings = {
-  defaultDurationDays: 14,
-  maxExtensionDays: 30,
+  defaultDurationDays: 7,
+  maxExtensionDays: 3,
   manualExtension: true,
   autoDowngrade: true,
   expiryNotifications: true,
