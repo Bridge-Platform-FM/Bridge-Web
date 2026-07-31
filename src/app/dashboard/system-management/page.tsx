@@ -18,6 +18,7 @@ import {
   fetchOtpConfig,
   fetchPlatformFlags,
   fetchTrialSettings,
+  resetOtpConfig,
   updateOtpConfig,
   updatePlatformFlags,
   updateTrialSettings,
@@ -198,10 +199,23 @@ export default function SystemManagementPage() {
     void saveSection(otp, () => updateOtpConfig(otpChanges), "OTP configuration");
   };
 
-  /** Each OTP row carries its own shipped value in `default_value`. */
-  const handleOtpReset = () => {
-    otp.setValue((prev) => prev.map((row) => ({ ...row, value: row.defaultValue })));
-    toast.info("Reverted to the default configuration. Save to apply.");
+  /**
+   * Reset all OTP config rows to their DB default_value.
+   * Calls PUT /super-admin/config/otp-config/reset, then re-fetches fresh values
+   * from the DB so the UI reflects exactly what was written.
+   */
+  const handleOtpReset = async () => {
+    otp.setSaving(true);
+    try {
+      await resetOtpConfig();
+      const fresh = await fetchOtpConfig();
+      otp.hydrate(fresh);
+      toast.success("OTP configuration reset to defaults.");
+    } catch {
+      toast.error("Couldn't reset the OTP configuration. Please try again.");
+    } finally {
+      otp.setSaving(false);
+    }
   };
 
   /* ----- Trial Management ----- */
@@ -254,7 +268,7 @@ export default function SystemManagementPage() {
             dirty={otp.dirty}
             saving={otp.saving}
             onSave={handleOtpSave}
-            onReset={handleOtpReset}
+            onReset={() => void handleOtpReset()}
           >
             {otp.value.length === 0 ? (
               <p className="text-sm text-on-surface-variant">

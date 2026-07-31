@@ -117,6 +117,9 @@ export const API_ENDPOINTS = {
   SUPER_ADMIN_OTP_CONFIG: `${SUPER_ADMIN}/config/otp-config`,
   // Trial Management — LIVE.
   // PUT → body { trialConfig: { free_trial_day, … } }, partial (only changed keys).
+  // Reset all OTP config rows to their default_value. PUT, no body.
+  SUPER_ADMIN_OTP_CONFIG_RESET: `${SUPER_ADMIN}/config/otp-config/reset`,
+  // Trial Management — PLACEHOLDER path, swap in the real one from the curl.
   SUPER_ADMIN_TRIAL_CONFIG: `${SUPER_ADMIN}/config/trial-config`,
   // Platform Controls (feature flags) — PLACEHOLDER path, swap in the real one.
   SUPER_ADMIN_PLATFORM_FLAGS: `${SUPER_ADMIN}/config/platform-flags`,
