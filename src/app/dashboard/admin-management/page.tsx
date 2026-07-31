@@ -16,6 +16,7 @@ import { StatusPill } from "@/components/dashboard/kyc-status";
 import { TablePager } from "@/components/dashboard/TablePager";
 import { RowAction } from "@/components/dashboard/RowAction";
 import {
+  ADMIN_MODULES,
   ADMIN_STATUS_META,
   AdminDetailDrawer,
   CreateAdminModal,
@@ -23,6 +24,7 @@ import {
 } from "@/components/dashboard/admin-management/AdminDialogs";
 import { deleteAdmin, fetchAdmins, setAdminStatus } from "@/services/admin.service";
 import { formatDate, initials, timeAgo } from "@/lib/admin-format";
+import { downloadCsv, type CsvColumn } from "@/lib/export-csv";
 import { isSuperAdmin } from "@/lib/roles";
 import type { AdminAccount } from "@/types/api.types";
 import type { ApiError } from "@/lib/axios";
@@ -48,6 +50,33 @@ const COLUMNS: { label: string; className?: string }[] = [
   { label: "Perms", className: "text-center" },
   { label: "Status" },
   { label: "Actions", className: "pr-8 text-right" },
+];
+
+/**
+ * The exported spreadsheet's columns. Wider than the on-screen table on purpose — an
+ * export is the place for the fields the table has no room for (phone, permission names,
+ * created-by), so add new ones here rather than to `COLUMNS`.
+ */
+const EXPORT_COLUMNS: CsvColumn<AdminAccount>[] = [
+  { header: "Name", value: (a) => a.name },
+  { header: "Email", value: (a) => a.email },
+  {
+    header: "Mobile",
+    value: (a) => (a.mobileNumber ? `${a.countryCode ? `${a.countryCode} ` : ""}${a.mobileNumber}` : ""),
+  },
+  { header: "Role", value: (a) => (a.role === "super_admin" ? "Super Admin" : "Admin") },
+  { header: "Role Profile", value: (a) => roleProfileLabel(a.roleProfile) ?? "" },
+  {
+    header: "Permissions",
+    // Super admins hold every module implicitly, so their `permissions` array is empty.
+    value: (a) =>
+      a.role === "super_admin"
+        ? "All"
+        : a.permissions.map((key) => ADMIN_MODULES.find((m) => m.key === key)?.label ?? key).join("; "),
+  },
+  { header: "Status", value: (a) => ADMIN_STATUS_META[a.status].label },
+  { header: "Created Date", value: (a) => (a.createdAt ? formatDate(a.createdAt) : "") },
+  { header: "Last Login", value: (a) => (a.lastLoginAt ? formatDate(a.lastLoginAt) : "Never") },
 ];
 
 export default function AdminManagementPage() {
@@ -127,6 +156,19 @@ export default function AdminManagementPage() {
     setAdmins((prev) => prev.map((a) => (a.id === id ? { ...a, ...changes } : a)));
   }, []);
 
+  /**
+   * Export the roster. Exports the **whole** list, not the current page — but honours the
+   * search / role filters, so what you filtered to is what you get.
+   */
+  const handleExport = () => {
+    if (filtered.length === 0) {
+      toast.error("There's nothing to export.");
+      return;
+    }
+    downloadCsv("admins", EXPORT_COLUMNS, filtered);
+    toast.success(`Exported ${filtered.length} administrator${filtered.length === 1 ? "" : "s"}.`);
+  };
+
   /** Open the confirm dialog for one action, on a fresh reason field. */
   const openConfirm = (admin: AdminAccount, action: "status" | "delete") => {
     setConfirming(admin);
@@ -199,28 +241,39 @@ export default function AdminManagementPage() {
             Manage the team that runs the platform and what each member can reach.
           </p>
         </div>
-        <Button variant="primary" leadingIcon="add" onClick={() => setCreating(true)}>
-          Create New Admin
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            variant="secondary"
+            leadingIcon="download"
+            onClick={handleExport}
+            disabled={loading || filtered.length === 0}
+          >
+            Export
+          </Button>
+          <Button variant="primary" leadingIcon="add" onClick={() => setCreating(true)}>
+            Create New Admin
+          </Button>
+        </div>
       </div>
 
-      {/* Filters */}
-      <Card surface="lowest" padding="sm" className="mb-4">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
-          <Input
-            placeholder="Search by name, email, role profile…"
-            value={search}
-            onChange={(e) => onSearch(e.target.value)}
-            adornment={<Icon name="search" size={18} />}
-          />
-          <div className="sm:w-52">
-            <Select aria-label="Role" options={ROLE_OPTIONS} value={roleFilter} onChange={onRole} placeholder="All Roles" />
+      {/* Filters + table — one card, so the filter row reads as this table's toolbar
+          rather than as a separate panel floating above it. No `overflow-hidden` here:
+          it would clip the role dropdown's popover. */}
+      <Card surface="lowest" padding="none">
+        <div className="border-b border-outline/10 p-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
+            <Input
+              placeholder="Search by name, email, role profile…"
+              value={search}
+              onChange={(e) => onSearch(e.target.value)}
+              adornment={<Icon name="search" size={18} />}
+            />
+            <div className="sm:w-52">
+              <Select aria-label="Role" options={ROLE_OPTIONS} value={roleFilter} onChange={onRole} placeholder="All Roles" />
+            </div>
           </div>
         </div>
-      </Card>
 
-      {/* Table */}
-      <Card surface="lowest" padding="none" className="overflow-hidden">
         <AsyncState
           loading={loading}
           error={error}
@@ -229,14 +282,18 @@ export default function AdminManagementPage() {
           emptyIcon="admin_panel_settings"
           emptyText="No administrators match these filters."
         >
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] border-collapse text-left">
+          {/* Same fixed viewport as User Management: exactly PAGE_SIZE rows (header 41px +
+              10 × 69px), so the card keeps its height on a short last page and the rows —
+              not the header — scroll. `border-separate` (not `collapse`) is required for the
+              sticky header to keep its bottom rule; row rules therefore live on the `td`s. */}
+          <div className="h-[500px] overflow-auto">
+            <table className="w-full min-w-[900px] border-separate border-spacing-0 text-left">
               <thead>
-                <tr className="border-b border-outline/10">
+                <tr>
                   {COLUMNS.map((col) => (
                     <th
                       key={col.label}
-                      className={`px-5 py-3 text-xs font-bold uppercase tracking-wide text-on-surface-variant ${col.className ?? ""}`}
+                      className={`sticky top-0 z-10 border-b border-outline/10 bg-surface-container-lowest px-5 py-3 text-xs font-bold uppercase tracking-wide text-on-surface-variant ${col.className ?? ""}`}
                     >
                       {col.label}
                     </th>
@@ -247,7 +304,7 @@ export default function AdminManagementPage() {
                 {pageRows.map((a) => (
                   <tr
                     key={a.id}
-                    className="group border-b border-outline/5 transition-colors last:border-0 hover:bg-surface-container-low"
+                    className="group transition-colors last:[&>td]:border-0 hover:bg-surface-container-low [&>td]:border-b [&>td]:border-outline/5"
                   >
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
@@ -280,7 +337,7 @@ export default function AdminManagementPage() {
                       <StatusPill {...ADMIN_STATUS_META[a.status]} />
                     </td>
                     <td className="py-4 pl-5 pr-8">
-                      <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+                      <div className="flex items-center justify-end gap-1">
                         <RowAction icon="visibility" label={`View ${a.name}`} title="View Details" onClick={() => setViewing(a)} />
                         <RowAction
                           icon={a.status === "ACTIVE" ? "block" : "restart_alt"}
@@ -371,7 +428,7 @@ export default function AdminManagementPage() {
         {confirming && (
           <div className="space-y-5">
             {/* Who this is about — named explicitly so the wrong row can't be actioned
-                by mistake from a hover-revealed icon. */}
+                by mistake from a small row icon. */}
             <div className="flex items-center gap-3 rounded-xl border border-outline-variant/30 bg-surface-container-low p-3">
               <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-container text-sm font-bold text-on-primary-container">
                 {initials(confirming.name)}
