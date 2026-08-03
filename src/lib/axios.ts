@@ -1,6 +1,7 @@
 import axios, { AxiosError } from "axios";
 import { toast } from "sonner";
-import { clearSession } from "@/lib/auth-session";
+import { clearSession, getSession } from "@/lib/auth-session";
+import { SUSPENDED_ROUTE, parseSuspension, setSuspension, type SuspensionDetails } from "@/lib/suspension";
 
 /**
  * Shared axios instance for all API calls.
@@ -54,11 +55,44 @@ function handleUnauthorized() {
   window.location.href = path.startsWith("/admin") ? "/admin/login" : "/login";
 }
 
+// Guards against a burst of 403s each trying to navigate.
+let isSuspending = false;
+
+/**
+ * The backend's suspension block (403 from authMiddleware — see `lib/suspension.ts` for the
+ * shape). Unlike `handleUnauthorized` this fires on every screen including the auth pages:
+ * being told "suspended" is the whole point of that request.
+ *
+ * The 403 also clears the auth cookies server-side, so this response is the last thing we can
+ * read about the account — its reason, plus whatever the dying session knew about the user,
+ * is stashed for `/account-suspended` before the local session is dropped.
+ */
+function handleSuspended(details: SuspensionDetails) {
+  if (typeof window === "undefined" || isSuspending) return;
+  if (window.location.pathname.startsWith(SUSPENDED_ROUTE)) return;
+
+  isSuspending = true;
+  const session = getSession();
+  setSuspension({
+    ...details,
+    name: session?.user?.name,
+    email: session?.user?.email,
+    role: session?.role,
+  });
+  clearSession();
+  window.location.href = SUSPENDED_ROUTE;
+}
+
 // Normalize errors so callers get a predictable shape.
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<{ message?: string }>) => {
-    if (error.response?.status === 401) handleUnauthorized();
+    // Suspension is checked first and wins: it's the more specific answer, and a suspension
+    // that ever arrives as a 401 must still explain itself rather than degrade into the
+    // generic "session expired" logout below.
+    const suspension = parseSuspension(error.response?.status, error.response?.data);
+    if (suspension) handleSuspended(suspension);
+    else if (error.response?.status === 401) handleUnauthorized();
 
     let data: unknown = error.response?.data;
     if (data instanceof Blob) {
