@@ -1,18 +1,20 @@
 "use client";
 
 import React from "react";
+import { Modal } from "@/components/modal/Modal";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 
 /**
- * The three building blocks of the System Management screen. They're only ever used
+ * The building blocks of the System Management screen. They're only ever used
  * together, so they share a file (same idea as `dashboard/kyc-status.tsx`):
  *   SettingsSection  — the card shell: tonal icon header, its own Edit toggle, and its
  *                      own Reset/Save bar (each card saves to its own endpoint)
  *   SettingToggleRow — label/description left, switch right
  *   FeatureFlagCard  — one tile in the Platform Controls grid
+ *   ConfirmSaveModal — the "are you sure?" step every card's Save goes through
  */
 
 interface SettingsSectionProps {
@@ -134,6 +136,88 @@ interface FeatureFlagCardProps {
   onChange: (v: boolean) => void;
   /** Read-only (the screen isn't in edit mode). */
   disabled?: boolean;
+}
+
+interface ConfirmSaveModalProps {
+  open: boolean;
+  /** e.g. "Update OTP configuration?" */
+  title: string;
+  /** What saving actually does — the consequence, not a restatement of the title. */
+  description: string;
+  /** Human-readable names of the settings about to change, listed for review. */
+  changes?: string[];
+  /** The PUT is in flight — both buttons lock. */
+  saving: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}
+
+/**
+ * The confirm step between a card's "Save Changes" button and its PUT. Same dialog shape as
+ * the Admin Management suspend/reactivate confirm, minus the reason field — these settings
+ * aren't audited per-change, so there's nothing to collect; the user only has to acknowledge
+ * that the update is about to go live.
+ */
+export function ConfirmSaveModal({
+  open,
+  title,
+  description,
+  changes = [],
+  saving,
+  onCancel,
+  onConfirm,
+}: ConfirmSaveModalProps) {
+  return (
+    <Modal
+      open={open}
+      onClose={saving ? () => {} : onCancel}
+      title={title}
+      maxWidthClass="max-w-md"
+      bodyClassName="p-6"
+      footer={
+        <>
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={saving}
+            className="flex h-11 items-center rounded-xl px-5 text-sm font-bold text-on-surface-variant transition-colors hover:bg-surface-container disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={saving}
+            className="flex h-11 items-center gap-2 rounded-xl bg-primary px-6 text-sm font-bold text-on-primary transition-colors hover:bg-primary-dim disabled:opacity-50"
+          >
+            {saving ? "Saving…" : "Update"}
+          </button>
+        </>
+      }
+    >
+      <div className="space-y-5">
+        <p className="text-sm text-on-surface-variant">{description}</p>
+
+        {/* Exactly what's about to change — the cards are read-only until Edit is on, so this
+            is the last chance to catch a stray toggle before it goes platform-wide. */}
+        {changes.length > 0 && (
+          <div className="rounded-xl border border-outline-variant/30 bg-surface-container-low p-4">
+            <p className="mb-2 text-xs font-bold uppercase tracking-tight text-on-surface-variant">
+              {changes.length === 1 ? "1 change" : `${changes.length} changes`}
+            </p>
+            <ul className="space-y-1.5">
+              {changes.map((label) => (
+                <li key={label} className="flex items-start gap-2 text-sm text-on-surface">
+                  <Icon name="edit" size={16} className="mt-0.5 shrink-0 text-on-surface-variant" />
+                  <span className="min-w-0 break-words">{label}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
 }
 
 /** One tile in the Platform Controls grid: icon + compact switch above the copy. */

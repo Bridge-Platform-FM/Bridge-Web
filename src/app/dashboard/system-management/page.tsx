@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { AsyncState } from "@/components/ui/AsyncState";
 import {
+  ConfirmSaveModal,
   FeatureFlagCard,
   SettingToggleRow,
   SettingsSection,
@@ -35,11 +36,23 @@ import type { OtpConfigEntry, PlatformFlags, TrialSettings } from "@/types/api.t
  * with the row's own `lookup` key. Adding a key to that table adds a field to this screen.
  */
 
-/** The three switches in the Trial Management card. */
-const TRIAL_TOGGLES: { key: keyof TrialSettings; label: string; description: string }[] = [
-  { key: "manualExtension", label: "Manual Extension", description: "Allows support to extend active trials" },
-  { key: "autoDowngrade", label: "Auto Downgrade", description: "Move to free tier on expiry" },
-  { key: "expiryNotification", label: "Expiry Notifications", description: "Email alerts 48h before end" },
+/**
+ * Display name for every Trial Management field. Both the controls and the confirm dialog's
+ * change list read from here, so the two can't drift.
+ */
+const TRIAL_FIELD_LABELS: Record<keyof TrialSettings, string> = {
+  freeTrialDay: "Free Trial Day",
+  freeTrialConnectionLimit: "Free Trial connection limit",
+  manualExtension: "Manual Extension",
+  autoDowngrade: "Auto Downgrade",
+  expiryNotification: "Expiry Notifications",
+};
+
+/** The three switches in the Trial Management card (labels come from TRIAL_FIELD_LABELS). */
+const TRIAL_TOGGLES: { key: keyof TrialSettings; description: string }[] = [
+  { key: "manualExtension", description: "Allows support to extend active trials" },
+  { key: "autoDowngrade", description: "Move to free tier on expiry" },
+  { key: "expiryNotification", description: "Email alerts 48h before end" },
 ];
 
 /** The feature-flag tiles in the Platform Controls grid. */
@@ -59,6 +72,37 @@ const toNumber = (raw: string) => (raw === "" ? 0 : Number(raw));
  * the API's own vocabulary.
  */
 const otpLabel = (entry: OtpConfigEntry) => entry.lookup.replace(/_/g, " ");
+
+/* ----- Save confirmation ----- */
+
+/** The cards that save; also the key of whichever confirm dialog is open. */
+type SectionKey = "otp" | "trial" | "flags";
+
+/**
+ * Copy for each card's confirm dialog. The description says what saving *does* — these
+ * settings apply platform-wide the moment the PUT lands, so the dialog is the last stop.
+ */
+const CONFIRM_COPY: Record<SectionKey, { title: string; description: string }> = {
+  otp: {
+    title: "Update OTP configuration?",
+    description:
+      "These values apply to every OTP the platform sends from now on. Codes already issued keep the settings they were sent with until they expire.",
+  },
+  trial: {
+    title: "Update trial settings?",
+    description:
+      "Trial length, connection limits and the automated trial emails will follow these values for every trial that runs after the update.",
+  },
+  flags: {
+    title: "Update platform controls?",
+    description:
+      "Feature flags take effect platform-wide as soon as they're saved and change what every signed-in user can do.",
+  },
+};
+
+/** One "Field → new value" line in the confirm dialog's change list. */
+const changeLine = (label: string, value: string | number | boolean) =>
+  `${label} → ${typeof value === "boolean" ? (value ? "On" : "Off") : value}`;
 
 /* ----- Per-section edit state ----- */
 
@@ -117,6 +161,8 @@ export default function SystemManagementPage() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** Which card's "are you sure?" dialog is open — null when none is. */
+  const [pending, setPending] = useState<SectionKey | null>(null);
 
   useEffect(() => {
     if (isLoaded && !isSuperAdmin(role)) router.replace("/dashboard");
@@ -161,15 +207,20 @@ export default function SystemManagementPage() {
     void load();
   }, [load]);
 
-  /** Save one card: PUT, adopt the values as the new baseline, report either way. */
+  /**
+   * Save one card: PUT, adopt the values as the new baseline, report either way. Resolves to
+   * whether it succeeded, so the confirm dialog stays open (with the values intact) on failure.
+   */
   async function saveSection<T>(section: SectionEditor<T>, put: () => Promise<void>, label: string) {
     section.setSaving(true);
     try {
       await put();
       section.hydrate(section.value);
       toast.success(`${label} saved.`);
+      return true;
     } catch {
       toast.error(`Couldn't save the ${label.toLowerCase()}. Please try again.`);
+      return false;
     } finally {
       section.setSaving(false);
     }
@@ -189,14 +240,15 @@ export default function SystemManagementPage() {
     return acc;
   }, {});
 
+  /** Save asks first — the PUT only runs from the confirm dialog's Update button. */
   const handleOtpSave = () => {
-    // A blank value would be written to the column verbatim, so stop before the PUT.
+    // A blank value would be written to the column verbatim, so stop before the dialog.
     const blank = otp.value.find((row) => !row.value.trim());
     if (blank) {
       toast.error(`${otpLabel(blank)} can't be empty.`);
       return;
     }
-    void saveSection(otp, () => updateOtpConfig(otpChanges), "OTP configuration");
+    setPending("otp");
   };
 
   /**
@@ -239,6 +291,47 @@ export default function SystemManagementPage() {
 
   const setFlag = <K extends keyof PlatformFlags>(key: K, value: PlatformFlags[K]) => {
     flags.setValue((prev) => ({ ...prev, [key]: value }));
+  };
+
+  /* ----- Confirm-then-save ----- */
+
+  /**
+   * Everything the confirm dialog needs, per card: the editor (for its `saving` flag), the
+   * "Field → new value" lines it lists, and the PUT to run once the user confirms.
+   */
+  const sections: Record<
+    SectionKey,
+    { editor: SectionEditor<unknown>; changes: string[]; save: () => Promise<boolean> }
+  > = {
+    otp: {
+      editor: otp as SectionEditor<unknown>,
+      changes: Object.entries(otpChanges).map(([lookup, value]) =>
+        changeLine(lookup.replace(/_/g, " "), value)
+      ),
+      save: () => saveSection(otp, () => updateOtpConfig(otpChanges), "OTP configuration"),
+    },
+    trial: {
+      editor: trial as SectionEditor<unknown>,
+      changes: (Object.keys(trialChanges) as (keyof TrialSettings)[]).map((key) =>
+        changeLine(TRIAL_FIELD_LABELS[key], trial.value[key])
+      ),
+      save: () => saveSection(trial, () => updateTrialSettings(trialChanges), "Trial settings"),
+    },
+    flags: {
+      editor: flags as SectionEditor<unknown>,
+      changes: PLATFORM_FLAGS.filter((f) => flags.value[f.key] !== flags.saved[f.key]).map((f) =>
+        changeLine(f.label, flags.value[f.key])
+      ),
+      save: () => saveSection(flags, () => updatePlatformFlags(flags.value), "Platform controls"),
+    },
+  };
+
+  const active = pending ? sections[pending] : null;
+
+  /** Run the pending card's PUT; a failure keeps the dialog open so it can be retried. */
+  const handleConfirmSave = async () => {
+    if (!active) return;
+    if (await active.save()) setPending(null);
   };
 
   if (!isLoaded || !isSuperAdmin(role)) return null;
@@ -303,7 +396,7 @@ export default function SystemManagementPage() {
             onEditChange={trial.toggleEdit}
             dirty={trial.dirty}
             saving={trial.saving}
-            onSave={() => void saveSection(trial, () => updateTrialSettings(trialChanges), "Trial settings")}
+            onSave={() => setPending("trial")}
           >
             <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:gap-12">
               <div className="space-y-6 rounded-lg bg-surface-container-low p-6">
@@ -312,7 +405,7 @@ export default function SystemManagementPage() {
                   variant="underline"
                   type="number"
                   min={0}
-                  label="Free Trial Day"
+                  label={TRIAL_FIELD_LABELS.freeTrialDay}
                   value={trial.value.freeTrialDay}
                   onChange={(e) => setTrial("freeTrialDay", toNumber(e.target.value))}
                   disabled={!trial.editing}
@@ -322,7 +415,7 @@ export default function SystemManagementPage() {
                   variant="underline"
                   type="number"
                   min={0}
-                  label="Free Trial connection limit"
+                  label={TRIAL_FIELD_LABELS.freeTrialConnectionLimit}
                   value={trial.value.freeTrialConnectionLimit}
                   onChange={(e) => setTrial("freeTrialConnectionLimit", toNumber(e.target.value))}
                   disabled={!trial.editing}
@@ -333,7 +426,7 @@ export default function SystemManagementPage() {
                 {TRIAL_TOGGLES.map((toggle, i) => (
                   <SettingToggleRow
                     key={toggle.key}
-                    label={toggle.label}
+                    label={TRIAL_FIELD_LABELS[toggle.key]}
                     description={toggle.description}
                     divider={i < TRIAL_TOGGLES.length - 1}
                     checked={trial.value[toggle.key] as boolean}
@@ -354,7 +447,7 @@ export default function SystemManagementPage() {
             onEditChange={flags.toggleEdit}
             dirty={flags.dirty}
             saving={flags.saving}
-            onSave={() => void saveSection(flags, () => updatePlatformFlags(flags.value), "Platform controls")}
+            onSave={() => setPending("flags")}
           >
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               {PLATFORM_FLAGS.map((flag) => (
@@ -372,6 +465,17 @@ export default function SystemManagementPage() {
           </SettingsSection>
         </div>
       </AsyncState>
+
+      {/* One confirm dialog for all three cards — nothing on this screen PUTs without it. */}
+      <ConfirmSaveModal
+        open={pending !== null}
+        title={pending ? CONFIRM_COPY[pending].title : ""}
+        description={pending ? CONFIRM_COPY[pending].description : ""}
+        changes={active?.changes}
+        saving={active?.editor.saving ?? false}
+        onCancel={() => setPending(null)}
+        onConfirm={() => void handleConfirmSave()}
+      />
     </div>
   );
 }
