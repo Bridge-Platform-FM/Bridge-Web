@@ -176,7 +176,8 @@ export function ConfirmSaveModal({
   return (
     <Modal
       open={open}
-      onClose={saving ? () => {} : onCancel}
+      onClose={onCancel}
+      closeDisabled={saving}
       title={title}
       maxWidthClass="max-w-md"
       bodyClassName="p-6"

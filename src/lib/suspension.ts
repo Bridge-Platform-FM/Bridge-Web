@@ -48,26 +48,28 @@ const str = (v: unknown): string | undefined =>
 
 /**
  * Is this error response the suspension block, and if so what did it say?
- * Returns `null` for any other 403 (a permissions failure must NOT redirect).
+ * Returns `null` for anything else (an ordinary permissions failure must NOT redirect).
  *
- * `data.is_user_suspended` is the real signal; the flag aliases and the message test are
- * kept as a safety net for endpoints that answer in a slightly different shape.
+ * Detection is the explicit `is_user_suspended` flag ONLY. Never match on the message text:
+ * this path logs the user out and strands them on a dead-end screen, so an unrelated 403 that
+ * happens to say "suspended" (a feature paused for maintenance, say) would sign out a healthy
+ * account. A new endpoint that blocks a suspended user must send the flag.
+ *
+ * The flag — not the status code — is the contract. 403 is what the middleware sends today,
+ * but 401 is accepted too: if that ever drifts, the frontend must not silently degrade to a
+ * generic "session expired" toast that hides why the user was actually cut off.
  */
 export function parseSuspension(status: number | undefined, data: unknown): SuspensionDetails | null {
-  if (status !== 403) return null;
+  if (status !== 403 && status !== 401) return null;
 
   const body = asRecord(data);
   const inner = asRecord(body.data);
-  const message = str(body.message);
 
-  const suspended =
-    inner.is_user_suspended === true ||
-    body.is_user_suspended === true ||
-    inner.is_suspended === true ||
-    body.code === "ACCOUNT_SUSPENDED" ||
-    /suspend/i.test(message ?? "");
-
+  // Both nesting levels, because responses vary in whether they wrap the payload in `data`.
+  const suspended = inner.is_user_suspended === true || body.is_user_suspended === true;
   if (!suspended) return null;
+
+  const message = str(body.message);
 
   return {
     message,

@@ -271,18 +271,29 @@ export default function SystemManagementPage() {
    */
   const handleOtpReset = async () => {
     otp.setSaving(true);
+
+    // Only the write decides success/failure. Re-reading is a second request that can fail on
+    // its own, and folding it into one try/catch would report an applied reset as a failure —
+    // the dialog would stay open asking the user to retry a change the DB already took.
     try {
       await resetOtpConfig();
-      const fresh = await fetchOtpConfig();
-      otp.hydrate(fresh);
-      toast.success("OTP configuration reset to defaults.");
-      return true;
     } catch {
       toast.error("Couldn't reset the OTP configuration. Please try again.");
+      otp.setSaving(false);
       return false;
+    }
+
+    try {
+      otp.hydrate(await fetchOtpConfig());
+      toast.success("OTP configuration reset to defaults.");
+    } catch {
+      // Reset landed; only the read-back didn't, so the card is showing stale values.
+      toast.success("OTP configuration reset to defaults. Reload to see the new values.");
     } finally {
       otp.setSaving(false);
     }
+
+    return true;
   };
 
   /* ----- Trial Management ----- */

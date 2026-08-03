@@ -87,9 +87,12 @@ function handleSuspended(details: SuspensionDetails) {
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<{ message?: string }>) => {
-    if (error.response?.status === 401) handleUnauthorized();
+    // Suspension is checked first and wins: it's the more specific answer, and a suspension
+    // that ever arrives as a 401 must still explain itself rather than degrade into the
+    // generic "session expired" logout below.
     const suspension = parseSuspension(error.response?.status, error.response?.data);
     if (suspension) handleSuspended(suspension);
+    else if (error.response?.status === 401) handleUnauthorized();
 
     let data: unknown = error.response?.data;
     if (data instanceof Blob) {
