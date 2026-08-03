@@ -148,15 +148,19 @@ interface ConfirmSaveModalProps {
   changes?: string[];
   /** The PUT is in flight — both buttons lock. */
   saving: boolean;
+  /** Confirm button label — "Update" for a save, "Reset" for a reset-to-defaults. */
+  confirmLabel?: string;
+  /** Confirm button label while the request is in flight. */
+  busyLabel?: string;
   onCancel: () => void;
   onConfirm: () => void;
 }
 
 /**
- * The confirm step between a card's "Save Changes" button and its PUT. Same dialog shape as
- * the Admin Management suspend/reactivate confirm, minus the reason field — these settings
- * aren't audited per-change, so there's nothing to collect; the user only has to acknowledge
- * that the update is about to go live.
+ * The confirm step between a card's action button ("Save Changes" / "Reset Defaults") and the
+ * request it fires. Same dialog shape as the Admin Management suspend/reactivate confirm,
+ * minus the reason field — these settings aren't audited per-change, so there's nothing to
+ * collect; the user only has to acknowledge that the change is about to go live.
  */
 export function ConfirmSaveModal({
   open,
@@ -164,6 +168,8 @@ export function ConfirmSaveModal({
   description,
   changes = [],
   saving,
+  confirmLabel = "Update",
+  busyLabel = "Saving…",
   onCancel,
   onConfirm,
 }: ConfirmSaveModalProps) {
@@ -190,7 +196,7 @@ export function ConfirmSaveModal({
             disabled={saving}
             className="flex h-11 items-center gap-2 rounded-xl bg-primary px-6 text-sm font-bold text-on-primary transition-colors hover:bg-primary-dim disabled:opacity-50"
           >
-            {saving ? "Saving…" : "Update"}
+            {saving ? busyLabel : confirmLabel}
           </button>
         </>
       }
@@ -202,7 +208,9 @@ export function ConfirmSaveModal({
             is the last chance to catch a stray toggle before it goes platform-wide. */}
         {changes.length > 0 && (
           <div className="rounded-xl border border-outline-variant/30 bg-surface-container-low p-4">
-            <p className="mb-2 text-xs font-bold uppercase tracking-tight text-on-surface-variant">
+            {/* Uppercase micro-label: `tracking-wide`, not the tight tracking used elsewhere —
+                at 10–12px the tight setting closes the gap after the count ("1CHANGE"). */}
+            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
               {changes.length === 1 ? "1 change" : `${changes.length} changes`}
             </p>
             <ul className="space-y-1.5">

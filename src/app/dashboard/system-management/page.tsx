@@ -75,14 +75,20 @@ const otpLabel = (entry: OtpConfigEntry) => entry.lookup.replace(/_/g, " ");
 
 /* ----- Save confirmation ----- */
 
-/** The cards that save; also the key of whichever confirm dialog is open. */
+/** The cards that save. */
 type SectionKey = "otp" | "trial" | "flags";
 
+/** Every action that goes through the confirm dialog — the three saves plus the OTP reset. */
+type ConfirmKey = SectionKey | "otpReset";
+
 /**
- * Copy for each card's confirm dialog. The description says what saving *does* — these
- * settings apply platform-wide the moment the PUT lands, so the dialog is the last stop.
+ * Copy for each confirmable action. The description says what the action *does* — these
+ * settings apply platform-wide the moment the request lands, so the dialog is the last stop.
  */
-const CONFIRM_COPY: Record<SectionKey, { title: string; description: string }> = {
+const CONFIRM_COPY: Record<
+  ConfirmKey,
+  { title: string; description: string; confirmLabel?: string; busyLabel?: string }
+> = {
   otp: {
     title: "Update OTP configuration?",
     description:
@@ -97,6 +103,13 @@ const CONFIRM_COPY: Record<SectionKey, { title: string; description: string }> =
     title: "Update platform controls?",
     description:
       "Feature flags take effect platform-wide as soon as they're saved and change what every signed-in user can do.",
+  },
+  otpReset: {
+    title: "Reset OTP configuration?",
+    description:
+      "Every OTP setting goes back to its shipped default value, including any you didn't change. This can't be undone from here — the previous values aren't kept.",
+    confirmLabel: "Reset",
+    busyLabel: "Resetting…",
   },
 };
 
@@ -161,8 +174,8 @@ export default function SystemManagementPage() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  /** Which card's "are you sure?" dialog is open — null when none is. */
-  const [pending, setPending] = useState<SectionKey | null>(null);
+  /** Which action's "are you sure?" dialog is open — null when none is. */
+  const [pending, setPending] = useState<ConfirmKey | null>(null);
 
   useEffect(() => {
     if (isLoaded && !isSuperAdmin(role)) router.replace("/dashboard");
@@ -252,7 +265,7 @@ export default function SystemManagementPage() {
   };
 
   /**
-   * Reset all OTP config rows to their DB default_value.
+   * Reset all OTP config rows to their DB default_value. Runs only from the confirm dialog.
    * Calls PUT /super-admin/config/otp-config/reset, then re-fetches fresh values
    * from the DB so the UI reflects exactly what was written.
    */
@@ -263,8 +276,10 @@ export default function SystemManagementPage() {
       const fresh = await fetchOtpConfig();
       otp.hydrate(fresh);
       toast.success("OTP configuration reset to defaults.");
+      return true;
     } catch {
       toast.error("Couldn't reset the OTP configuration. Please try again.");
+      return false;
     } finally {
       otp.setSaving(false);
     }
@@ -296,11 +311,11 @@ export default function SystemManagementPage() {
   /* ----- Confirm-then-save ----- */
 
   /**
-   * Everything the confirm dialog needs, per card: the editor (for its `saving` flag), the
-   * "Field → new value" lines it lists, and the PUT to run once the user confirms.
+   * Everything the confirm dialog needs, per action: the editor (for its `saving` flag), the
+   * "Field → new value" lines it lists, and the request to run once the user confirms.
    */
   const sections: Record<
-    SectionKey,
+    ConfirmKey,
     { editor: SectionEditor<unknown>; changes: string[]; save: () => Promise<boolean> }
   > = {
     otp: {
@@ -323,6 +338,15 @@ export default function SystemManagementPage() {
         changeLine(f.label, flags.value[f.key])
       ),
       save: () => saveSection(flags, () => updatePlatformFlags(flags.value), "Platform controls"),
+    },
+    // Reset compares against each row's own default_value, not the edited working copy —
+    // it lists what the DB will actually change, including rows the user never touched.
+    otpReset: {
+      editor: otp as SectionEditor<unknown>,
+      changes: otp.saved
+        .filter((row) => row.value !== row.defaultValue)
+        .map((row) => changeLine(otpLabel(row), row.defaultValue)),
+      save: handleOtpReset,
     },
   };
 
@@ -361,7 +385,7 @@ export default function SystemManagementPage() {
             dirty={otp.dirty}
             saving={otp.saving}
             onSave={handleOtpSave}
-            onReset={() => void handleOtpReset()}
+            onReset={() => setPending("otpReset")}
           >
             {otp.value.length === 0 ? (
               <p className="text-sm text-on-surface-variant">
@@ -473,6 +497,8 @@ export default function SystemManagementPage() {
         description={pending ? CONFIRM_COPY[pending].description : ""}
         changes={active?.changes}
         saving={active?.editor.saving ?? false}
+        confirmLabel={pending ? CONFIRM_COPY[pending].confirmLabel : undefined}
+        busyLabel={pending ? CONFIRM_COPY[pending].busyLabel : undefined}
         onCancel={() => setPending(null)}
         onConfirm={() => void handleConfirmSave()}
       />

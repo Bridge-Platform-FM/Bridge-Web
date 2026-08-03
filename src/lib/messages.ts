@@ -17,6 +17,15 @@ export const ERROR_MESSAGES = {
   SESSION_REVOKE_FAILED: "Couldn't log out the selected session(s). Please try again.",
 } as const;
 
+/**
+ * How users reach a human (the suspended-account screen, and anywhere else that needs the
+ * desk). PLACEHOLDER address — override per environment with NEXT_PUBLIC_SUPPORT_EMAIL, or
+ * replace the fallback here once the real desk is live.
+ */
+export const SUPPORT = {
+  EMAIL: process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "support@bridgeconnect.com",
+} as const;
+
 /** Success messages surfaced to the user (toasts). */
 export const SUCCESS_MESSAGES = {
   LOGIN: "Welcome back.",
