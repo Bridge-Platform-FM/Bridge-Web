@@ -5,7 +5,7 @@ import { Icon } from "@/components/ui/Icon";
 import { ProfileShortsDeck } from "@/components/dashboard/explore/ProfileShortsDeck";
 import { ProfileGridView } from "@/components/dashboard/explore/ProfileGridView";
 import { CompatibilityRing } from "@/components/dashboard/explore/CompatibilityRing";
-import { fetchExploreMatches, logMatchesShown } from "@/services/explore.service";
+import { fetchExploreMatches } from "@/services/explore.service";
 import type { ExploreMatch } from "@/types/api.types";
 
 /**
@@ -36,8 +36,6 @@ export function ExploreView() {
       .then(({ matches: next, limit: nextLimit }) => {
         setMatches(next);
         setLimit(nextLimit);
-        // Exactly once per fresh list — not on view toggles or re-renders.
-        logMatchesShown(next);
       })
       .catch(() => setError("Couldn't load matches. Please try again."))
       .finally(() => setLoading(false));

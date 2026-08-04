@@ -6,7 +6,6 @@ import { AsyncState } from "@/components/ui/AsyncState";
 import { ProfileCardFace, ProfileShortsCard } from "@/components/dashboard/explore/ProfileShortsCard";
 import { ProposalFormModal, type ProposalRecipient } from "@/components/dashboard/connections/ProposalFormModal";
 import { useSenderIdentity } from "@/components/dashboard/connections/sender-identity";
-import { submitExploreDecision } from "@/services/explore.service";
 import { normalizeRole } from "@/lib/roles";
 import type { ExploreDecision, ExploreMatch } from "@/types/api.types";
 
@@ -83,15 +82,13 @@ export function ProfileShortsDeck({ matches, loading, error, onReload }: Profile
   const current = matches[index];
   const next = matches[index + 1];
 
-  // Card finished flying off screen → record the decision and advance.
-  const handleExit = useCallback(
-    (decision: ExploreDecision) => {
-      if (current) void submitExploreDecision(current.profileId, decision);
-      setIndex((i) => i + 1);
-      setCommandedExit(null);
-    },
-    [current],
-  );
+  // Card finished flying off screen → advance the deck.
+  // The swipe used to POST /matching/events here; that route isn't registered on the
+  // backend (see explore.service.ts), so it only ever 404'd. Re-add once it exists.
+  const handleExit = useCallback(() => {
+    setIndex((i) => i + 1);
+    setCommandedExit(null);
+  }, []);
 
   // Trigger an action from a button / keyboard (ignored mid-animation). "send"
   // opens the proposal modal instead of committing; reject/skip exit immediately.
