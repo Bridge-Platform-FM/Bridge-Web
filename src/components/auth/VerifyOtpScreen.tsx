@@ -83,6 +83,11 @@ export function VerifyOtpScreen({
     }
 
     // Check the active-session limit before redirecting — applies to ALL portals.
+    // The portal parameter selects the correct backend endpoint:
+    //   user      → GET /api/v1/sessions/limit-status
+    //   admin     → GET /api/v1/admin/sessions/limit-status
+    //   superadmin→ GET /api/v1/admin/sessions/limit-status
+
     // Falls back to a normal redirect on check failure so OTP verification is
     // never blocked by a secondary service outage.
     try {

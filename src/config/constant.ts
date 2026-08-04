@@ -79,6 +79,14 @@ export const API_ENDPOINTS = {
   // Revoke one or more sessions by id (called from the session-chooser modal).
   REVOKE_SELECTED_SESSIONS: `${SESSIONS}/revoke-selected`,
 
+  // ----- Admin / Super-Admin Session Management -----
+  // Same flow as user sessions but hits the admin-scoped endpoints.
+  // Both "admin" and "superadmin" portals use these routes — the backend
+  // distinguishes ADMIN vs SUPER_ADMIN via the token's userType claim.
+  ADMIN_SESSION_LIMIT_STATUS: `${ADMIN}/sessions/limit-status`,
+  ADMIN_REVOKE_SELECTED_SESSIONS: `${ADMIN}/sessions/revoke-selected`,
+  ADMIN_SESSION_LOGOUT: `${ADMIN}/sessions/logout`,
+
   // ----- Admin / Super-Admin back-office -----
   // User Management list + detail. TODO: replace with the real paths from the curl.
   ADMIN_USERS: `${ADMIN}/get-user-list`,

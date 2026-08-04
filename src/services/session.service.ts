@@ -36,9 +36,10 @@ const SESSION_ENDPOINTS: Record<
  * Called after MFA OTP verification, before redirecting to the dashboard.
  *
  * `portal` selects the correct backend endpoint group:
- *   - "user"      → GET /api/v1/sessions/limit-status
- *   - "admin"     → GET /api/v1/admin/sessions/limit-status
- *   - "superadmin"→ GET /api/v1/admin/sessions/limit-status
+ *   - "user"       → GET /api/v1/sessions/limit-status
+ *   - "admin"      → GET /api/v1/admin/sessions/limit-status
+ *   - "superadmin" → GET /api/v1/admin/sessions/limit-status
+
  *
  * The access token is automatically attached by the shared axios request
  * interceptor — no extra headers needed at the call site.
