@@ -5,7 +5,7 @@ import { Icon } from "@/components/ui/Icon";
 import { Drawer } from "@/components/ui/Drawer";
 import { AsyncState } from "@/components/ui/AsyncState";
 import { StatusPill } from "@/components/dashboard/kyc-status";
-import { fetchCurrentFundingOffer, fetchAllFundingOfferThreads } from "@/services/deal-room.service";
+import { fetchAllFundingOfferThreads } from "@/services/deal-room.service";
 import { getCurrentUserId } from "@/lib/jwt";
 import { formatDateTime } from "@/lib/utils";
 import { FUNDING_OFFER_STATUS_META } from "./deal-room-meta";
@@ -97,6 +97,8 @@ interface FundingOffersDrawerProps {
    *  refetch-on-open, extended with a live key since offers change more often mid-session). */
   refreshKey?: number;
   /** True once the deal is closed — disables all response actions. */
+  /** The currently actionable offer, already fetched by DealSidePanel. */
+  current: DealFundingOffer | null;
   closed?: boolean;
   /** True once the deal has moved past Negotiation — offers become view-only for both
    *  parties (server-enforced too), so Accept/Reject/Counter are hidden. */
@@ -120,6 +122,7 @@ export function FundingOffersDrawer({
   open,
   onClose,
   dealRoomId,
+  current,
   refreshKey,
   closed,
   locked,
@@ -128,26 +131,24 @@ export function FundingOffersDrawer({
   onReject,
   onCounter,
 }: FundingOffersDrawerProps) {
-  const [current, setCurrent] = useState<DealFundingOffer | null>(null);
   const [history, setHistory] = useState<DealFundingOffer[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /** Only the negotiation HISTORY is fetched here. The current offer arrives as a prop
+   *  from DealSidePanel, which already holds it — both used to hit
+   *  `GET .../offers/current` simultaneously whenever an offer socket event bumped
+   *  refreshKey. */
   const load = useCallback(async () => {
+    if (view !== "all") {
+      setHistory([]);
+      setError(null);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      if (view === "all") {
-        const [currentOffer, allOffers] = await Promise.all([
-          fetchCurrentFundingOffer(dealRoomId),
-          fetchAllFundingOfferThreads(dealRoomId),
-        ]);
-        setCurrent(currentOffer);
-        setHistory(allOffers);
-      } else {
-        setCurrent(await fetchCurrentFundingOffer(dealRoomId));
-        setHistory([]);
-      }
+      setHistory(await fetchAllFundingOfferThreads(dealRoomId));
     } catch (err) {
       setError((err as ApiError).message ?? "Couldn't load funding offers.");
     } finally {
@@ -158,6 +159,7 @@ export function FundingOffersDrawer({
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- state lives in load()
     if (open) load();
+    // refreshKey: an offer socket event bumps it so an open drawer re-reads the history.
   }, [open, load, refreshKey]);
 
   const isRecipient = !!current && current.recipientUserId === getCurrentUserId();

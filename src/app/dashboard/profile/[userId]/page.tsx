@@ -114,7 +114,9 @@ function UserProfilePageContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [proposalOpen, setProposalOpen] = useState(false);
-  const { sender } = useSenderIdentity();
+  // Deferred until the Connect modal opens — viewing someone else's profile shouldn't
+  // cost a fetch of your OWN profile. Module-cached, so reopening is free.
+  const { sender } = useSenderIdentity(proposalOpen);
 
   const load = useCallback(() => {
     setLoading(true);

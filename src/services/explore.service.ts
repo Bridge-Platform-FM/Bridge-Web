@@ -9,8 +9,8 @@ import type {
 /**
  * Explore data — the Matching Engine results powering the swipe deck + grid.
  *
- * Backed by the live `GET /api/v1/matching` endpoint. The access token is
- * attached automatically by the axios interceptor.
+ * Backed by the live `GET /api/v1/matching` endpoint; auth rides on the httpOnly
+ * session cookie (the axios instance sets `withCredentials`).
  *
  * Matching events are logged to the backend (POST /api/v1/matching/events)
  * fire-and-forget so analytics never block the user experience.
@@ -39,16 +39,25 @@ function logEvent(payload: {
   });
 }
 
-/** Fetch the current profile's compatibility matches for the Explore views.
- *  Logs a 'shown' event for each match returned so the admin dashboard can track
- *  match volume, avg compatibility score, top sectors, and algorithm distribution. */
-export async function fetchExploreMatches(): Promise<ExploreMatch[]> {
-  const { data } = await api.get<ExploreMatchesResponse>(
-    API_ENDPOINTS.MATCHING(),
-  );
-  const matches = data.data.matches;
+/** Daily connection-request allowance. Carried on the same response as the matches —
+ *  it is NOT a separate endpoint. */
+export interface ExploreConnectionLimit {
+  remaining: number;
+  total: number;
+}
 
-  // Log 'shown' events for every match received — fire-and-forget
+export interface ExploreMatchesResult {
+  matches: ExploreMatch[];
+  limit: ExploreConnectionLimit;
+}
+
+/** Log a 'shown' event for each match so the admin dashboard can track match volume,
+ *  avg compatibility score, top sectors and algorithm distribution.
+ *
+ *  Kept separate from `fetchExploreMatches` (rather than fired inside it) so re-reading
+ *  or re-rendering the match list never re-emits the whole burst — the caller decides
+ *  exactly once, when a fresh list arrives. Fire-and-forget. */
+export function logMatchesShown(matches: ExploreMatch[]): void {
   matches.forEach((m) => {
     logEvent({
       matchProfileId:    m.profileId,
@@ -58,23 +67,24 @@ export async function fetchExploreMatches(): Promise<ExploreMatch[]> {
       matchSector:       m.primary_sector?.[0] ?? null,
     });
   });
-
-  return matches;
 }
 
-export interface ExploreConnectionLimit {
-  remaining: number;
-  total: number;
-}
-
-/** Daily connection-request allowance, from the same GET /api/v1/matching/profiles
- *  response fetchExploreMatches uses. Falls back to 50/50 only if the backend omits
- *  the fields entirely. */
-export async function fetchExploreConnectionLimit(): Promise<ExploreConnectionLimit> {
-  const { data } = await api.get<ExploreMatchesResponse>(API_ENDPOINTS.MATCHING());
+/** Fetch the current profile's compatibility matches for the Explore views, together
+ *  with the daily connection-request allowance that rides on the same response.
+ *
+ *  Both the deck/grid and the allowance ring used to call this endpoint separately,
+ *  which downloaded the identical payload twice per page visit — they now share this
+ *  single call (see ExploreView). The `?? 50` fallbacks apply only if the backend
+ *  omits the limit fields entirely. */
+export async function fetchExploreMatches(): Promise<ExploreMatchesResult> {
+  const { data } = await api.get<ExploreMatchesResponse>(
+    API_ENDPOINTS.MATCHING(),
+  );
   const total = data.data.requestLimit ?? 50;
-  const remaining = data.data.requestsRemaining ?? total;
-  return { remaining, total };
+  return {
+    matches: data.data.matches,
+    limit: { total, remaining: data.data.requestsRemaining ?? total },
+  };
 }
 
 /**

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { Modal } from "@/components/modal/Modal";
@@ -8,10 +8,9 @@ import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/Textarea";
 import { TimePicker } from "@/components/ui/TimePicker";
-import { AsyncState } from "@/components/ui/AsyncState";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { todayLocalDateStr, nowLocalTimeStr } from "@/lib/utils";
-import { fetchMeetingDetail, updateMeeting, type UpdateMeetingPayload } from "@/services/deal-room.service";
+import { updateMeeting, type UpdateMeetingPayload } from "@/services/deal-room.service";
 import type { ApiError } from "@/lib/axios";
 import type { ScheduledMeeting } from "./types";
 
@@ -48,22 +47,25 @@ function splitScheduledAt(iso: string): { date: string; time: string } {
 }
 
 interface MeetingDetailsModalProps {
-  /** Id of the meeting to show; null = modal closed. */
-  meetingId: string | null;
+  /** The meeting to show; null = modal closed. */
+  meeting: ScheduledMeeting | null;
   onClose: () => void;
-  /** Fired after a successful edit so the caller can refresh its own lists. */
+  /** Fired after a successful edit so the caller can update its own lists. */
   onUpdated?: (meeting: ScheduledMeeting) => void;
 }
 
 /**
- * Modal showing (and editing) the full details of a scheduled meeting. Fetches its own
- * data from `GET /meetings/detail?meetingId=` whenever `meetingId` changes, and can PUT
- * edits back via `updateMeeting`.
+ * Modal showing (and editing) the full details of a scheduled meeting.
+ *
+ * The row is handed in whole by the caller, which already holds the full meeting list
+ * — `GET /meetings/detail` returned the very record the user just clicked, so it's no
+ * longer called. Edits still PUT via `updateMeeting`, whose response replaces the local
+ * copy and is reported back through `onUpdated`.
  */
-export function MeetingDetailsModal({ meetingId, onClose, onUpdated }: MeetingDetailsModalProps) {
-  const [meeting, setMeeting] = useState<ScheduledMeeting | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export function MeetingDetailsModal({ meeting: source, onClose, onUpdated }: MeetingDetailsModalProps) {
+  /** Local copy so an in-modal save shows immediately, without waiting for the parent
+   *  list to round-trip the new row back down as a prop. */
+  const [meeting, setMeeting] = useState<ScheduledMeeting | null>(source);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -84,26 +86,13 @@ export function MeetingDetailsModal({ meetingId, onClose, onUpdated }: MeetingDe
     setAgenda(m.agenda);
   };
 
-  const load = useCallback(async () => {
-    if (!meetingId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const detail = await fetchMeetingDetail(meetingId);
-      setMeeting(detail);
-      syncFieldsFrom(detail);
-    } catch (err) {
-      setError((err as ApiError).message ?? "Couldn't load the meeting.");
-    } finally {
-      setLoading(false);
-    }
-  }, [meetingId]);
-
+  // Seed (and re-seed) from the row the caller opened us with.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- state lives in load()
-    if (meetingId) load();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirrors the opened row into local editable state
+    setMeeting(source);
+    if (source) syncFieldsFrom(source);
     else setEditing(false);
-  }, [meetingId, load]);
+  }, [source]);
 
   const today = todayLocalDateStr();
   const minTime = date === today ? nowLocalTimeStr() : undefined;
@@ -130,7 +119,7 @@ export function MeetingDetailsModal({ meetingId, onClose, onUpdated }: MeetingDe
   };
 
   const save = async () => {
-    if (!meetingId || !meeting) return;
+    if (!meeting) return;
 
     const nextScheduledAt = date && time ? new Date(`${date}T${time}`).toISOString() : meeting.scheduledAt;
     const payload: UpdateMeetingPayload = {};
@@ -147,7 +136,7 @@ export function MeetingDetailsModal({ meetingId, onClose, onUpdated }: MeetingDe
 
     setSaving(true);
     try {
-      const updated = await updateMeeting(meetingId, payload);
+      const updated = await updateMeeting(meeting.id, payload);
       setMeeting(updated);
       syncFieldsFrom(updated);
       setEditing(false);
@@ -162,12 +151,12 @@ export function MeetingDetailsModal({ meetingId, onClose, onUpdated }: MeetingDe
 
   return (
     <Modal
-      open={!!meetingId}
+      open={!!source}
       onClose={close}
       title={meeting?.title ?? "Meeting"}
       maxWidthClass="max-w-lg"
       headerExtra={
-        !loading && meeting?.createdByMe ? (
+        meeting?.createdByMe ? (
           <ToggleSwitch checked={editing} onChange={handleToggleEdit} label={editing ? "Editing" : "Edit"} />
         ) : null
       }
@@ -194,58 +183,56 @@ export function MeetingDetailsModal({ meetingId, onClose, onUpdated }: MeetingDe
         ) : null
       }
     >
-      <AsyncState loading={loading} error={error} onRetry={load}>
-        {editing ? (
-          <div className="flex flex-col gap-5">
-            <div className="flex items-center gap-2.5 rounded-xl border border-primary/20 bg-primary-container/30 px-4 py-3 text-sm text-on-primary-container">
-              <Icon name="edit_note" size={18} />
-              <span>
-                Edit mode is on — make your changes and click <strong>Save Changes</strong> below.
-              </span>
-            </div>
-            <Input label="Title" required value={title} onChange={(e) => setTitle(e.target.value)} />
-            <div className="grid grid-cols-2 gap-3">
-              <Input label="Date" required type="date" min={today} value={date} onChange={(e) => handleDateChange(e.target.value)} />
-              <TimePicker label="Time" required value={time} onChange={setTime} minTime={minTime} />
-            </div>
-            <Input label="Link" type="url" value={link} onChange={(e) => setLink(e.target.value)} />
-            <Textarea label="Agenda" rows={4} value={agenda} onChange={(e) => setAgenda(e.target.value)} />
+      {editing ? (
+        <div className="flex flex-col gap-5">
+          <div className="flex items-center gap-2.5 rounded-xl border border-primary/20 bg-primary-container/30 px-4 py-3 text-sm text-on-primary-container">
+            <Icon name="edit_note" size={18} />
+            <span>
+              Edit mode is on — make your changes and click <strong>Save Changes</strong> below.
+            </span>
           </div>
-        ) : (
-          meeting && (
-            <div className="flex flex-col gap-5">
-              <DetailRow icon="event" label="Date" value={meeting.when} />
-              <DetailRow icon="schedule" label="Duration" value={DURATION_LABELS[meeting.duration] ?? meeting.duration} />
-              {meeting.link && (
-                <DetailRow
-                  icon="link"
-                  label="Link"
-                  value={meeting.link}
-                  action={
-                    <button
-                      type="button"
-                      onClick={copyLink}
-                      aria-label="Copy link"
-                      className="shrink-0 rounded-lg p-1.5 text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
-                    >
-                      <Icon name="content_copy" size={18} />
-                    </button>
-                  }
-                />
-              )}
-              {meeting.agenda && (
-                <div className="flex items-start gap-3">
-                  <Icon name="notes" size={20} className="mt-0.5 shrink-0 text-primary" />
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-on-surface-variant">Agenda</p>
-                    <p className="whitespace-pre-wrap text-sm text-on-surface">{meeting.agenda}</p>
-                  </div>
+          <Input label="Title" required value={title} onChange={(e) => setTitle(e.target.value)} />
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Date" required type="date" min={today} value={date} onChange={(e) => handleDateChange(e.target.value)} />
+            <TimePicker label="Time" required value={time} onChange={setTime} minTime={minTime} />
+          </div>
+          <Input label="Link" type="url" value={link} onChange={(e) => setLink(e.target.value)} />
+          <Textarea label="Agenda" rows={4} value={agenda} onChange={(e) => setAgenda(e.target.value)} />
+        </div>
+      ) : (
+        meeting && (
+          <div className="flex flex-col gap-5">
+            <DetailRow icon="event" label="Date" value={meeting.when} />
+            <DetailRow icon="schedule" label="Duration" value={DURATION_LABELS[meeting.duration] ?? meeting.duration} />
+            {meeting.link && (
+              <DetailRow
+                icon="link"
+                label="Link"
+                value={meeting.link}
+                action={
+                  <button
+                    type="button"
+                    onClick={copyLink}
+                    aria-label="Copy link"
+                    className="shrink-0 rounded-lg p-1.5 text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
+                  >
+                    <Icon name="content_copy" size={18} />
+                  </button>
+                }
+              />
+            )}
+            {meeting.agenda && (
+              <div className="flex items-start gap-3">
+                <Icon name="notes" size={20} className="mt-0.5 shrink-0 text-primary" />
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-on-surface-variant">Agenda</p>
+                  <p className="whitespace-pre-wrap text-sm text-on-surface">{meeting.agenda}</p>
                 </div>
-              )}
-            </div>
-          )
-        )}
-      </AsyncState>
+              </div>
+            )}
+          </div>
+        )
+      )}
     </Modal>
   );
 }

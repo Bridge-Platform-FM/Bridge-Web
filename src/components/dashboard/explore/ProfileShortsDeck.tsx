@@ -6,19 +6,20 @@ import { AsyncState } from "@/components/ui/AsyncState";
 import { ProfileCardFace, ProfileShortsCard } from "@/components/dashboard/explore/ProfileShortsCard";
 import { ProposalFormModal, type ProposalRecipient } from "@/components/dashboard/connections/ProposalFormModal";
 import { useSenderIdentity } from "@/components/dashboard/connections/sender-identity";
-import { fetchExploreMatches, submitExploreDecision } from "@/services/explore.service";
+import { submitExploreDecision } from "@/services/explore.service";
 import { normalizeRole } from "@/lib/roles";
 import type { ExploreDecision, ExploreMatch } from "@/types/api.types";
 
 /**
- * The Explore "Shorts Mode" viewer. Loads the profile queue, shows one swipeable
- * card at a time (with the next one peeking behind for depth) and a fixed action
- * bar. Decisions can come from a drag, the action buttons, or the keyboard:
+ * The Explore "Shorts Mode" viewer. Shows one swipeable card at a time (with the next
+ * one peeking behind for depth) and a fixed action bar. Decisions can come from a
+ * drag, the action buttons, or the keyboard:
  *   ← Reject   → Connect   ↓ Skip
  *
  * The card visuals + gestures live in `ProfileShortsCard`; this component owns the
- * queue, the current index and the commanded-exit handshake so only one place
- * advances the deck.
+ * current index and the commanded-exit handshake so only one place advances the deck.
+ * The queue itself is fetched once by `ExploreView` and passed in, so toggling to the
+ * grid and back doesn't refetch.
  */
 
 interface ActionConfig {
@@ -55,32 +56,29 @@ const ACTIONS: ActionConfig[] = [
   },
 ];
 
-export function ProfileShortsDeck() {
-  const [matches, setMatches] = useState<ExploreMatch[]>([]);
+interface ProfileShortsDeckProps {
+  matches: ExploreMatch[];
+  loading: boolean;
+  error: string | null;
+  /** Refetch the shared match list (Retry / "Start over"). Owned by ExploreView. */
+  onReload: () => void;
+}
+
+export function ProfileShortsDeck({ matches, loading, error, onReload }: ProfileShortsDeckProps) {
   const [index, setIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   /** When set, the active card animates out in that direction. */
   const [commandedExit, setCommandedExit] = useState<ExploreDecision | null>(null);
   /** Recipient for the open proposal modal; null = modal closed. */
   const [proposalRecipient, setProposalRecipient] = useState<ProposalRecipient | null>(null);
 
-  const { sender } = useSenderIdentity();
+  // Only fetched once the proposal modal is actually opened — most sessions never do.
+  const { sender } = useSenderIdentity(proposalRecipient != null);
 
-  const load = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    setIndex(0);
-    fetchExploreMatches()
-      .then((data) => setMatches(data))
-      .catch(() => setError("Couldn't load matches. Please try again."))
-      .finally(() => setLoading(false));
-  }, []);
-
+  // A fresh list (first load, Retry, "Start over") always restarts the deck at the top.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- load() drives loading state; runs once on mount
-    load();
-  }, [load]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting the cursor is the point
+    setIndex(0);
+  }, [matches]);
 
   const current = matches[index];
   const next = matches[index + 1];
@@ -143,7 +141,7 @@ export function ProfileShortsDeck() {
         <AsyncState
           loading={loading}
           error={error}
-          onRetry={load}
+          onRetry={onReload}
           isEmpty={exhausted}
           emptyIcon="done_all"
           emptyText="You're all caught up — no more matches right now."
@@ -201,7 +199,7 @@ export function ProfileShortsDeck() {
           <div className="absolute inset-x-0 bottom-10 flex justify-center">
             <button
               type="button"
-              onClick={load}
+              onClick={onReload}
               className="flex items-center gap-2 rounded-full bg-secondary px-5 py-2.5 text-sm font-bold text-on-secondary transition-transform active:scale-95"
             >
               <Icon name="refresh" size={18} />

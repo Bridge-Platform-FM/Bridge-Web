@@ -1,17 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { ProfileShortsDeck } from "@/components/dashboard/explore/ProfileShortsDeck";
 import { ProfileGridView } from "@/components/dashboard/explore/ProfileGridView";
 import { CompatibilityRing } from "@/components/dashboard/explore/CompatibilityRing";
-import { fetchExploreConnectionLimit } from "@/services/explore.service";
+import { fetchExploreMatches, logMatchesShown } from "@/services/explore.service";
+import type { ExploreMatch } from "@/types/api.types";
 
 /**
  * Explore container — owns the view switch between the immersive "Shorts Mode" swipe
  * deck (default) and the browse-all grid. A single floating button toggles between
  * them (on Shorts it offers "Grid", on Grid it offers "Shorts"). Only the active
  * view is mounted, so e.g. the deck's keyboard shortcuts don't fire on the grid.
+ *
+ * It also owns the **single** `GET /matching` call for the whole screen. The deck, the
+ * grid and the allowance ring all read from it, so toggling between views costs no
+ * network at all — previously each view fetched its own copy (and the ring a third),
+ * re-emitting the entire 'shown' event burst on every toggle.
  */
 
 type ExploreViewMode = "shorts" | "grid";
@@ -19,11 +25,28 @@ type ExploreViewMode = "shorts" | "grid";
 export function ExploreView() {
   const [view, setView] = useState<ExploreViewMode>("shorts");
   const [limit, setLimit] = useState({ remaining: 50, total: 50 });
+  const [matches, setMatches] = useState<ExploreMatch[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    fetchExploreMatches()
+      .then(({ matches: next, limit: nextLimit }) => {
+        setMatches(next);
+        setLimit(nextLimit);
+        // Exactly once per fresh list — not on view toggles or re-renders.
+        logMatchesShown(next);
+      })
+      .catch(() => setError("Couldn't load matches. Please try again."))
+      .finally(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- runs once on mount
-    fetchExploreConnectionLimit().then(setLimit).catch(() => {});
-  }, []);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- load() drives loading state; runs once on mount
+    load();
+  }, [load]);
 
   const isShorts = view === "shorts";
   // The button switches to the *other* view.
@@ -56,7 +79,11 @@ export function ExploreView() {
       </div>
 
       <div className="min-h-0 flex-1">
-        {isShorts ? <ProfileShortsDeck /> : <ProfileGridView />}
+        {isShorts ? (
+          <ProfileShortsDeck matches={matches} loading={loading} error={error} onReload={load} />
+        ) : (
+          <ProfileGridView matches={matches} loading={loading} error={error} onReload={load} />
+        )}
       </div>
     </div>
   );

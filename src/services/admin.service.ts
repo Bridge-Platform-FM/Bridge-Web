@@ -31,7 +31,7 @@ import type {
  *
  * Endpoint paths/shapes are placeholders (see `ADMIN_*` in `config/constant.ts`) —
  * swap in the real curl path + adjust the `to*` mappers once the API is final. The
- * access token is attached automatically by the axios interceptor.
+ * access token rides on the httpOnly session cookie.
  */
 
 
@@ -68,9 +68,17 @@ function toUserListItem(raw: Record<string, unknown>): AdminUserListItem {
     mobileVerified: Boolean(raw.is_mobile_number_verified),
     kycStatus: toUserKycStatus(raw.kyc_status),
     companyId: raw.company_id != null ? String(raw.company_id) : undefined,
-    // Suspension writes `is_user_active`, but the list query currently selects `is_active`
-    // — read whichever is present so the pill is right either way. Absent → active.
-    suspended: (raw.is_user_active) === false,
+    /*
+     * `is_user_suspended` is the ONLY source of truth for the Active/Suspended pill and the
+     * Suspend/Reactivate action. It is the column the suspension endpoint writes
+     * (Bridge-Server `adminService.js` → `updateUser({ is_user_suspended })`) and the same
+     * flag authMiddleware blocks requests on.
+     *
+     * Do NOT fall back to `is_active`: the list returns both, but they mean different things
+     * — `is_active` is whether the account is enabled at all, and a suspended user can still
+     * be `is_active: true` (which is exactly why suspended users showed up as "Active").
+     */
+    suspended: raw.is_user_suspended === true,
   };
 }
 
@@ -264,7 +272,17 @@ function toAdminAccount(raw: Record<string, unknown>): AdminAccount {
     role,
     roleProfile: (raw.role_profile as string | undefined) ?? undefined,
     permissions: Array.isArray(permsRaw) ? permsRaw.map(String) : [],
-    status: String(raw.status ?? "").toUpperCase() === "SUSPENDED" ? "SUSPENDED" : "ACTIVE",
+    /*
+     * Same rule as the user list above: `is_admin_suspended` is the column the suspend /
+     * activate endpoints write and the flag adminMiddleware blocks on. The endpoint returns
+     * raw Admin rows (`attributes: { exclude: ['password'] }`), so there is no derived
+     * `status` string — reading one always yielded "ACTIVE". The string form is still
+     * accepted first in case the endpoint starts sending it.
+     */
+    status:
+      String(raw.status ?? "").toUpperCase() === "SUSPENDED" || raw.is_admin_suspended === true
+        ? "SUSPENDED"
+        : "ACTIVE",
     createdAt: (raw.created_at as string | undefined) ?? undefined,
     lastLoginAt: (raw.last_login_at as string | undefined) ?? undefined,
     createdBy: (raw.created_by as string | undefined) ?? undefined,

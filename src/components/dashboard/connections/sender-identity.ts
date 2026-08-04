@@ -40,20 +40,24 @@ export function deriveSenderIdentity(fields: ProfileField[]): SenderIdentity {
 }
 
 /**
- * Fetch the current user's profile once and expose the derived identity. Mount this
- * on the Explore views so the modal can open instantly with prepopulated data.
+ * Fetch the current user's profile and expose the derived identity.
  *
  * Name + company come from `GET /users/profile`; the **role** comes from the auth
  * session (`useAuth`) — it's the already-normalized `Role` that drives the whole
  * dashboard, and it reliably maps to the intent-option lists (the profile API's
  * raw `role` value doesn't always normalize).
+ *
+ * Pass `enabled` (i.e. "is the proposal modal open?") so the request is deferred
+ * until the identity is actually needed — mounting Explore no longer costs a profile
+ * fetch, and `getUserProfile` is module-cached, so reopening the modal is free.
  */
-export function useSenderIdentity(): { sender: SenderIdentity; loading: boolean } {
+export function useSenderIdentity(enabled = true): { sender: SenderIdentity; loading: boolean } {
   const { role } = useAuth();
   const [profile, setProfile] = useState<{ name: string; company: string }>({ name: "", company: "" });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!enabled) return;
     let active = true;
     getUserProfile()
       .then((res) => {
@@ -70,7 +74,7 @@ export function useSenderIdentity(): { sender: SenderIdentity; loading: boolean 
     return () => {
       active = false;
     };
-  }, []);
+  }, [enabled]);
 
   return { sender: { name: profile.name, company: profile.company, role: role ?? null }, loading };
 }
