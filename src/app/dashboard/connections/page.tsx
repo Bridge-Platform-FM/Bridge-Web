@@ -45,6 +45,14 @@ export default function ConnectionsPage() {
 
   if (!isLoaded || !isUserRole(role)) return null;
 
+  /**
+   * Update one row in place. A status change affects exactly one request, so refetching
+   * the whole list for it is a wasted round-trip (and made the list flicker behind the
+   * open drawer). Mirrors the `patchAdmin` pattern in admin-management.
+   */
+  const patchRequest = (id: string, status: ConnectionStatus) =>
+    setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
+
   const handleAction = async (id: string, status: ConnectionStatus, reason?: string) => {
     try {
       const res = await actOnConnection(id, status, reason);
@@ -53,10 +61,10 @@ export default function ConnectionsPage() {
       const dealRoomId = res.data?.deal_room_id;
       if (status === "ACCEPTED" && dealRoomId) {
         router.push(`/dashboard/deal-room/${dealRoomId}`);
-        return; // navigating away — no need to reload the list
+        return; // navigating away — no need to update the list
       }
 
-      load();
+      patchRequest(id, status);
     } catch (err) {
       toast.error((err as ApiError).message ?? "Couldn't complete the action. Please try again.");
       throw err; // keep the drawer open on failure
@@ -67,7 +75,7 @@ export default function ConnectionsPage() {
   const handleView = async (id: string) => {
     try {
       await actOnConnection(id, "VIEWED");
-      load();
+      patchRequest(id, "VIEWED");
     } catch {
       /* silent — a failed read receipt shouldn't interrupt the user */
     }

@@ -1,52 +1,47 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
 import { Drawer } from "@/components/ui/Drawer";
 import { AsyncState } from "@/components/ui/AsyncState";
 import { Icon } from "@/components/ui/Icon";
-import { fetchAllMeetings } from "@/services/deal-room.service";
-import type { ApiError } from "@/lib/axios";
 import type { ScheduledMeeting } from "./types";
 
 interface MeetingsDrawerProps {
   open: boolean;
   onClose: () => void;
-  dealRoomId: string;
-  /** Open the details modal for the chosen meeting id. */
-  onSelect: (meetingId: string) => void;
+  /** Every meeting in the room, already fetched by DealSidePanel. */
+  meetings: ScheduledMeeting[];
+  now: number;
+  loading: boolean;
+  error: string | null;
+  /** Refetch the meeting list. Owned by DealSidePanel. */
+  onRetry: () => void;
+  /** Open the details modal for the chosen meeting. */
+  onSelect: (meeting: ScheduledMeeting) => void;
   /** Open the Schedule Meeting drawer. */
   onScheduleNew: () => void;
   closed: boolean;
 }
 
 /**
- * Right-side drawer listing EVERY meeting scheduled in this deal room — loaded from
- * `GET /meetings?dealRoomId=`, mirroring `SharedFilesDrawer`'s fetch-on-open pattern.
- * Each row opens `MeetingDetailsModal` (by id, which fetches its own detail). Also
- * surfaces "Schedule Meeting" in the footer since meetings (unlike files) are created here.
+ * Right-side drawer listing EVERY meeting scheduled in this deal room, mirroring
+ * `SharedFilesDrawer`. Presentational: `DealSidePanel` owns the single `GET /meetings`
+ * call and derives its inline "upcoming" card from the same list, so opening this no
+ * longer costs a request. Each row opens `MeetingDetailsModal` with the whole row.
+ * Also surfaces "Schedule Meeting" in the footer since meetings (unlike files) are
+ * created here.
  */
-export function MeetingsDrawer({ open, onClose, dealRoomId, onSelect, onScheduleNew, closed }: MeetingsDrawerProps) {
-  const [meetings, setMeetings] = useState<ScheduledMeeting[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setMeetings(await fetchAllMeetings(dealRoomId));
-    } catch (err) {
-      setError((err as ApiError).message ?? "Couldn't load meetings.");
-    } finally {
-      setLoading(false);
-    }
-  }, [dealRoomId]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- state lives in load()
-    if (open) load();
-  }, [open, load]);
-
+export function MeetingsDrawer({
+  open,
+  onClose,
+  meetings,
+  now,
+  loading,
+  error,
+  onRetry,
+  onSelect,
+  onScheduleNew,
+  closed,
+}: MeetingsDrawerProps) {
   return (
     <Drawer
       open={open}
@@ -71,11 +66,10 @@ export function MeetingsDrawer({ open, onClose, dealRoomId, onSelect, onSchedule
         isEmpty={meetings.length === 0}
         emptyIcon="event_busy"
         emptyText="No meetings scheduled yet."
-        onRetry={load}
+        onRetry={onRetry}
       >
         <ul className="flex flex-col gap-1">
           {(() => {
-            const now = Date.now();
             const upcoming = meetings
               .filter((mtg) => new Date(mtg.scheduledAt).getTime() >= now)
               .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
@@ -84,8 +78,8 @@ export function MeetingsDrawer({ open, onClose, dealRoomId, onSelect, onSchedule
               .sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime());
             return [...upcoming, ...past];
           })().map((mtg, index, sorted) => {
-            const isPast = new Date(mtg.scheduledAt).getTime() < Date.now();
-            const prevIsPast = index > 0 && new Date(sorted[index - 1].scheduledAt).getTime() < Date.now();
+            const isPast = new Date(mtg.scheduledAt).getTime() < now;
+            const prevIsPast = index > 0 && new Date(sorted[index - 1].scheduledAt).getTime() < now;
             const showHistoryDivider = isPast && !prevIsPast;
             return (
               <li key={mtg.id}>
@@ -100,7 +94,7 @@ export function MeetingsDrawer({ open, onClose, dealRoomId, onSelect, onSchedule
                 )}
                 <button
                   type="button"
-                  onClick={() => onSelect(mtg.id)}
+                  onClick={() => onSelect(mtg)}
                   className="flex w-full items-center gap-3 rounded-lg p-2.5 text-left transition-colors hover:bg-surface-container-low"
                 >
                   <Icon name="event" size={22} className={`shrink-0 ${isPast ? "text-on-surface-variant" : "text-primary"}`} />

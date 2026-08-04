@@ -1,11 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { Drawer } from "@/components/ui/Drawer";
 import { AsyncState } from "@/components/ui/AsyncState";
-import { fetchDealRoomFiles, type SharedFileItem } from "@/services/deal-room.service";
-import type { ApiError } from "@/lib/axios";
+import type { SharedFileItem } from "@/services/deal-room.service";
 import type { PreviewableFile } from "./types";
 import { DEAL_STAGES, DEAL_STAGE_ICONS, stageIndexFromValue } from "./deal-room-meta";
 
@@ -29,7 +28,12 @@ const CIRCLE = 32;
 interface SharedFilesDrawerProps {
   open: boolean;
   onClose: () => void;
-  dealRoomId: string;
+  /** Every file in the room, already fetched by DealSidePanel. */
+  files: SharedFileItem[];
+  loading: boolean;
+  error: string | null;
+  /** Refetch the shared file list. Owned by DealSidePanel. */
+  onRetry: () => void;
   /** 0-based index of the stage the deal is currently in — colours the stepper the same
    *  way as DealStageStepper (done / current / upcoming). */
   currentStage: number;
@@ -41,32 +45,22 @@ interface SharedFilesDrawerProps {
  * Right-side drawer listing EVERY file shared in a deal room, grouped by the pipeline
  * stage it was shared under — a vertical mirror of `DealStageStepper` (circle + stage
  * name per row, connected top-to-bottom) with that stage's files nested underneath.
- * Loaded from the API (`fetchDealRoomFiles`), not the in-chat message subset. Each file
- * row opens the shared watermarked preview modal (download gated by `downloadAllowed`).
+ *
+ * Presentational: the list comes from `DealSidePanel`, which already fetches the full
+ * (unfiltered) set for its inline preview — opening this drawer used to refetch the
+ * identical payload. Each file row opens the shared watermarked preview modal (download
+ * gated by `downloadAllowed`).
  */
-export function SharedFilesDrawer({ open, onClose, dealRoomId, currentStage, onPreview }: SharedFilesDrawerProps) {
-  const [files, setFiles] = useState<SharedFileItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setFiles(await fetchDealRoomFiles(dealRoomId));
-    } catch (err) {
-      setError((err as ApiError).message ?? "Couldn't load the shared files.");
-    } finally {
-      setLoading(false);
-    }
-  }, [dealRoomId]);
-
-  // (Re)load whenever the drawer is opened. load() owns the loading/error state.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- state lives in load()
-    if (open) load();
-  }, [open, load]);
-
+export function SharedFilesDrawer({
+  open,
+  onClose,
+  files,
+  loading,
+  error,
+  onRetry,
+  currentStage,
+  onPreview,
+}: SharedFilesDrawerProps) {
   // Bucket every file under its stage, in stepper order — mirrors DealStageStepper's
   // fixed 4-step layout so a stage with 0 files still renders its row (consistent with
   // the horizontal stepper always showing all 4 stages, done or not).
@@ -89,7 +83,7 @@ export function SharedFilesDrawer({ open, onClose, dealRoomId, currentStage, onP
         isEmpty={files.length === 0}
         emptyIcon="folder_off"
         emptyText="No files shared yet."
-        onRetry={load}
+        onRetry={onRetry}
       >
         <div className="flex flex-col p-1">
           {groups.map((g, i) => {

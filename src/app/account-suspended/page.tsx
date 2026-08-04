@@ -53,8 +53,12 @@ export default function AccountSuspendedPage() {
   }, []);
 
   const role = normalizeRole(account?.role);
-  /** Staff were suspended out of the admin console, so send them back to its sign-in. */
-  const signInPath = isStaffRole(role) ? "/admin/login" : "/login";
+  const isStaff = account?.scope === "admin" || isStaffRole(role);
+  const signInPath = !isStaff
+    ? "/login"
+    : role === "super_admin"
+      ? "/superadmin/login"
+      : "/admin/login";
 
   // Pre-fill the appeal so support gets an identifiable mail instead of a blank one.
   const mailSubject = encodeURIComponent("Suspended account — review request");

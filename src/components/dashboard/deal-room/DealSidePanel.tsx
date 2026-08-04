@@ -20,11 +20,11 @@ import { MeetingDetailsModal } from "./MeetingDetailsModal";
 import { FundingOfferDrawer } from "./FundingOfferDrawer";
 import { FundingOffersDrawer } from "./FundingOffersDrawer";
 import {
+  fetchAllMeetings,
   fetchCurrentFundingOffer,
   fetchCurrentTermSheet,
   fetchDealRoomFiles,
   fetchTermSheetHistory,
-  fetchUpcomingMeetings,
   scheduleMeeting,
   type SharedFileItem,
 } from "@/services/deal-room.service";
@@ -433,13 +433,15 @@ export function DealSidePanel({
   // Is the pending request mine (waiting on them) or theirs (I can accept/reject)?
   const iRequestedStage = pendingStageRequest != null && pendingStageRequest.requestedByUserId === getCurrentUserId();
 
-  // Inline preview — loaded from GET /meetings/upcoming; refetched after scheduling.
+  /** Every meeting in this room (GET /meetings). Shared with MeetingsDrawer; the inline
+   *  card derives its "upcoming" subset from it. */
   const [meetings, setMeetings] = useState<ScheduledMeeting[]>([]);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [filesOpen, setFilesOpen] = useState(false);
   const [meetingsOpen, setMeetingsOpen] = useState(false);
-  /** Id of the meeting whose details modal is open; null = closed. */
-  const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
+  /** The meeting whose details modal is open; null = closed. Passed as a whole row (it
+   *  came from the list we already have) so the modal needn't refetch it by id. */
+  const [selectedMeeting, setSelectedMeeting] = useState<ScheduledMeeting | null>(null);
   /** Confirmation modal for "Request Next Stage" — asks before firing the socket event. */
   const [confirmStageOpen, setConfirmStageOpen] = useState(false);
   /** Auto-opened for the RECIPIENT the moment a stage request arrives LIVE — reuses the
@@ -481,37 +483,96 @@ export function DealSidePanel({
   const stageModalMode = respondStageOpen ? "respond" : confirmStageOpen ? "confirm" : null;
   const requestedStageLabel = DEAL_STAGES[stageIndexFromValue(pendingStageRequest?.requestedStage)] ?? "the next stage";
 
-  const loadUpcomingMeetings = useCallback(() => {
-    fetchUpcomingMeetings(room.id)
-      .then(setMeetings)
+  /**
+   * ONE fetch of every meeting in this room, owned here. `GET /meetings` is a superset
+   * of `GET /meetings/upcoming`, so the inline preview below derives "upcoming" from it
+   * with the same predicate MeetingsDrawer uses — and the drawer now reads this list as
+   * a prop instead of issuing its own identical request when it opens.
+   */
+  const [meetingsLoading, setMeetingsLoading] = useState(true);
+  const [meetingsError, setMeetingsError] = useState<string | null>(null);
+  /** Wall clock captured when the list last arrived. Splitting upcoming from past needs
+   *  a "now", and reading the clock during render is impure — this pins it to the fetch. */
+  const [meetingsLoadedAt, setMeetingsLoadedAt] = useState(0);
+
+  const loadMeetings = useCallback(() => {
+    setMeetingsLoading(true);
+    setMeetingsError(null);
+    fetchAllMeetings(room.id)
+      .then((rows) => {
+        setMeetings(rows);
+        setMeetingsLoadedAt(Date.now());
+      })
       .catch((err) => {
-        toast.error((err as ApiError).message ?? "Couldn't load upcoming meetings.");
-      });
+        setMeetingsError((err as ApiError).message ?? "Couldn't load meetings.");
+      })
+      .finally(() => setMeetingsLoading(false));
   }, [room.id]);
 
   useEffect(() => {
-    loadUpcomingMeetings();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- state lives in loadMeetings()
+    loadMeetings();
     // meetingsRefreshKey deliberately included: a `meeting_scheduled` socket event (mine
     // or the counterparty's) bumps it so this refetches live, without polling.
-  }, [loadUpcomingMeetings, meetingsRefreshKey]);
+  }, [loadMeetings, meetingsRefreshKey]);
 
-  // Inline top-2 preview is scoped to the CURRENT stage only (unlike "View All", which
-  // shows every stage) — loaded from the files API and filtered by `room.stage`, since
-  // each file row carries the stage it was shared under.
-  const [stageFiles, setStageFiles] = useState<SharedFileItem[]>([]);
+  /** Add or replace one meeting in place — used after a create/edit, whose response
+   *  already carries the full normalized row, so there's nothing to refetch. */
+  const upsertMeeting = useCallback((meeting: ScheduledMeeting) => {
+    setMeetings((prev) => {
+      const i = prev.findIndex((m) => m.id === meeting.id);
+      if (i === -1) return [...prev, meeting];
+      const next = [...prev];
+      next[i] = meeting;
+      return next;
+    });
+  }, []);
+
+  /** Future meetings, soonest first — the same rule MeetingsDrawer applies. */
+  const upcomingMeetings = useMemo(
+    () =>
+      meetings
+        .filter((m) => new Date(m.scheduledAt).getTime() >= meetingsLoadedAt)
+        .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()),
+    [meetings, meetingsLoadedAt],
+  );
+
+  /**
+   * ONE fetch of every file in this room, owned here. The inline preview is scoped to
+   * the CURRENT stage (each row carries the stage it was shared under), while the
+   * "View All" drawer needs the whole list — so we keep the unfiltered list and derive
+   * both, rather than the drawer refetching the identical payload on open. Filtering by
+   * stage is also why `room.stage` is NOT a fetch dependency: a stage change re-derives
+   * from what we already have.
+   */
+  const [allFiles, setAllFiles] = useState<SharedFileItem[]>([]);
+  const [filesLoading, setFilesLoading] = useState(true);
+  const [filesError, setFilesError] = useState<string | null>(null);
+
+  const loadFiles = useCallback(() => {
+    setFilesLoading(true);
+    setFilesError(null);
+    fetchDealRoomFiles(room.id)
+      .then(setAllFiles)
+      .catch((err) => {
+        setAllFiles([]);
+        setFilesError((err as ApiError).message ?? "Couldn't load the shared files.");
+      })
+      .finally(() => setFilesLoading(false));
+  }, [room.id]);
 
   useEffect(() => {
-    fetchDealRoomFiles(room.id)
-      .then((all) => {
-        setStageFiles(all.filter((f) => stageIndexFromValue(f.stage) === room.stage));
-      })
-      .catch(() => {
-        setStageFiles([]);
-      });
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- state lives in loadFiles()
+    loadFiles();
     // filesRefreshKey deliberately included: a `new_message` socket event carrying a
     // file attachment (mine or the counterparty's) bumps it so this refetches live,
     // without polling — mirrors the meetingsRefreshKey pattern above.
-  }, [room.id, room.stage, filesRefreshKey]);
+  }, [loadFiles, filesRefreshKey]);
+
+  const stageFiles = useMemo(
+    () => allFiles.filter((f) => stageIndexFromValue(f.stage) === room.stage),
+    [allFiles, room.stage],
+  );
 
   const files = useMemo<SharedFile[]>(
     () =>
@@ -537,7 +598,7 @@ export function DealSidePanel({
         scheduledAt: new Date(`${values.date}T${values.time}`).toISOString(),
         duration: values.duration,
       });
-      loadUpcomingMeetings();
+      loadMeetings();
       setScheduleOpen(false);
       toast.success("Meeting scheduled.");
     } catch (err) {
@@ -618,15 +679,15 @@ export function DealSidePanel({
             </button>
           }
         >
-          {meetings.length === 0 ? (
+          {upcomingMeetings.length === 0 ? (
             <p className="py-2 text-xs text-on-surface-variant">No meetings scheduled yet.</p>
           ) : (
             <ul className="flex flex-col gap-2.5">
-              {meetings.slice(0, 2).map((mtg) => (
+              {upcomingMeetings.slice(0, 2).map((mtg) => (
                 <li key={mtg.id}>
                   <button
                     type="button"
-                    onClick={() => setSelectedMeetingId(mtg.id)}
+                    onClick={() => setSelectedMeeting(mtg)}
                     className="w-full rounded-xl bg-surface-container-low p-3 text-left transition-colors hover:bg-surface-container"
                   >
                     <p className="text-sm font-bold text-on-surface">{mtg.title}</p>
@@ -940,11 +1001,14 @@ export function DealSidePanel({
         )}
       </Modal>
 
-      {/* All shared files (API-backed) */}
+      {/* All shared files — rendered from the list this panel already fetched */}
       <SharedFilesDrawer
         open={filesOpen}
         onClose={() => setFilesOpen(false)}
-        dealRoomId={room.id}
+        files={allFiles}
+        loading={filesLoading}
+        error={filesError}
+        onRetry={loadFiles}
         currentStage={room.stage}
         onPreview={onPreview}
       />
@@ -952,12 +1016,16 @@ export function DealSidePanel({
       {/* Schedule Meeting drawer (right slide-in) */}
       <ScheduleMeetingDrawer open={scheduleOpen} onClose={() => setScheduleOpen(false)} onConfirm={handleScheduleMeeting} />
 
-      {/* All meetings (mirrors Shared Files' "View All"), loaded from GET /meetings */}
+      {/* All meetings (mirrors Shared Files' "View All") — same shared list */}
       <MeetingsDrawer
         open={meetingsOpen}
         onClose={() => setMeetingsOpen(false)}
-        dealRoomId={room.id}
-        onSelect={(id) => setSelectedMeetingId(id)}
+        meetings={meetings}
+        now={meetingsLoadedAt}
+        loading={meetingsLoading}
+        error={meetingsError}
+        onRetry={loadMeetings}
+        onSelect={setSelectedMeeting}
         onScheduleNew={() => {
           setMeetingsOpen(false);
           setScheduleOpen(true);
@@ -965,11 +1033,16 @@ export function DealSidePanel({
         closed={closed}
       />
 
-      {/* Meeting details modal, opened by id from either the inline list or MeetingsDrawer */}
+      {/* Meeting details, opened from either the inline list or MeetingsDrawer. The whole
+          row is handed over, so no GET /meetings/detail round-trip for data we have. */}
       <MeetingDetailsModal
-        meetingId={selectedMeetingId}
-        onClose={() => setSelectedMeetingId(null)}
-        onUpdated={loadUpcomingMeetings}
+        meeting={selectedMeeting}
+        onClose={() => setSelectedMeeting(null)}
+        onUpdated={(updated) => {
+          const row = { ...updated, id: selectedMeeting?.id ?? updated.id };
+          upsertMeeting(row);
+          setSelectedMeeting(row);
+        }}
       />
 
       {/* Create a new offer (investor) or submit a counter (founder, opened from the offers drawer) */}
@@ -996,6 +1069,7 @@ export function DealSidePanel({
         open={offersListOpen}
         onClose={() => setOffersListOpen(false)}
         dealRoomId={room.id}
+        current={currentOffer}
         refreshKey={fundingOfferRefreshKey}
         closed={closed}
         locked={!canEditFundingOffer}
