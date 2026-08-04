@@ -79,21 +79,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     /*
-     * Step 1 — best-effort backend revocation.
+     * Step 1 — best-effort backend session revocation.
      *
-     * Call POST /api/v1/sessions/logout so the backend flips is_revoked = true
-     * on this session row immediately (instead of waiting for natural token
-     * expiry), AND clears the httpOnly auth cookies via Set-Cookie on this same
-     * response. The access token is an httpOnly cookie now — the browser
-     * attaches it automatically via credentials: "include"; there's nothing
-     * for JS to read or put in a header.
+     * The logout endpoint is role-aware:
+     *   - admin / superadmin → POST /api/v1/admin/sessions/logout
+     *   - user               → POST /api/v1/sessions/logout
+     *
+     * This flips is_revoked = true on the session row immediately AND clears the
+     * httpOnly auth cookies via Set-Cookie on the same response. The access token
+     * is an httpOnly cookie now — the browser attaches it automatically via
+     * credentials: "include"; there's nothing for JS to read or put in a header.
      *
      * Wrapped in try/catch so a network failure or already-expired session
      * never blocks the user from logging out locally. The finally block
      * always runs.
      */
     try {
-      await fetch(`${API_BASE_URL}/api/v1/sessions/logout`, {
+      const isAdminRole =
+        session?.role === "admin" || session?.role === "super_admin";
+      const logoutPath = isAdminRole
+        ? "/api/v1/admin/sessions/logout"
+        : "/api/v1/sessions/logout";
+
+      await fetch(`${API_BASE_URL}${logoutPath}`, {
         method: "POST",
         credentials: "include",
       });
@@ -123,7 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSessionState(null);
       router.push("/login");
     }
-  }, [router]);
+  }, [router, session?.role]);
 
   const value = useMemo(
     () => ({

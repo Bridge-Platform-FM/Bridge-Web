@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { Modal } from "@/components/modal/Modal";
 import { Icon } from "@/components/ui/Icon";
 import { Loader } from "@/components/common/loader";
-import { revokeSelectedSessions } from "@/services/session.service";
 import { formatRelativeTime, formatDateTime } from "@/lib/utils";
 import { ERROR_MESSAGES } from "@/lib/messages";
 import type { ActiveSession } from "@/types/api.types";
@@ -13,6 +12,12 @@ import type { ApiError } from "@/lib/axios";
 interface SessionChooserModalProps {
   open: boolean;
   sessions: ActiveSession[];
+  /**
+   * Called with the selected session IDs when the user confirms. The parent is
+   * responsible for calling the correct portal-scoped revoke endpoint — the modal
+   * itself is portal-agnostic. Throw an ApiError to show an inline error message.
+   */
+  onRevoke: (sessionIds: string[]) => Promise<void>;
   /**
    * Called when the user cancels — the parent should redirect to the login page.
    * Also fires on backdrop-click and Escape (via Modal's onClose).
@@ -31,10 +36,15 @@ interface SessionChooserModalProps {
  * requires the user to select ≥ 1 to revoke before they can proceed to the
  * dashboard. Errors from the revoke endpoint are shown inline; the modal stays
  * open so the user can adjust their selection and retry.
+ *
+ * Portal-agnostic: the parent (VerifyOtpScreen) supplies `onRevoke` with the
+ * correct endpoint already baked in, so this component works for user, admin,
+ * and superadmin logins without any changes here.
  */
 export function SessionChooserModal({
   open,
   sessions,
+  onRevoke,
   onCancel,
   onSuccess,
 }: SessionChooserModalProps) {
@@ -66,7 +76,7 @@ export function SessionChooserModal({
     setError(null);
     setRevoking(true);
     try {
-      await revokeSelectedSessions({ sessionIds: Array.from(selected) });
+      await onRevoke(Array.from(selected));
       onSuccess();
     } catch (err) {
       // Show the backend's message (e.g. "Please select at least 1 device(s) to

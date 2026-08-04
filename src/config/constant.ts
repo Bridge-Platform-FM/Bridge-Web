@@ -106,6 +106,10 @@ export const API_ENDPOINTS = {
   // Matching Engine Dashboard stats (GET).
   ADMIN_MATCHING_ENGINE_STATS: `${ADMIN}/matching-engine/stats`,
 
+  ADMIN_SESSION_LIMIT_STATUS: `${ADMIN}/sessions/limit-status`,
+  ADMIN_REVOKE_SELECTED_SESSIONS: `${ADMIN}/sessions/revoke-selected`,
+  ADMIN_SESSION_LOGOUT: `${ADMIN}/sessions/logout`,
+
   // ----- Super Admin: System Management -----
   // One endpoint pair (GET to fetch, PUT to save) per card on the screen — each section
   // loads and saves independently. The request/response keys live in
