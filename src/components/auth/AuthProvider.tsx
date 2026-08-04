@@ -60,6 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // The profile is role-scoped — drop the cached copy so the next read reflects
       // the role we just switched into.
       clearUserProfileCache();
+      clearFilePreviewCache();
       // A role switch doesn't change the token type or the user's own id — only carry
       // `role` forward from the response; tokenType/userId must be preserved from the
       // current session or the dashboard guard (tokenType) and getUserId() drop to

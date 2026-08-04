@@ -598,10 +598,7 @@ export function DealSidePanel({
         scheduledAt: new Date(`${values.date}T${values.time}`).toISOString(),
         duration: values.duration,
       });
-      // POST /meetings echoes the full normalized row — merge it instead of refetching.
-      // Fall back to a reload only if the backend returned nothing usable.
-      if (created.id) upsertMeeting(created);
-      else loadMeetings();
+      loadMeetings();
       setScheduleOpen(false);
       toast.success("Meeting scheduled.");
     } catch (err) {
@@ -1024,6 +1021,7 @@ export function DealSidePanel({
         open={meetingsOpen}
         onClose={() => setMeetingsOpen(false)}
         meetings={meetings}
+        now={meetingsLoadedAt}
         loading={meetingsLoading}
         error={meetingsError}
         onRetry={loadMeetings}
@@ -1041,8 +1039,9 @@ export function DealSidePanel({
         meeting={selectedMeeting}
         onClose={() => setSelectedMeeting(null)}
         onUpdated={(updated) => {
-          upsertMeeting(updated);
-          setSelectedMeeting(updated);
+          const row = { ...updated, id: selectedMeeting?.id ?? updated.id };
+          upsertMeeting(row);
+          setSelectedMeeting(row);
         }}
       />
 

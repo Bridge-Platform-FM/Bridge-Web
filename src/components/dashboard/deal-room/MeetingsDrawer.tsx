@@ -10,6 +10,7 @@ interface MeetingsDrawerProps {
   onClose: () => void;
   /** Every meeting in the room, already fetched by DealSidePanel. */
   meetings: ScheduledMeeting[];
+  now: number;
   loading: boolean;
   error: string | null;
   /** Refetch the meeting list. Owned by DealSidePanel. */
@@ -33,6 +34,7 @@ export function MeetingsDrawer({
   open,
   onClose,
   meetings,
+  now,
   loading,
   error,
   onRetry,
@@ -68,7 +70,6 @@ export function MeetingsDrawer({
       >
         <ul className="flex flex-col gap-1">
           {(() => {
-            const now = Date.now();
             const upcoming = meetings
               .filter((mtg) => new Date(mtg.scheduledAt).getTime() >= now)
               .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
@@ -77,8 +78,8 @@ export function MeetingsDrawer({
               .sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime());
             return [...upcoming, ...past];
           })().map((mtg, index, sorted) => {
-            const isPast = new Date(mtg.scheduledAt).getTime() < Date.now();
-            const prevIsPast = index > 0 && new Date(sorted[index - 1].scheduledAt).getTime() < Date.now();
+            const isPast = new Date(mtg.scheduledAt).getTime() < now;
+            const prevIsPast = index > 0 && new Date(sorted[index - 1].scheduledAt).getTime() < now;
             const showHistoryDivider = isPast && !prevIsPast;
             return (
               <li key={mtg.id}>

@@ -11,6 +11,7 @@ import type { UserProfilePayload, BuildProfileResponse, UserSearchResult } from 
  */
 export async function buildProfile(payload: UserProfilePayload): Promise<BuildProfileResponse> {
   const { data } = await api.post<BuildProfileResponse>(API_ENDPOINTS.BUILD_PROFILE, payload);
+  clearUserProfileCache();
   return data;
 }
 
