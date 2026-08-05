@@ -10,6 +10,8 @@ import {
   type SessionUser,
 } from "@/lib/auth-session";
 import { switchRole as switchRoleRequest } from "@/services/auth.service";
+import { clearUserProfileCache } from "@/services/user.service";
+import { clearFilePreviewCache } from "@/services/file.service";
 import { API_ENDPOINTS } from "@/config/constant";
 
 // ---------------------------------------------------------------------------
@@ -56,6 +58,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // directly on this response, so there's nothing for the client to store.
       const res = await switchRoleRequest({ role: target });
       const data = res.data;
+      // The profile is role-scoped — drop the cached copy so the next read reflects
+      // the role we just switched into.
+      clearUserProfileCache();
+      clearFilePreviewCache();
       // A role switch doesn't change the token type or the user's own id — only carry
       // `role` forward from the response; tokenType/userId must be preserved from the
       // current session or the dashboard guard (tokenType) and getUserId() drop to
@@ -74,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     /*
-     * Step 1 — best-effort backend session revocation.
+     * Step 1 — best-effort backend revocation.
      *
      * The logout endpoint is role-aware:
      *   - admin / superadmin → POST /api/v1/admin/sessions/logout
@@ -111,12 +117,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
        * localStorage entirely (not just the known session key) so nothing —
        * session metadata, onboarding form data, anything added later — is left
        * behind for the next person to use this browser/device.
+       *
+       * The service-level caches live in module memory, which survives the soft
+       * router.push below — clear them explicitly or the next person to log in on
+       * this tab would see the previous user's profile and document previews.
        */
       try {
         localStorage.clear();
       } catch {
         /* ignore storage unavailability */
       }
+      clearUserProfileCache();
+      clearFilePreviewCache();
       setSessionState(null);
       router.push("/login");
     }
