@@ -7,7 +7,7 @@ import { OtpVerifyCard } from "@/components/auth/OtpVerifyCard";
 import { SessionChooserModal } from "@/components/auth/SessionChooserModal";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { verifyMfaOtp, selectMfaChannel, type Portal } from "@/services/auth.service";
-import { getSessionLimitStatus } from "@/services/session.service";
+import { getSessionLimitStatus, revokeSelectedSessions } from "@/services/session.service";
 import { OTP_LENGTH, type OtpChannel } from "@/lib/validation";
 import { normalizeRole } from "@/lib/roles";
 import { getSession, setSession } from "@/lib/auth-session";
@@ -19,17 +19,20 @@ import type { ApiError } from "@/lib/axios";
 const SUCCESS_ROUTE = "/dashboard";
 
 /**
- * Shared MFA OTP-entry screen for every portal. Props select the route prefix and
- * backend endpoint; defaults serve the normal `/login` portal. The post-
- * verification landing route is decided by the backend (`redirectRoute`), with a
- * dashboard fallback — so each portal lands wherever its backend says. The OTP
- * card markup is shared with the reset flow via `OtpVerifyCard`.
+ * Shared MFA OTP-entry screen for every portal (user, admin, superadmin). Props
+ * select the route prefix and backend endpoint; defaults serve the normal `/login`
+ * portal. The post-verification landing route is decided by the backend
+ * (`redirectRoute`), with a dashboard fallback — so each portal lands wherever its
+ * backend says. The OTP card markup is shared with the reset flow via `OtpVerifyCard`.
  *
- * After OTP verification the screen checks the active-session limit
- * (GET /api/v1/sessions/limit-status) before redirecting:
+ * After OTP verification the screen checks the active-session limit before
+ * redirecting — for ALL portals, not just the user portal:
  *   • atLimit: false → redirect to dashboard as normal.
- *   • atLimit: true  → open the SessionChooserModal so the user can revoke an
+ *   • atLimit: true  → open the SessionChooserModal so the user/admin can revoke an
  *                       existing device, then proceed to the dashboard.
+ *
+ * The modal receives a portal-aware `onRevoke` callback so it stays portal-agnostic
+ * internally. The correct session endpoint (user vs admin) is selected here.
  */
 export function VerifyOtpScreen({
   basePath = "/login",
@@ -63,6 +66,7 @@ export function VerifyOtpScreen({
     const res = await verifyMfaOtp({ channel, otp: code }, portal);
     const destination = res.data?.redirectRoute || SUCCESS_ROUTE;
     setRedirectRoute(destination);
+
     // Persist the real name + role echoed back here so the dashboard sidebar shows
     // the actual signed-in user (login only had the email at that point). The
     // dashboard's AuthProvider reads this from localStorage on mount.
@@ -77,17 +81,17 @@ export function VerifyOtpScreen({
         tokenType: res.data?.tokenType ?? current?.tokenType,
       });
     }
-    // Session limit check only applies to the user portal — admin and superadmin
-    // bypass it entirely and redirect straight to the dashboard.
-    if (portal !== "user") {
-      router.push(destination);
-      return { message: res.message ?? undefined };
-    }
-    // Check the active-session limit before redirecting. If at the limit, open
-    // the chooser modal instead. Falls back to normal redirect on check failure
-    // so OTP verification is never blocked by a secondary service outage.
+
+    // Check the active-session limit before redirecting — applies to ALL portals.
+    // The portal parameter selects the correct backend endpoint:
+    //   user      → GET /api/v1/sessions/limit-status
+    //   admin     → GET /api/v1/admin/sessions/limit-status
+    //   superadmin→ GET /api/v1/admin/sessions/limit-status
+
+    // Falls back to a normal redirect on check failure so OTP verification is
+    // never blocked by a secondary service outage.
     try {
-      const limitRes = await getSessionLimitStatus();
+      const limitRes = await getSessionLimitStatus(portal);
       if (limitRes.data?.atLimit) {
         setActiveSessions(limitRes.data.activeSessions ?? []);
         setSessionModalOpen(true);
@@ -98,6 +102,7 @@ export function VerifyOtpScreen({
       toast.error((err as ApiError).message ?? ERROR_MESSAGES.SESSION_LIMIT_FETCH_FAILED);
       router.push(destination);
     }
+
     return { message: res.message ?? undefined };
   };
 
@@ -111,6 +116,15 @@ export function VerifyOtpScreen({
       // Re-throw so ResendControl keeps the button active (cooldown not reset).
       throw err;
     }
+  };
+
+  /**
+   * Portal-aware revoke callback passed to SessionChooserModal.
+   * The modal is portal-agnostic — it just calls this with the selected IDs;
+   * the correct endpoint (user vs admin) is selected by `portal` here.
+   */
+  const handleRevoke = async (sessionIds: string[]) => {
+    await revokeSelectedSessions({ sessionIds }, portal);
   };
 
   // Modal cancel — user abandons login; send them back to the login page.
@@ -146,6 +160,7 @@ export function VerifyOtpScreen({
       <SessionChooserModal
         open={sessionModalOpen}
         sessions={activeSessions}
+        onRevoke={handleRevoke}
         onCancel={handleModalCancel}
         onSuccess={handleModalSuccess}
       />
