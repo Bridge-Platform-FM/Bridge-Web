@@ -5,7 +5,6 @@ interface LogoProps {
   iconOnly?: boolean;
   href?: string;
   className?: string;
-  /** Tailwind text color class for the wordmark; the glyph always uses primary. */
   textClassName?: string;
 }
 
