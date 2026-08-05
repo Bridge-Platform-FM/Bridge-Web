@@ -8,7 +8,7 @@ interface LogoProps {
   textClassName?: string;
 }
 
-/** Bridged lockup used across all Stitch shells. */
+
 export function Logo({
   iconOnly = false,
   href = "/",
