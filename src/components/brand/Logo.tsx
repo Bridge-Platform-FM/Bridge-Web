@@ -5,11 +5,10 @@ interface LogoProps {
   iconOnly?: boolean;
   href?: string;
   className?: string;
-  /** Tailwind text color class for the wordmark; the glyph always uses primary. */
   textClassName?: string;
 }
 
-/** Bridged lockup used across all Stitch shells. */
+
 export function Logo({
   iconOnly = false,
   href = "/",
