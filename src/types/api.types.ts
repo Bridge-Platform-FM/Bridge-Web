@@ -12,11 +12,15 @@ export interface RegisterPayload {
   cinNumber?: string;
 }
 
-/** Response from the register endpoint. Tokens are issued here now (OTP is sent in parallel). */
+/**
+ * Response from the register endpoint (OTP is sent in parallel). Tokens are issued
+ * here as httpOnly cookies directly on this response — there's nothing token-shaped
+ * in the body for the client to store.
+ */
 export interface RegisterResponse {
   success?: boolean;
   message?: string;
-  data?: { accessToken: string; refreshToken: string };
+  data?: unknown;
 }
 
 import type { Role } from "@/lib/roles";
@@ -28,19 +32,21 @@ export interface LoginPayload {
 }
 
 /**
- * Response from the login endpoint. Tokens authenticate subsequent requests;
- * `redirectTo` is the route the backend wants the client to land on (e.g. the
- * next pending onboarding step or the home dashboard).
+ * Response from the login endpoint. The pre-MFA token is set as an httpOnly cookie
+ * directly on this response — nothing token-shaped is in the body. `redirectTo` is
+ * the route the backend wants the client to land on (e.g. the next pending
+ * onboarding step or the home dashboard).
  */
 export interface LoginResponse {
   success?: boolean;
   message?: string;
   data?: {
-    accessToken: string;
-    refreshToken: string;
     redirectTo?: string;
     /** Raw role string from the backend (e.g. "INVESTOR"); normalize via normalizeRole. */
     role?: string;
+    /** Authenticated user's name, when the backend echoes it on login. */
+    first_name?: string | null;
+    last_name?: string | null;
     /** Already-masked contact info for display on the verification-channel screen. */
     maskedMobile?: string;
     maskedEmail?: string;
@@ -52,13 +58,14 @@ export interface SwitchRolePayload {
   role: Role;
 }
 
-/** Response from the switch-role endpoint — new tokens + the now-active role. */
+/**
+ * Response from the switch-role endpoint. The re-issued token pair is set as
+ * httpOnly cookies directly on this response; the body just carries the now-active role.
+ */
 export interface SwitchRoleResponse {
   success?: boolean;
   message?: string;
   data?: {
-    accessToken: string;
-    refreshToken: string;
     /** Raw role string from the backend; normalize via normalizeRole. */
     role?: string;
   };
@@ -88,7 +95,12 @@ export interface VerifyMfaOtpPayload {
   otp: string;
 }
 
-/** Response from the MFA verify-otp endpoint. */
+/**
+ * Response from the MFA verify-otp endpoint. The full access+refresh token pair is
+ * set as httpOnly cookies directly on this response — the client can no longer
+ * decode them, so the backend echoes `userId`/`tokenType` in the body instead
+ * (stored via setSession, read by the dashboard guard and deal-room "mine vs theirs").
+ */
 export interface VerifyMfaOtpResponse {
   success?: boolean;
   message?: string;
@@ -100,7 +112,48 @@ export interface VerifyMfaOtpResponse {
     last_name?: string | null;
     /** Raw role string (e.g. "STARTUP"); normalize via normalizeRole. */
     role?: string | null;
+    /** The authenticated user's UUID — the token itself is no longer client-readable. */
+    userId?: string;
+    /** The access token's `type` claim (e.g. "AUTH_ACCESS_TOKEN"), echoed back for the same reason. */
+    tokenType?: string;
   };
+}
+
+/* ---- Password reset (standalone flow, all portals) ---- */
+
+/** Step 1: request an OTP to the account email. */
+export interface ResetPasswordTriggerOtpPayload {
+  email: string;
+}
+export interface ResetPasswordTriggerOtpResponse {
+  success?: boolean;
+  message?: string;
+  data?: unknown;
+}
+
+/**
+ * Step 2: verify the emailed OTP. The short-lived reset token (RESET_PASSWORD_ACCESS_TOKEN)
+ * is set as an httpOnly cookie directly on this response, authorizing the step-3 call
+ * automatically — nothing token-shaped is in the body.
+ */
+export interface ResetPasswordVerifyOtpPayload {
+  email: string;
+  otp: string;
+}
+export interface ResetPasswordVerifyOtpResponse {
+  success?: boolean;
+  message?: string;
+  data?: unknown;
+}
+
+/** Step 3: set the new password (authorized by the reset access token). */
+export interface ResetPasswordPayload {
+  newPassword: string;
+}
+export interface ResetPasswordResponse {
+  success?: boolean;
+  message?: string;
+  data?: unknown;
 }
 
 /** Payload for verifying a one-time code. Field names/values match the backend schema. */
@@ -272,6 +325,58 @@ export interface GetKycDocsResponse {
 }
 
 /* ===========================================================================
+ * Session Management
+ * Shapes used by the active-session limit check and session-chooser modal that
+ * runs between MFA OTP verification and the dashboard redirect.
+ * ======================================================================== */
+
+/** One active device session returned by GET /api/v1/sessions/limit-status. */
+export interface ActiveSession {
+  id: string;
+  deviceName: string;
+  browser: string;
+  os: string;
+  ipAddress: string;
+  /** ISO 8601 timestamp of the most recent activity on this session. */
+  lastActivityAt: string;
+  /** ISO 8601 timestamp of when this session was originally created. */
+  createdAt: string;
+}
+
+/**
+ * Response from GET /api/v1/sessions/limit-status. Called after MFA verification
+ * succeeds. When `atLimit` is true the session-chooser modal is shown; when false
+ * the client proceeds to the dashboard immediately.
+ *
+ * Note: `activeSessions` never includes the user's current (just-created) session —
+ * the backend excludes it. Every item in the list is safe to display as-is.
+ */
+export interface SessionLimitStatusResponse {
+  success?: boolean;
+  message?: string;
+  data?: {
+    /** True when the user has hit the concurrent-session ceiling. */
+    atLimit: boolean;
+    /**
+     * Existing sessions the user may choose to revoke. Empty array when
+     * `atLimit` is false.
+     */
+    activeSessions: ActiveSession[];
+  };
+}
+
+/** Payload for POST /api/v1/sessions/revoke-selected. */
+export interface RevokeSelectedSessionsPayload {
+  sessionIds: string[];
+}
+
+/** Response from POST /api/v1/sessions/revoke-selected. */
+export interface RevokeSelectedSessionsResponse {
+  success?: boolean;
+  message?: string;
+}
+
+/* ===========================================================================
  * Admin / Super-Admin back-office (User Management + KYC Review).
  * Fields are optional/tolerant like the rest of this file — the service layer
  * normalizes the raw backend shape into these before the UI consumes them.
@@ -282,11 +387,14 @@ export type KycStatus = "VERIFIED" | "PENDING" | "REJECTED";
 
 /**
  * One row in the User Management table, normalized from the `get-user-list`
- * response. The backend has no per-user id yet, so we key rows by `company_email`.
+ * response. Keyed by `company_email`; `userId` carries the UUID needed
+ * for per-user admin operations (e.g. limit-config).
  */
 export interface AdminUserListItem {
-  /** Stable identifier — `company_email` for now (no backend id field). */
+  /** Stable identifier — `company_email`. */
   id: string;
+  /** UUID from the `user` table — used for admin per-user API calls. */
+  userId?: string;
   /** `first_name + last_name`, falling back to company name / email. */
   name: string;
   /** `company_email`. */
@@ -301,6 +409,18 @@ export interface AdminUserListItem {
   /** Derived from the backend `kyc_status` column: Approved → VERIFIED, Rejected →
    *  REJECTED, otherwise PENDING. */
   kycStatus: KycStatus;
+  /** `company_id` — required alongside `userId` by the suspension endpoint. */
+  companyId?: string;
+  /** Account state, derived from the user's active flag. */
+  suspended: boolean;
+}
+
+/** Body of PUT /admin/users/suspension. `suspensionReason` is required when suspending. */
+export interface UserSuspensionPayload {
+  userId: string;
+  companyId?: string;
+  isSuspended: boolean;
+  suspensionReason?: string;
 }
 
 /** The full `get-user-list` list (no pagination metadata from the backend yet). */
@@ -346,8 +466,8 @@ export interface KycDocument {
 export interface KycSubmissionListItem {
   /** Stable identifier — backend `uid`. */
   id: string;
-  /** Backend `company_id` — the key the overall review-action endpoint expects. */
-  companyId?: number;
+  /** Backend `company_id` (UUID) — the key the overall review-action endpoint expects. */
+  companyId?: string;
   applicantName: string;
   email?: string;
   countryCode?: string | null;
@@ -385,4 +505,550 @@ export interface ReviewKycResponse {
   success?: boolean;
   message?: string;
   data?: unknown;
+}
+/* ------------------------------------------------------------------ *
+ * Explore — Matching Engine results (swipe deck + grid)
+ * Mirrors the `/matches` response: a list of compatibility matches for the
+ * current profile. Components consume `ExploreMatch` (the `data.matches[]` item).
+ * ------------------------------------------------------------------ */
+/** The matched company's account type, as returned by the backend (uppercase). */
+export type ExploreMatchRole = "INVESTOR" | "B2B" | "STARTUP";
+
+/**
+ * One compatibility match — the shape of each `data.matches[]` entry. Keys mirror
+ * the backend exactly (snake_case, incl. spelling quirks like `prefrerred_*`,
+ * `export_rediness`, `products_ervice_Offered`). Role-specific blocks are optional:
+ * only the fields for that match's `role` are present.
+ */
+export interface ExploreMatch {
+  // ---- common ----
+  /** UUID of the matched user. */
+  profileId: string;
+  /** Recipient identifiers used when sending a connection request. */
+  roleId: number;
+  /** UUID of the matched company. */
+  companyId: string;
+  role: ExploreMatchRole;
+  /** Overall compatibility score, 0–100. */
+  compatibility: number;
+  first_name: string | null;
+  last_name: string | null;
+  /** Background photo when present; otherwise the card shows an initials avatar. */
+  profile_photo: string | null;
+  /** Company name (used as the card title). */
+  organization_name: string;
+  short_bio: string | null;
+  country: string | null;
+  continent: string | null;
+  /** Sector tags shown as chips. */
+  primary_sector: string[];
+  /** AI-generated explanation of why this profile was matched. */
+  rationale?: string | null;
+  linkedin_profile_url?: string | null;
+  linkedin_url?: string | null;
+  company_website_url?: string | null;
+  company_email?: string | null;
+  country_code?: string | null;
+  mobile_number?: string | null;
+
+  // ---- investor-specific (present when role === "INVESTOR") ----
+  ticket_size_amt_min?: number;
+  ticket_size_amt_max?: number;
+  prefrerred_investment_stage?: string[];
+  stage_focus?: string | null;
+  investor_sector_preference?: string[];
+  geographic_investment_preference?: string[];
+  investor_type?: string;
+  investor_portfolio_overview?: string | null;
+  number_of_investments_to_date?: number;
+  investor_intent?: string;
+
+  // ---- b2b-specific (present when role === "B2B") ----
+  b2b_sector?: string;
+  b2b_sub_sector?: string;
+  revenue_band?: string;
+  min_order_quantity?: number;
+  export_rediness?: string;
+  industry_vertical?: string;
+  years_in_operation?: number;
+  operational_capacity_description?: string | null;
+  products_ervice_Offered?: string;
+  business_requirements?: string;
+  b2b_intent?: string;
+}
+
+/** Raw envelope returned by the matches endpoint. */
+export interface ExploreMatchesResponse {
+  success: boolean;
+  data: {
+    /** The UUID of the profile these matches were computed for. */
+    profileId: string;
+    matches: ExploreMatch[];
+    /** Daily connection-request cap for the current profile. */
+    requestLimit?: number;
+    /** Requests still available today. */
+    requestsRemaining?: number;
+    /** Requests already sent within the current window. */
+    requestsSentInWindow?: number;
+  };
+  message: string;
+}
+
+/* ------------------------------------------------------------------ *
+ * Navbar search — GET /api/v1/users/search
+ * (the paired GET /api/v1/users/role-details returns the same `ProfileField[]`
+ * shape as GET /api/v1/users/profile — see services/user.service.ts)
+ * ------------------------------------------------------------------ */
+/** One suggestion row returned by GET /api/v1/users/search?q=. */
+export interface UserSearchResult {
+  /** UUID of the matched user. */
+  user_id: string;
+  role_id: number;
+  /** UUID of the matched company. */
+  company_id: string;
+  first_name: string;
+  last_name: string;
+  company_name: string;
+  email: string;
+  mobile_number: string;
+  country: string;
+  continent: string;
+}
+
+/** A swipe decision on a match card. */
+export type ExploreDecision = "reject" | "skip" | "send";
+
+/** Body sent to POST /api/v1/connection (keys per backend). */
+export interface SendConnectionRequestPayload {
+  /** UUID of the recipient user. */
+  recipientUserId: string;
+  recipientRoleId?: number;
+  /** UUID of the recipient company. */
+  recipientCompanyId?: string;
+  personalMessage: string;
+  bussinessIntent: string[];
+  expectedDealSize: string;
+  productServiceDetails: string;
+}
+
+/** Response from POST /api/v1/connection. */
+export interface SendConnectionRequestResponse {
+  success: boolean;
+  message: string;
+  data?: unknown;
+}
+
+/** Lifecycle status of a connection request. */
+export type ConnectionStatus =
+  | "PENDING"
+  | "VIEWED"
+  | "ACCEPTED"
+  | "DECLINED"
+  | "DEFERRED"
+  | "WITHDRAWN"
+  | "EXPIRED";
+
+/** Whether I'm the recipient (received) or the sender (sent) of the request. */
+export type ConnectionDirection = "received" | "sent";
+
+/** One connection request as shown in the Connections screen (list + detail). */
+export interface ConnectionRequest {
+  id: string;
+  direction: ConnectionDirection;
+  name: string;
+  company: string;
+  role: Role;
+  intent: string;
+  message?: string;
+  productServiceDetails?: string;
+  status: ConnectionStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Actions a user can take on a request (UI-level). */
+export type ConnectionActionType = "ACCEPT" | "DECLINE" | "DEFER" | "WITHDRAW";
+
+/** Body for the change-status API. `status` is the backend's title-case value
+ *  (e.g. "Accepted"), translated from our internal uppercase status. */
+export interface ConnectionActionPayload {
+  connectionId: number;
+  status: string;
+  reason?: string;
+}
+
+export interface ConnectionActionResponse {
+  success: boolean;
+  message: string;
+  data?: {
+    connection?: { id: string | number; status: ConnectionStatus };
+    deal_room_id?: string | number | null;
+  };
+}
+
+/** Response from GET /api/v1/connections?direction=. */
+export interface ConnectionsListResponse {
+  success: boolean;
+  message: string;
+  data: ConnectionRequest[];
+}
+
+/* ===========================================================================
+ * User Limit Config — admin-configurable per-user connection limits.
+ * Managed via GET/PUT /api/v1/admin/users/:userId/limit-config.
+ * ======================================================================== */
+
+/**
+ * Per-user limit configuration returned by the admin limit-config endpoint.
+ * `is_custom` is true when an admin has saved custom values; false means the
+ * values shown are the system-wide defaults.
+ */
+export interface UserLimitConfig {
+  /** UUID of the user this config belongs to. */
+  user_id: string;
+  allowed_connections: number;
+  allowed_free_trial_days: number;
+  allowed_premium_days: number;
+  /** False when no custom config has been saved yet (defaults are returned). */
+  is_custom: boolean;
+}
+
+/**
+ * Payload for PUT /api/v1/admin/users/:userId/limit-config.
+ * All fields are optional — at least one must be provided (enforced by the backend).
+ */
+export interface UpdateUserLimitConfigPayload {
+  allowed_connections?: number;
+  allowed_free_trial_days?: number;
+  allowed_premium_days?: number;
+}
+
+/* ===========================================================================
+ * FAQs — user-facing
+ * Fetched from GET /api/v1/faqs (active FAQs only).
+ * ======================================================================== */
+
+/** One FAQ entry returned by GET /api/v1/faqs. */
+export interface FaqItem {
+  id: number;
+  question: string;
+  answer: string;
+}
+
+/** Raw envelope returned by GET /api/v1/faqs. */
+export interface FaqListResponse {
+  success?: boolean;
+  message?: string;
+  data?: FaqItem[];
+}
+
+/* ===========================================================================
+ * Admin FAQ Management
+ * Managed via GET/POST /api/v1/admin/faqs and PUT /api/v1/admin/faqs/:id
+ * ======================================================================== */
+
+/**
+ * One FAQ row as returned by the admin list endpoint.
+ * Includes is_active so the admin can see and toggle each entry's status.
+ */
+export interface AdminFaqItem {
+  id: number;
+  question: string;
+  answer: string;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/** Raw envelope returned by GET /api/v1/admin/faqs. */
+export interface AdminFaqListResponse {
+  success?: boolean;
+  message?: string;
+  data?: AdminFaqItem[];
+}
+
+/** Payload for POST /api/v1/admin/faqs (create). */
+export interface CreateFaqPayload {
+  question: string;
+  answer: string;
+  is_active: boolean;
+}
+
+/**
+ * Payload for PUT /api/v1/admin/faqs/:id (update).
+ * All fields are optional — at least one must be provided.
+ */
+export interface UpdateFaqPayload {
+  question?: string;
+  answer?: string;
+  is_active?: boolean;
+}
+
+/** Response envelope from create / update FAQ actions. */
+export interface FaqActionResponse {
+  success?: boolean;
+  message?: string;
+  data?: { id?: number };
+}
+
+/* ===========================================================================
+ * Subscription Plans
+ * GET  /api/v1/subscriptions/plans   — list active plans
+ * POST /api/v1/subscriptions/select  — select a plan  { plan_id }
+ * GET  /api/v1/subscriptions/my      — current user's active subscription
+ * ======================================================================== */
+ 
+/**
+ * One plan row returned by GET /api/v1/subscriptions/plans.
+ * valid_till_preview is computed server-side as today + validity_days (ISO date).
+ */
+export interface SubscriptionPlan {
+  id: number;
+  plan_name: string;
+  plan_benefits: string[];
+  validity_days: number;
+  /** ISO date string (YYYY-MM-DD): what end_date would be if subscribed today. */
+  valid_till_preview: string;
+}
+ 
+/** Envelope returned by GET /api/v1/subscriptions/plans. */
+export interface SubscriptionPlansResponse {
+  success?: boolean;
+  message?: string;
+  data?: SubscriptionPlan[];
+}
+ 
+/** Payload for POST /api/v1/subscriptions/select. */
+export interface SelectPlanPayload {
+  plan_id: number;
+}
+ 
+/** Envelope returned by POST /api/v1/subscriptions/select. */
+export interface SelectPlanResponse {
+  success?: boolean;
+  message?: string;
+  data?: {
+    subscription_id: number;
+    plan_name: string;
+    start_date: string;
+    end_date: string;
+    status: "pending" | "active" | "expired" | "cancelled";
+  };
+}
+ 
+/** Shape returned by GET /api/v1/subscriptions/my. */
+export interface UserSubscriptionData {
+  subscription_id: number;
+  plan_id: number;
+  plan_name: string;
+  plan_benefits: string[];
+  start_date: string;
+  end_date: string;
+  status: "pending" | "active" | "expired" | "cancelled";
+}
+ 
+/** Envelope returned by GET /api/v1/subscriptions/my. */
+export interface UserSubscriptionResponse {
+  success?: boolean;
+  message?: string;
+  data?: UserSubscriptionData;
+}
+
+export interface MatchingEngineConnectionBreakdown {
+  status: string;
+  count: number;
+}
+ 
+export interface ZeroEngagementProfile {
+  userId: string;
+  name: string;
+  role: string;
+  company: string;
+  joinedAt: string | null;
+}
+ 
+export interface MatchingEngineAlgorithmDistribution {
+  algorithmType: string;
+  count: number;
+  /** Percentage of total shown matches (0–100) */
+  percentage: number;
+}
+ 
+export interface MatchingEngineBehavioralSignal {
+  /** 'skipped' | 'irrelevant_flag' | 'connection_sent' | 'deal_room_opened' */
+  action: string;
+  count: number;
+}
+ 
+export interface MatchingEngineTopSector {
+  sector: string;
+  count: number;
+}
+ 
+export interface MatchingEngineStats {
+  // ── From existing tables (connection, deal_room, user) ──
+  totalProfiles: number;
+  totalConnections: number;
+  acceptedConnections: number;
+  acceptanceRate: number;
+  activeDealRooms: number;
+  connectionStatusBreakdown: MatchingEngineConnectionBreakdown[];
+  zeroEngagementProfiles: ZeroEngagementProfile[];
+ 
+  // ── From matching_events table (FRD 12.3 new metrics) ──
+  matchesGenerated: {
+    today: number;
+    thisWeek: number;
+    thisMonth: number;
+  };
+  /** null = no data yet (matching_events table is empty) */
+  avgCompatibilityScore: number | null;
+  topSectorsByVolume: MatchingEngineTopSector[];
+  algorithmDistribution: MatchingEngineAlgorithmDistribution[];
+  behavioralSignals: MatchingEngineBehavioralSignal[];
+}
+/* ----- Super Admin: System Management ----- */
+
+/**
+ * One row of `otp_config_master` as returned by GET /super-admin/config/otp-config.
+ * `lookup` is the backend's key (SENT_OTP_TTL, MAX_OTP_VERIFY_ATTEMPTS, …) and is the
+ * key the UI labels the field with and the key the PUT body is built from — the screen
+ * never invents its own names for these settings.
+ */
+export interface OtpConfigEntry {
+  id: number;
+  /** Backend key, e.g. "SENT_OTP_TTL". Doubles as the field label. */
+  lookup: string;
+  /** Current value. Kept as a string — the backend column is a varchar. */
+  value: string;
+  /** Shipped value, the "Reset Defaults" target for this row. */
+  defaultValue: string;
+  /** "integer" | "boolean" | … — decides which control renders. */
+  dataType: string;
+  /** "second" | "number" | … — shown next to the label. */
+  unit: string;
+  description?: string;
+  updatedAt?: string;
+}
+
+/**
+ * Trial window + conversion behaviour (System Management → Trial Management).
+ * Field names mirror the backend's `trialConfig` keys one-for-one — `freeTrialDay` is
+ * `free_trial_day`, and so on — so the mapping stays obvious.
+ */
+export interface TrialSettings {
+  freeTrialDay: number;
+  freeTrialConnectionLimit: number;
+  manualExtension: boolean;
+  autoDowngrade: boolean;
+  expiryNotification: boolean;
+}
+
+/** Global feature flags (System Management → Platform Controls). */
+export interface PlatformFlags {
+  maintenanceMode: boolean;
+  registrationOpen: boolean;
+  aiMatchingEngine: boolean;
+  geoLocationMatching: boolean;
+}
+
+/**
+ * NOTE: there is deliberately no composite `SystemSettings` type. Each card on the System
+ * Management screen owns its own GET/PUT pair and edits independently, so the three shapes
+ * above are kept separate.
+ */
+
+/* ----- Super Admin: Admin Management ----- */
+
+export type AdminAccountStatus = "ACTIVE" | "SUSPENDED";
+
+/** One staff account in the Admin Management table. */
+export interface AdminAccount {
+  id: string;
+  name: string;
+  email: string;
+  mobileNumber?: string;
+  countryCode?: string | null;
+  role: "admin" | "super_admin";
+  /** Named permission preset, e.g. "Compliance Analyst". */
+  roleProfile?: string;
+  /** Module keys this admin can reach — empty for a super admin (implicitly all). */
+  permissions: string[];
+  status: AdminAccountStatus;
+  createdAt?: string;
+  lastLoginAt?: string;
+  /** Id of the admin who created this account. */
+  createdBy?: string;
+  /** Soft-delete flag; the list filters these out, the drawer surfaces it. */
+  isDeleted?: boolean;
+}
+
+/** One permission row from the admin detail endpoint — granted or explicitly denied. */
+export interface AdminPermission {
+  id: string;
+  /** Backend key, e.g. "KYC_REVIEW". */
+  permissionKey: string;
+  isAllowed: boolean;
+}
+
+/** One entry in an admin's audit trail (created / updated / suspended / activated…). */
+export interface AdminActivityLog {
+  id: string;
+  /** e.g. "CREATED", "SUSPENDED". */
+  action: string;
+  /** Supplied on actions that require one (suspend / delete). */
+  reason?: string;
+  createdAt?: string;
+  /** The account the action was performed on. */
+  adminId?: string;
+  /** Free-form snapshot of what changed — shape varies by action. */
+  metadata?: Record<string, unknown>;
+  /** The admin who performed the action, when the backend expands it. */
+  performedBy?: {
+    id?: string;
+    name: string;
+    email?: string;
+    role?: string;
+  };
+}
+
+/**
+ * GET /admin/management/admins/:id — the account plus its permission matrix and audit
+ * trail. Powers the detail drawer; the list response carries neither of the latter two.
+ */
+export interface AdminDetail {
+  admin: AdminAccount;
+  permissions: AdminPermission[];
+  activityLogs: AdminActivityLog[];
+}
+
+/**
+ * Editable fields of an existing admin (PUT /admin/management/admins/:id). Email, role and
+ * status are NOT updatable here — the schema rejects them. At least one field is required.
+ */
+export interface UpdateAdminPayload {
+  name?: string;
+  countryCode?: string;
+  mobileNumber?: string;
+  permissions?: { permissionKey: string; isAllowed: boolean }[];
+}
+
+/** Body of the "Create New Admin" form. */
+export interface CreateAdminPayload {
+  name: string;
+  email: string;
+  mobileNumber: string;
+  /** Dialling code sent as `country_code`, e.g. "+91". */
+  countryCode: string;
+  password: string;
+  /**
+   * Every module with its granted/denied state — the backend takes the full matrix, not
+   * just the granted keys, so an unticked module is sent as `is_allowed: false`.
+   */
+  permissions: { permissionKey: string; isAllowed: boolean }[];
+  /**
+   * UI-only. The create endpoint's Joi schema rejects unknown keys, so this is NOT sent
+   * until the backend accepts it.
+   */
+  sendWelcomeEmail: boolean;
 }

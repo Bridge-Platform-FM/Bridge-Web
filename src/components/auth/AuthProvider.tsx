@@ -6,24 +6,32 @@ import { normalizeRole, type Role } from "@/lib/roles";
 import {
   getSession,
   setSession as persistSession,
-  clearSession,
   type Session,
   type SessionUser,
 } from "@/lib/auth-session";
-import { setTokens, clearTokens } from "@/lib/auth-tokens";
 import { switchRole as switchRoleRequest } from "@/services/auth.service";
+import { clearUserProfileCache } from "@/services/user.service";
+import { clearFilePreviewCache } from "@/services/file.service";
+import { API_ENDPOINTS } from "@/config/constant";
+
+// ---------------------------------------------------------------------------
+// The backend base URL. Reads NEXT_PUBLIC_API_URL from .env.local if set,
+// otherwise falls back to localhost for local development.
+// ---------------------------------------------------------------------------
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
 
 interface AuthContextValue {
   role: Role | null;
   user: SessionUser | undefined;
+  tokenType: string | undefined;
   /** True once the persisted session has been read from localStorage. */
   isLoaded: boolean;
   /** Persist a session (e.g. right after login). */
   setSession: (session: Session) => void;
   /** Switch the active role: backend re-issues a token, then we re-render. */
   switchRole: (target: Role) => Promise<void>;
-  /** Clear tokens + session and return to the login screen. */
-  logout: () => void;
+  /** Revoke the current session on the backend, then clear local state and return to login. */
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -46,30 +54,91 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const switchRole = useCallback(
     async (target: Role) => {
+      // Tokens are httpOnly cookies now — the backend sets the re-issued cookie
+      // directly on this response, so there's nothing for the client to store.
       const res = await switchRoleRequest({ role: target });
       const data = res.data;
-      if (!data?.accessToken || !data?.refreshToken) {
-        throw { message: res.message ?? "Couldn't switch account type." };
-      }
-      setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
-      const next: Session = { role: normalizeRole(data.role) ?? target, user: session?.user };
+      // The profile is role-scoped — drop the cached copy so the next read reflects
+      // the role we just switched into.
+      clearUserProfileCache();
+      clearFilePreviewCache();
+      // A role switch doesn't change the token type or the user's own id — only carry
+      // `role` forward from the response; tokenType/userId must be preserved from the
+      // current session or the dashboard guard (tokenType) and getUserId() drop to
+      // undefined right after switching, breaking both until a full logout/login.
+      const next: Session = {
+        role: normalizeRole(data?.role) ?? target,
+        user: session?.user,
+        tokenType: session?.tokenType,
+        userId: session?.userId,
+      };
       persistSession(next);
       setSessionState(next);
     },
-    [session?.user]
+    [session?.user, session?.tokenType, session?.userId]
   );
 
-  const logout = useCallback(() => {
-    clearTokens();
-    clearSession();
-    setSessionState(null);
-    router.push("/login");
-  }, [router]);
+  const logout = useCallback(async () => {
+    /*
+     * Step 1 — best-effort backend revocation.
+     *
+     * The logout endpoint is role-aware:
+     *   - admin / superadmin → POST /api/v1/admin/sessions/logout
+     *   - user               → POST /api/v1/sessions/logout
+     *
+     * This flips is_revoked = true on the session row immediately AND clears the
+     * httpOnly auth cookies via Set-Cookie on the same response. The access token
+     * is an httpOnly cookie now — the browser attaches it automatically via
+     * credentials: "include"; there's nothing for JS to read or put in a header.
+     *
+     * Wrapped in try/catch so a network failure or already-expired session
+     * never blocks the user from logging out locally. The finally block
+     * always runs.
+     */
+    try {
+      const isAdminRole =
+        session?.role === "admin" || session?.role === "super_admin";
+      const logoutPath = isAdminRole
+        ? API_ENDPOINTS.ADMIN_SESSION_LOGOUT
+        : API_ENDPOINTS.SESSION_LOGOUT;
+
+      await fetch(`${API_BASE_URL}${logoutPath}`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // Ignore — local logout always completes in the finally block below.
+    } finally {
+      /*
+       * Step 2 — local cleanup.
+       *
+       * Always runs, even if the backend call threw or returned an error.
+       * The cookies themselves are cleared server-side above; here we wipe
+       * localStorage entirely (not just the known session key) so nothing —
+       * session metadata, onboarding form data, anything added later — is left
+       * behind for the next person to use this browser/device.
+       *
+       * The service-level caches live in module memory, which survives the soft
+       * router.push below — clear them explicitly or the next person to log in on
+       * this tab would see the previous user's profile and document previews.
+       */
+      try {
+        localStorage.clear();
+      } catch {
+        /* ignore storage unavailability */
+      }
+      clearUserProfileCache();
+      clearFilePreviewCache();
+      setSessionState(null);
+      router.push("/login");
+    }
+  }, [router, session?.role]);
 
   const value = useMemo(
     () => ({
       role: session?.role ?? null,
       user: session?.user,
+      tokenType: session?.tokenType,
       isLoaded,
       setSession,
       switchRole,

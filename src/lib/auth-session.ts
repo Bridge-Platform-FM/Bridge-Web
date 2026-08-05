@@ -1,8 +1,9 @@
 /**
  * Post-auth session store — the user's role and basic profile info, kept in
- * localStorage alongside (but separate from) the auth tokens and the onboarding
- * blob. The role comes from the login response; we read it here to render the
- * role-specific dashboard. Mirrors the auth-tokens.ts pattern.
+ * localStorage separate from the onboarding blob. The auth tokens themselves are
+ * httpOnly cookies (invisible to JS); this store holds the non-sensitive metadata
+ * the backend echoes back in response bodies (role, userId, tokenType) so the UI
+ * doesn't need to decode a token it can no longer read.
  */
 
 import type { Role } from "@/lib/roles";
@@ -21,6 +22,14 @@ export interface SessionUser {
 export interface Session {
   role: Role;
   user?: SessionUser;
+  /** The authenticated user's UUID, echoed back by the backend on login/verify. */
+  userId?: string;
+  /**
+   * The access token's `type` claim (e.g. "AUTH_ACCESS_TOKEN" vs "MFA_ACCESS_TOKEN"),
+   * echoed back in the response body — the token itself is an httpOnly cookie the
+   * frontend can no longer read/decode, so the backend tells us this directly instead.
+   */
+  tokenType?: string;
 }
 
 /** Persist the current session (role + optional user info). */
@@ -38,7 +47,7 @@ export function getSession(): Session | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!isRole(parsed?.role)) return null;
-    return { role: parsed.role, user: parsed.user };
+    return { role: parsed.role, user: parsed.user, userId: parsed.userId, tokenType: parsed.tokenType };
   } catch {
     return null;
   }
@@ -46,6 +55,10 @@ export function getSession(): Session | null {
 
 export function getRole(): Role | null {
   return getSession()?.role ?? null;
+}
+
+export function getUserId(): string | null {
+  return getSession()?.userId ?? null;
 }
 
 export function clearSession() {

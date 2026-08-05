@@ -93,3 +93,8 @@ export function isUserRole(role: Role | null | undefined): boolean {
 export function isStaffRole(role: Role | null | undefined): boolean {
   return role === "super_admin" || role === "admin";
 }
+
+/** Whether the given role is the super admin (guards super-admin-only sections). */
+export function isSuperAdmin(role: Role | null | undefined): boolean {
+  return role === "super_admin";
+}

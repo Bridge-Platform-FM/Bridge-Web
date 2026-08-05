@@ -29,7 +29,6 @@ import {
 } from "@/lib/b2b-profile-options";
 import type { CompleteProfileForm } from "@/components/onboarding/StartupProfileFields";
 
-/** All B2B Enterprise profile field values (everything JSON-serializable). */
 export interface B2BValues {
   businessName: string;
   sector: string;

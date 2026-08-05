@@ -15,6 +15,17 @@ interface ModalProps {
   maxWidthClass?: string;
   /** Scroll handler for the internal scrollable body (e.g. to detect scroll-to-bottom). */
   onBodyScroll?: React.UIEventHandler<HTMLDivElement>;
+  /** Override the body wrapper's classes entirely — e.g. to drop `flex-1 overflow-y-auto`
+   *  for a small, fixed-content dialog (like a confirm prompt) that should never scroll.
+   *  Defaults to the standard scrollable body. */
+  bodyClassName?: string;
+  headerExtra?: React.ReactNode;
+  /**
+   * Lock every dismiss route — ✕, backdrop click and Escape — while something the dialog
+   * started is in flight. The ✕ renders visibly disabled, so it doesn't look clickable while
+   * it isn't (passing a no-op `onClose` would silently swallow the click instead).
+   */
+  closeDisabled?: boolean;
 }
 
 /**
@@ -23,11 +34,11 @@ interface ModalProps {
  * so it escapes any parent stacking/overflow context. Closes on ✕, the default
  * Close button, backdrop click and Escape; locks page scroll while open.
  */
-export function Modal({ open, onClose, title, children, footer, maxWidthClass = "max-w-2xl", onBodyScroll }: ModalProps) {
+export function Modal({ open, onClose, title, children, footer, maxWidthClass = "max-w-2xl", onBodyScroll, bodyClassName, headerExtra, closeDisabled = false }: ModalProps) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && !closeDisabled) onClose();
     };
     document.addEventListener("keydown", onKey);
     // Lock background scroll. The actual scroll container is app-specific
@@ -37,14 +48,14 @@ export function Modal({ open, onClose, title, children, footer, maxWidthClass = 
       document.removeEventListener("keydown", onKey);
       document.body.classList.remove("modal-open");
     };
-  }, [open, onClose]);
+  }, [open, onClose, closeDisabled]);
 
   if (!open || typeof document === "undefined") return null;
 
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xl"
-      onClick={onClose}
+      onClick={closeDisabled ? undefined : onClose}
     >
       <div
         role="dialog"
@@ -54,19 +65,21 @@ export function Modal({ open, onClose, title, children, footer, maxWidthClass = 
       >
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between gap-4 border-b border-outline/10 p-5">
-          <h2 className="font-headline text-xl font-bold text-on-surface">{title}</h2>
+          <h2 className="min-w-0 flex-1 truncate font-headline text-xl font-bold text-on-surface">{title}</h2>
+          {headerExtra}
           <button
             type="button"
             onClick={onClose}
+            disabled={closeDisabled}
             aria-label="Close"
-            className="flex size-9 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
+            className="flex size-9 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-on-surface-variant"
           >
             <Icon name="close" size={22} />
           </button>
         </div>
 
         {/* Scrollable body */}
-        <div className="thin-scrollbar flex-1 overflow-y-auto overscroll-contain p-6" onScroll={onBodyScroll}>{children}</div>
+        <div className={bodyClassName ?? "thin-scrollbar flex-1 overflow-y-auto overscroll-contain p-6"} onScroll={onBodyScroll}>{children}</div>
 
         {/* Footer — pass footer={null} to hide it entirely (e.g. when the action
             lives inside the scrollable body). */}

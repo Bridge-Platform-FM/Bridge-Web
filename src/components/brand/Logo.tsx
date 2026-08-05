@@ -2,7 +2,6 @@ import React from "react";
 import Link from "next/link";
 
 interface LogoProps {
-  /** Hide the "Bridge mark, showing only the glyph. */
   iconOnly?: boolean;
   href?: string;
   className?: string;

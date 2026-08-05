@@ -40,5 +40,18 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-*.md 
+*.md
 *.html
+
+# Claude PR-review reports (scripts/pr-analysis) stay local — the review
+# itself is posted to the PR as a comment.
+.claude-reports/
+
+# Deal Room — real feature is now tracked. Only the walkthrough /demo route stays
+# ignored (its dummy data + in-memory store live under demo/ and the store/dummy files).
+src/app/dashboard/deal-room/demo/
+
+# Connections DEMO — walkthrough-only /demo route (its dummy data is inlined in the
+# route's page.tsx). The real connections feature (page.tsx, screen/list/drawer, lib,
+# service) stays tracked; only this demo-only path is ignored.
+src/app/dashboard/connections/demo/

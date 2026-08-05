@@ -14,10 +14,9 @@ import { TermsModal } from "@/components/onboarding/TermsModal";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { toast } from "sonner";
 import { registerCompany } from "@/services/auth.service";
-import { setTokens, clearTokens } from "@/lib/auth-tokens";
 import { clearSession } from "@/lib/auth-session";
 import { GST_REGEX, CIN_REGEX, PHONE_REGEX, PASSWORD_REGEX, EMAIL_REGEX } from "@/lib/validation";
-import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "@/lib/messages";
+import { SUCCESS_MESSAGES } from "@/lib/messages";
 import type { ApiError } from "@/lib/axios";
 
 const ROLES = [
@@ -61,7 +60,6 @@ export default function RegisterPage() {
   // auth tokens, and any stored session so no stale auth/role carries over.
   useEffect(() => {
     reset();
-    clearTokens();
     clearSession();
   }, [reset]);
   const [termsOpen, setTermsOpen] = useState(false);
@@ -98,8 +96,7 @@ export default function RegisterPage() {
     const payload = {
       companyName: values.legalName,
       email: values.email,
-      // countryCode: values.countryCode,
-      // countryCode: values.countryCode, // commented: not sending country code for now
+      countryCode: values.countryCode,
       phoneNumber: values.contact,
       password: values.password,
       role: ROLE_MAP[values.role],
@@ -109,15 +106,10 @@ export default function RegisterPage() {
     };
 
     try {
+      // Tokens are issued here as httpOnly cookies directly on this response — no
+      // client-side storage step needed; the axios interceptor already throws on
+      // a non-2xx (failed) response.
       const res = await registerCompany(payload);
-      // Tokens are issued here now — persist them so all subsequent APIs are authenticated.
-      if (res.data?.accessToken && res.data?.refreshToken) {
-        setTokens(res.data);
-      } else {
-        // Backend returned success without tokens — treat as a failure rather than
-        // advancing into an unauthenticated flow.
-        throw { message: ERROR_MESSAGES.NO_SESSION } as ApiError;
-      }
       toast.success(res.message ?? SUCCESS_MESSAGES.REGISTRATION);
       // Persist UI-shaped fields so prefill keeps working on back-navigation.
       setData({
@@ -199,7 +191,7 @@ export default function RegisterPage() {
               type="email"
               label="Official Email Address"
               required
-              placeholder="admin@company.com"
+              placeholder="john@example.com"
               error={errors.email?.message}
               adornment={<Icon name="mail" size={20} />}
               {...field("email", {
@@ -343,7 +335,7 @@ export default function RegisterPage() {
                 <Input
                   id="cinNumber"
                   type="text"
-                  label="Cin Number"
+                  label="CIN Number"
                   required
                   placeholder="U12345MH2024PTC123456"
                   error={errors.cinNumber?.message}

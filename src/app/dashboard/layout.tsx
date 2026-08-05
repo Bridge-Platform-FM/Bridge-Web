@@ -1,26 +1,55 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
+import { isUserRole } from "@/lib/roles";
 import { DashboardSidebar } from "@/components/layout/sidebar";
 import { DashboardNavbar } from "@/components/layout/navbar";
-import { getAccessToken } from "@/lib/auth-tokens";
+import { getSessionLimitStatus } from "@/services/session.service";
+import type { ApiError } from "@/lib/axios";
+const FULL_SESSION_TOKEN_TYPE = "AUTH_ACCESS_TOKEN";
 
-/** Guards the dashboard: bounce to /login when there's no authenticated session. */
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { role, isLoaded } = useAuth();
+  const { role, tokenType, isLoaded } = useAuth();
+  const hasFullSession = tokenType === FULL_SESSION_TOKEN_TYPE;
+  const [verified, setVerified] = useState(false);
+  // Set on a non-401 verification failure (network drop, timeout, 500, CORS
+  // misconfig) — a 401 is handled globally by axios.ts's interceptor (clears the
+  // session + redirects), so it never needs this. Without this, a transient failure
+  // would leave the user stuck on "Loading…" forever with no way out.
+  const [checkError, setCheckError] = useState(false);
+  // Bumped by the Retry button to re-run the verification effect.
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     if (!isLoaded) return;
-    if (!getAccessToken() || !role) router.replace("/login");
-  }, [isLoaded, role, router]);
+    if (!hasFullSession || !role) {
+      router.replace("/login");
+      return;
+    }
+  }, [isLoaded, role, hasFullSession, router, retryKey]);
 
-  if (!isLoaded || !role) {
+  if (checkError) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 text-on-surface-variant">
+        <p>Couldn&apos;t verify your session — check your connection.</p>
+        <button
+          type="button"
+          onClick={() => setRetryKey((k) => k + 1)}
+          className="rounded-lg border border-outline-variant px-4 py-2 text-sm font-medium hover:bg-surface-container"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (!isLoaded || !role || !hasFullSession) {
     return (
       <div className="flex h-full items-center justify-center text-on-surface-variant">
-        Loading…
+        <h1>Loading...</h1>
       </div>
     );
   }

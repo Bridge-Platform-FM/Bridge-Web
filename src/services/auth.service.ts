@@ -1,4 +1,4 @@
-import { api } from "@/lib/axios";
+import { api, type ApiError } from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/constant";
 import type {
   RegisterPayload,
@@ -15,16 +15,17 @@ import type {
   ResendOtpResponse,
   SwitchRolePayload,
   SwitchRoleResponse,
+  ResetPasswordTriggerOtpPayload,
+  ResetPasswordTriggerOtpResponse,
+  ResetPasswordVerifyOtpPayload,
+  ResetPasswordVerifyOtpResponse,
+  ResetPasswordPayload,
+  ResetPasswordResponse,
 } from "@/types/api.types";
 
 /** Which login portal a request targets — selects the endpoint group below. */
 export type Portal = "user" | "admin" | "superadmin";
 
-/**
- * Resolve the login + MFA endpoints for a portal from API_ENDPOINTS (the single
- * source of the path strings). All three portals share identical request/response
- * shapes and differ only by path.
- */
 const AUTH_BY_PORTAL: Record<Portal, { LOGIN: string; MFA_SELECT_CHANNEL: string; MFA_VERIFY_OTP: string }> = {
   user: {
     LOGIN: API_ENDPOINTS.LOGIN,
@@ -43,6 +44,24 @@ const AUTH_BY_PORTAL: Record<Portal, { LOGIN: string; MFA_SELECT_CHANNEL: string
   },
 };
 
+const LEGACY_BACKEND_ERROR: ApiError = {
+  message: "This app version isn't compatible with the connected server. Please contact support.",
+};
+
+/**
+ * Detects the pre-cookie-migration response shape (tokens returned in the body). Tokens
+ * are httpOnly cookies now — the backend sets them directly on the response and the body
+ * no longer carries them. If a mismatched/older backend still returns them in the body,
+ * the call still looks like a 2xx success but no cookie ever arrives, so the very next
+ * authenticated request fails and the app bounces back to login with no clear reason why.
+ * This catches that at the source instead.
+ */
+function assertNotLegacyTokenResponse(data: unknown): void {
+  if (data && typeof data === "object" && ("accessToken" in data || "refreshToken" in data)) {
+    throw LEGACY_BACKEND_ERROR;
+  }
+}
+
 /**
  * Register the company (step 1).
  *
@@ -51,6 +70,7 @@ const AUTH_BY_PORTAL: Record<Portal, { LOGIN: string; MFA_SELECT_CHANNEL: string
  */
 export async function registerCompany(payload: RegisterPayload): Promise<RegisterResponse> {
   const { data } = await api.post<RegisterResponse>(API_ENDPOINTS.REGISTER, payload);
+  assertNotLegacyTokenResponse(data.data);
   return data;
 }
 
@@ -63,6 +83,7 @@ export async function registerCompany(payload: RegisterPayload): Promise<Registe
  */
 export async function loginUser(payload: LoginPayload, portal: Portal = "user"): Promise<LoginResponse> {
   const { data } = await api.post<LoginResponse>(AUTH_BY_PORTAL[portal].LOGIN, payload);
+  assertNotLegacyTokenResponse(data.data);
   return data;
 }
 
@@ -89,6 +110,46 @@ export async function verifyMfaOtp(
   portal: Portal = "user",
 ): Promise<VerifyMfaOtpResponse> {
   const { data } = await api.post<VerifyMfaOtpResponse>(AUTH_BY_PORTAL[portal].MFA_VERIFY_OTP, payload);
+  assertNotLegacyTokenResponse(data.data);
+  return data;
+}
+
+/**
+ * Password reset — step 1: trigger an OTP to the account email. No auth needed.
+ */
+export async function triggerResetPasswordOtp(
+  payload: ResetPasswordTriggerOtpPayload,
+): Promise<ResetPasswordTriggerOtpResponse> {
+  const { data } = await api.post<ResetPasswordTriggerOtpResponse>(
+    API_ENDPOINTS.RESET_PASSWORD_TRIGGER_OTP,
+    payload,
+  );
+  return data;
+}
+
+/**
+ * Password reset — step 2: verify the emailed OTP. The response carries a short-
+ * lived reset access token; the caller persists it (via setTokens) so the axios
+ * interceptor authorizes the step-3 reset call.
+ */
+export async function verifyResetPasswordOtp(
+  payload: ResetPasswordVerifyOtpPayload,
+): Promise<ResetPasswordVerifyOtpResponse> {
+  const { data } = await api.post<ResetPasswordVerifyOtpResponse>(
+    API_ENDPOINTS.RESET_PASSWORD_VERIFY_OTP,
+    payload,
+  );
+  assertNotLegacyTokenResponse(data.data);
+  return data;
+}
+
+/**
+ * Password reset — step 3: set the new password. Authorization is the reset
+ * access token from step 2, attached automatically by the request interceptor
+ * (stored via setTokens), so no manual header is needed here.
+ */
+export async function resetPassword(payload: ResetPasswordPayload): Promise<ResetPasswordResponse> {
+  const { data } = await api.post<ResetPasswordResponse>(API_ENDPOINTS.RESET_PASSWORD, payload);
   return data;
 }
 

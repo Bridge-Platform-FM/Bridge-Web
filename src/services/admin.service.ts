@@ -2,8 +2,14 @@ import { api } from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/constant";
 import { normalizeRole } from "@/lib/roles";
 import type {
+  AdminAccount,
+  AdminDetail,
+  AdminPermission,
+  UpdateAdminPayload,
+  AdminAccountStatus,
   AdminUserListItem,
   AdminUserListResponse,
+  CreateAdminPayload,
   KycDocument,
   KycDocumentSide,
   KycReviewStatus,
@@ -12,6 +18,10 @@ import type {
   KycSubmissionListResponse,
   ReviewKycPayload,
   ReviewKycResponse,
+  UserLimitConfig,
+  UpdateUserLimitConfigPayload,
+  UserSuspensionPayload,
+  MatchingEngineStats,
 } from "@/types/api.types";
 
 /**
@@ -21,10 +31,10 @@ import type {
  *
  * Endpoint paths/shapes are placeholders (see `ADMIN_*` in `config/constant.ts`) —
  * swap in the real curl path + adjust the `to*` mappers once the API is final. The
- * access token is attached automatically by the axios interceptor.
+ * access token rides on the httpOnly session cookie.
  */
 
-/* ----- User Management ----- */
+
 
 /**
  * Map the backend `kyc_status` column (title-case, e.g. "Approved"/"Rejected"/
@@ -46,6 +56,8 @@ function toUserListItem(raw: Record<string, unknown>): AdminUserListItem {
   const name = [first, last].filter(Boolean).join(" ").trim() || (raw.company_name as string) || email || "—";
   return {
     id: email || String(raw.id ?? ""),
+    // user_id is now a UUID string — coerce to string (was Number() before)
+    userId: raw.user_id != null ? String(raw.user_id) : undefined,
     name,
     email,
     companyName: (raw.company_name as string | undefined) ?? undefined,
@@ -55,6 +67,18 @@ function toUserListItem(raw: Record<string, unknown>): AdminUserListItem {
     emailVerified: Boolean(raw.is_email_verified),
     mobileVerified: Boolean(raw.is_mobile_number_verified),
     kycStatus: toUserKycStatus(raw.kyc_status),
+    companyId: raw.company_id != null ? String(raw.company_id) : undefined,
+    /*
+     * `is_user_suspended` is the ONLY source of truth for the Active/Suspended pill and the
+     * Suspend/Reactivate action. It is the column the suspension endpoint writes
+     * (Bridge-Server `adminService.js` → `updateUser({ is_user_suspended })`) and the same
+     * flag authMiddleware blocks requests on.
+     *
+     * Do NOT fall back to `is_active`: the list returns both, but they mean different things
+     * — `is_active` is whether the account is enabled at all, and a suspended user can still
+     * be `is_active: true` (which is exactly why suspended users showed up as "Active").
+     */
+    suspended: raw.is_user_suspended === true,
   };
 }
 
@@ -68,6 +92,20 @@ export async function fetchUsers(): Promise<AdminUserListResponse> {
   const rows = ((data?.data ?? data) as Record<string, unknown>[]) ?? [];
   const list = Array.isArray(rows) ? rows : [];
   return { data: list.map(toUserListItem), total: list.length };
+}
+
+/**
+ * Suspend or reactivate a user. One endpoint for both directions, switched by
+ * `isSuspended`. The backend requires `suspensionReason` only when suspending, and a
+ * suspension applied by a SUPER_ADMIN can't later be changed by an ADMIN (403).
+ */
+export async function setUserSuspension(payload: UserSuspensionPayload): Promise<void> {
+  await api.put(API_ENDPOINTS.ADMIN_USER_SUSPENSION, {
+    userId: payload.userId,
+    companyId: payload.companyId,
+    isSuspended: payload.isSuspended,
+    ...(payload.suspensionReason ? { suspensionReason: payload.suspensionReason } : {}),
+  });
 }
 
 /* ----- KYC Review ----- */
@@ -126,7 +164,8 @@ function toKycSubmission(raw: Record<string, unknown>): KycSubmissionListItem {
 
   return {
     id: String(raw.uid ?? email),
-    companyId: raw.company_id != null ? Number(raw.company_id) : undefined,
+    // company_id is now a UUID string — coerce to string (was Number() before)
+    companyId: raw.company_id != null ? String(raw.company_id) : undefined,
     applicantName: name,
     email,
     countryCode: (raw.country_code as string | null) ?? null,
@@ -157,8 +196,9 @@ export async function fetchKycSubmissions(): Promise<KycSubmissionListResponse> 
 /**
  * Approve / reject a whole KYC submission via `review-action` (PUT). The backend
  * keys on `company_id`; a reject must carry a `rejection_reason` (the admin note).
+ * `companyId` is now a UUID string.
  */
-export async function reviewKyc(companyId: number, payload: ReviewKycPayload): Promise<ReviewKycResponse> {
+export async function reviewKyc(companyId: string, payload: ReviewKycPayload): Promise<ReviewKycResponse> {
   const body: Record<string, unknown> = {
     company_id: companyId,
     action: payload.action.toLowerCase(),
@@ -178,4 +218,234 @@ export async function reviewKycDocument(kycId: number, action: "APPROVE" | "REJE
     action: action.toLowerCase(),
   });
   return data;
+}
+
+/* ----- User Limit Config ----- */
+
+/**
+ * Fetch the connection limit config for a user. Returns system defaults when no
+ * custom config has been saved yet (`is_custom` will be false in that case).
+ * `userId` is now a UUID string.
+ */
+export async function fetchUserLimitConfig(userId: string): Promise<UserLimitConfig> {
+  const { data } = await api.get(API_ENDPOINTS.ADMIN_USER_LIMIT_CONFIG(userId));
+  return data.data as UserLimitConfig;
+}
+
+/**
+ * Create or update the connection limit config for a user (upsert). All fields are
+ * optional — at least one must be provided (enforced server-side by Joi).
+ * `userId` is now a UUID string.
+ */
+export async function updateUserLimitConfig(
+  userId: string,
+  payload: UpdateUserLimitConfigPayload
+): Promise<UserLimitConfig> {
+  const { data } = await api.put(API_ENDPOINTS.ADMIN_USER_LIMIT_CONFIG(userId), payload);
+  return data.data as UserLimitConfig;
+}
+
+/* ----- Admin Accounts (Super Admin → Admin Management) ----- */
+
+/**
+ * The admin LIST endpoint is live (`GET /admin/management/admins`). The create /
+ * permissions / status endpoints are still placeholders — when each real curl arrives,
+ * change `ADMIN_ACCOUNT_*` in `config/constant.ts` and the raw key strings in the
+ * function below it, nothing else.
+ */
+
+/** Map one raw admin row to our AdminAccount. Every field is defaulted. */
+function toAdminAccount(raw: Record<string, unknown>): AdminAccount {
+  const first = (raw.first_name as string | null) ?? "";
+  const last = (raw.last_name as string | null) ?? "";
+  const email = String(raw.email ?? raw.admin_email ?? "");
+  const name = String(raw.name ?? [first, last].filter(Boolean).join(" ").trim()) || email || "—";
+  const role = normalizeRole(raw.role) === "super_admin" ? "super_admin" : "admin";
+  const permsRaw = raw.permissions;
+
+  return {
+    id: String(raw.admin_id ?? raw.id ?? email),
+    name,
+    email,
+    mobileNumber: (raw.mobile_number as string | undefined) ?? undefined,
+    countryCode: (raw.country_code as string | null) ?? null,
+    role,
+    roleProfile: (raw.role_profile as string | undefined) ?? undefined,
+    permissions: Array.isArray(permsRaw) ? permsRaw.map(String) : [],
+    /*
+     * Same rule as the user list above: `is_admin_suspended` is the column the suspend /
+     * activate endpoints write and the flag adminMiddleware blocks on. The endpoint returns
+     * raw Admin rows (`attributes: { exclude: ['password'] }`), so there is no derived
+     * `status` string — reading one always yielded "ACTIVE". The string form is still
+     * accepted first in case the endpoint starts sending it.
+     */
+    status:
+      String(raw.status ?? "").toUpperCase() === "SUSPENDED" || raw.is_admin_suspended === true
+        ? "SUSPENDED"
+        : "ACTIVE",
+    createdAt: (raw.created_at as string | undefined) ?? undefined,
+    lastLoginAt: (raw.last_login_at as string | undefined) ?? undefined,
+    createdBy: (raw.created_by as string | undefined) ?? undefined,
+    isDeleted: raw.is_deleted === true,
+  };
+}
+
+/**
+ * The backend's `limit` defaults to 10 and is capped at 100. The page filters and pages
+ * client-side, so we ask for the maximum in one call — without this the table would
+ * silently show only the first 10 accounts.
+ *
+ * TODO: past 100 staff accounts this must move to server-side paging/search (the endpoint
+ * already accepts `page`, `status` and `search`).
+ */
+const ADMIN_LIST_LIMIT = 100;
+
+/** Fetch every staff account. Filtering + paging happen client-side in the page. */
+export async function fetchAdmins(): Promise<AdminAccount[]> {
+  const { data } = await api.get(API_ENDPOINTS.ADMIN_ACCOUNTS, {
+    params: { page: 1, limit: ADMIN_LIST_LIMIT },
+  });
+  // { success, message, data: { admins: [...], pagination: {...} } }
+  const rows = data?.data?.admins ?? data?.admins ?? data?.data ?? data;
+  if (!Array.isArray(rows)) return [];
+  return (rows as Record<string, unknown>[])
+    .filter((row) => row.is_deleted !== true)
+    .map(toAdminAccount);
+}
+
+/**
+ * One staff account with its permission matrix and audit trail.
+ * Response: { data: { admin, permissions[], activityLogs[] } }.
+ *
+ * The list endpoint returns neither permissions nor logs, so the drawer fetches this on
+ * open rather than reusing the row it was opened from.
+ */
+export async function fetchAdminDetail(id: string): Promise<AdminDetail> {
+  const { data } = await api.get(API_ENDPOINTS.ADMIN_ACCOUNT(id));
+  const payload = (data?.data ?? data ?? {}) as Record<string, unknown>;
+  const rawAdmin = (payload.admin ?? payload) as Record<string, unknown>;
+  const rawPerms = Array.isArray(payload.permissions) ? payload.permissions : [];
+  const rawLogs = Array.isArray(payload.activityLogs) ? payload.activityLogs : [];
+
+  const permissions: AdminPermission[] = (rawPerms as Record<string, unknown>[]).map((p) => ({
+    id: String(p.id ?? p.permission_key ?? ""),
+    permissionKey: String(p.permission_key ?? ""),
+    isAllowed: p.is_allowed !== false,
+  }));
+
+  return {
+    // Fold the granted keys onto the account so the drawer's existing permission chips
+    // and the permissions editor keep working off `AdminAccount.permissions`.
+    admin: {
+      ...toAdminAccount(rawAdmin),
+      permissions: permissions.filter((p) => p.isAllowed).map((p) => p.permissionKey),
+    },
+    permissions,
+    activityLogs: (rawLogs as Record<string, unknown>[]).map((log) => {
+      const by = (log.performedByAdmin ?? log.performed_by_admin) as
+        | Record<string, unknown>
+        | undefined;
+      return {
+        id: String(log.id ?? ""),
+        action: String(log.action ?? ""),
+        reason: (log.reason as string | null) ?? undefined,
+        createdAt: (log.created_at as string | undefined) ?? undefined,
+        adminId: (log.admin_id as string | undefined) ?? undefined,
+        metadata:
+          log.metadata && typeof log.metadata === "object"
+            ? (log.metadata as Record<string, unknown>)
+            : undefined,
+        performedBy: by
+          ? {
+              id: (by.id as string | undefined) ?? undefined,
+              name: String(by.name ?? "—"),
+              email: (by.email as string | undefined) ?? undefined,
+              role: (by.role as string | undefined) ?? undefined,
+            }
+          : undefined,
+      };
+    }),
+  };
+}
+
+/**
+ * Create a staff account from the "Create New Admin" form.
+ *
+ * The endpoint's Joi schema is strict — unknown keys are rejected with a 400, `role` must
+ * be exactly "ADMIN", and every `permission_key` must be in the backend's
+ * ADMIN_PERMISSION_KEYS enum. So the body is built explicitly rather than spread, and
+ * `sendWelcomeEmail` is deliberately not sent.
+ *
+ * Response: { data: { …admin } } — the account itself, not wrapped in `admin`.
+ */
+export async function createAdmin(payload: CreateAdminPayload): Promise<AdminAccount> {
+  const { data } = await api.post(API_ENDPOINTS.ADMIN_ACCOUNTS, {
+    name: payload.name,
+    email: payload.email,
+    password: payload.password,
+    country_code: payload.countryCode,
+    mobile_number: payload.mobileNumber,
+    // The form only ever creates ADMINs; the schema accepts no other value.
+    role: "ADMIN",
+    permissions: payload.permissions.map((p) => ({
+      permission_key: p.permissionKey,
+      is_allowed: p.isAllowed,
+    })),
+  });
+  return toAdminAccount((data?.data ?? data ?? {}) as Record<string, unknown>);
+}
+
+/**
+ * Update an existing admin's profile fields and/or permission matrix in one PUT.
+ *
+ * Only keys the caller actually set are sent: the schema is strict (unknown keys 400) and
+ * requires at least one of name / country_code / mobile_number / permissions.
+ * Response: { data: { …admin } }.
+ */
+export async function updateAdmin(id: string, payload: UpdateAdminPayload): Promise<AdminAccount> {
+  const body: Record<string, unknown> = {};
+  if (payload.name !== undefined) body.name = payload.name;
+  if (payload.countryCode !== undefined) body.country_code = payload.countryCode;
+  if (payload.mobileNumber !== undefined) body.mobile_number = payload.mobileNumber;
+  if (payload.permissions) {
+    body.permissions = payload.permissions.map((p) => ({
+      permission_key: p.permissionKey,
+      is_allowed: p.isAllowed,
+    }));
+  }
+
+  const { data } = await api.put(API_ENDPOINTS.ADMIN_ACCOUNT(id), body);
+  return toAdminAccount((data?.data ?? data ?? {}) as Record<string, unknown>);
+}
+
+/**
+ * Soft-delete an admin. Like suspend/activate this REQUIRES a `reason` (5–500 chars),
+ * which DELETE carries in a body — hence axios's `data` option. Returns no body.
+ */
+export async function deleteAdmin(id: string, reason: string): Promise<void> {
+  await api.delete(API_ENDPOINTS.ADMIN_ACCOUNT(id), { data: { reason } });
+}
+
+/**
+ * Suspend or reactivate an admin — two separate PATCH endpoints, not a status field.
+ * `reason` is REQUIRED by both (5–500 chars) and is collected by the confirm modal.
+ * Neither returns a body, so the caller patches the row locally.
+ */
+export async function setAdminStatus(
+  id: string,
+  status: AdminAccountStatus,
+  reason: string
+): Promise<void> {
+  const url =
+    status === "SUSPENDED"
+      ? API_ENDPOINTS.ADMIN_ACCOUNT_SUSPEND(id)
+      : API_ENDPOINTS.ADMIN_ACCOUNT_ACTIVATE(id);
+  await api.patch(url, { reason });
+}
+
+export async function fetchMatchingEngineStats(): Promise<MatchingEngineStats> {
+  const { data } = await api.get<{ success: boolean; data: MatchingEngineStats; message: string }>(
+    API_ENDPOINTS.ADMIN_MATCHING_ENGINE_STATS,
+  );
+  return data.data;
 }

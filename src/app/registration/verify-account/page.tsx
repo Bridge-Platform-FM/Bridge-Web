@@ -186,7 +186,8 @@ export default function VerifyAccountPage() {
             Secure your account
           </h1>
           <p className="mx-auto max-w-sm text-base leading-relaxed text-on-surface-variant">
-            We&apos;ve sent a 4-digit code to your mobile phone {maskPhone(String(data.contact ?? ""))}
+            We&apos;ve sent a 4-digit code to your mobile phone{" "}
+            {`${String(data.countryCode ?? "")} ${maskPhone(String(data.contact ?? ""))}`.trim()}
             {" "}and email {maskEmail(String(data.email ?? ""))}.
           </p>
         </div>
@@ -223,7 +224,7 @@ export default function VerifyAccountPage() {
 
               {mobileVerified ? (
                 <span className="flex items-center gap-1 px-1 text-xs font-medium text-primary">
-                  <Icon name="check_circle" size={16} />Mobile Otp Verified
+                  <Icon name="check_circle" size={16} />OTP Verified Successfully
                 </span>
               ) : verifyingMobile ? (
                 <span className="px-1 text-xs font-medium text-on-surface-variant">Verifying…</span>
@@ -265,7 +266,7 @@ export default function VerifyAccountPage() {
 
               {emailVerified ? (
                 <span className="flex items-center gap-1 px-1 text-xs font-medium text-primary">
-                  <Icon name="check_circle" size={16} />Email Otp Verified
+                  <Icon name="check_circle" size={16} />OTP Verified Successfully
                 </span>
               ) : verifyingEmail ? (
                 <span className="px-1 text-xs font-medium text-on-surface-variant">Verifying…</span>

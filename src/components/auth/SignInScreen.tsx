@@ -10,7 +10,6 @@ import { Card } from "@/components/ui/Card";
 import { Loader } from "@/components/common/loader";
 import { Input } from "@/components/ui/input";
 import { loginUser, type Portal } from "@/services/auth.service";
-import { setTokens } from "@/lib/auth-tokens";
 import { setSession } from "@/lib/auth-session";
 import { normalizeRole, type Role } from "@/lib/roles";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
@@ -113,8 +112,8 @@ export function SignInScreen({
   basePath = "/login",
   portal = "user",
   badge = "Corporate Portal",
-  heading = "Sign in to portal",
-  subheading = "Enter your credentials to continue.",
+  heading = "Welcome",
+  subheading = "Enter your credentials to access your secure portal.",
   showRegister = true,
 }: SignInScreenProps) {
   const router = useRouter();
@@ -131,10 +130,11 @@ export function SignInScreen({
 
   const onSubmit = async (values: LoginForm) => {
     try {
+      // The pre-MFA token is an httpOnly cookie now, set directly by the backend on
+      // this response — nothing for the client to store. A non-2xx response (bad
+      // credentials) already throws via the axios interceptor and lands in catch.
       const res = await loginUser({ email: values.email, password: values.password }, portal);
-      if (res.data?.accessToken && res.data?.refreshToken) {
-        setTokens(res.data);
-      } else {
+      if (!res.data) {
         throw { message: ERROR_MESSAGES.NO_SESSION } as ApiError;
       }
       // Persist the role so the dashboard can render the role-specific view once
@@ -143,7 +143,10 @@ export function SignInScreen({
       // by the route so a missing `role` field doesn't bounce us off /dashboard.
       const role = normalizeRole(res.data.role) ?? PORTAL_ROLE[portal] ?? null;
       if (role) {
-        setSession({ role, user: { email: values.email } });
+        // Show the real name in the dashboard when the backend returns it; the
+        // sidebar falls back to the email when `name` is empty.
+        const fullName = [res.data.first_name, res.data.last_name].filter(Boolean).join(" ").trim();
+        setSession({ role, user: { email: values.email, name: fullName || undefined } });
       }
       // Persist the masked contact info for the verification-channel screen. Both
       // values arrive already masked from the backend — no client-side masking.
@@ -163,15 +166,15 @@ export function SignInScreen({
       {/* Left: editorial context — scrolls with the page; the card stays pinned. */}
       <div className="flex flex-col gap-8 lg:col-span-7 lg:py-10">
         <div className="space-y-4">
-          <span className="inline-flex rounded-full bg-secondary-container px-3 py-1 text-xs font-semibold uppercase tracking-wider text-on-secondary-container">
+          {/* <span className="inline-flex rounded-full bg-secondary-container px-3 py-1 text-xs font-semibold uppercase tracking-wider text-on-secondary-container">
             {badge}
-          </span>
+          </span> */}
           <h1 className="font-headline text-3xl font-extrabold leading-[1.1] tracking-[-0.03em] text-on-surface sm:text-4xl lg:text-[2.75rem]">
             Where businesses, startups &amp; <span className="text-primary">investors connect</span>
           </h1>
           <p className="max-w-xl text-base leading-relaxed text-on-surface-variant sm:text-lg">
             Whether you&apos;re scaling a startup, sourcing investment, or growing your supply
-            chain — BRIDGE matches you with verified partners who fit.
+            chain - BRIDGE matches you with verified partners who fit.
           </p>
         </div>
 
@@ -239,7 +242,7 @@ export function SignInScreen({
               type="email"
               label="Official Email Address"
               required
-              placeholder="admin@company.com"
+              placeholder="john@example.com"
               error={errors.email?.message}
               adornment={<Icon name="mail" size={20} />}
               {...field("email", {
@@ -248,33 +251,40 @@ export function SignInScreen({
               })}
             />
 
-            <Input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              label="Password"
-              required
-              placeholder="••••••••••••"
-              error={errors.password?.message}
-              adornment={
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="flex h-full items-center justify-center text-on-surface-variant transition-colors hover:text-primary"
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between px-1">
+                <label
+                  htmlFor="password"
+                  className="font-label text-xs font-bold tracking-wide text-on-surface-variant"
                 >
-                  <Icon name={showPassword ? "visibility_off" : "visibility"} size={20} />
-                </button>
-              }
-              {...field("password", { required: "Password is required." })}
-            />
-
-            <div className="flex justify-end">
-              <Link
-                href={`${basePath}/forgot-password`}
-                className="text-sm font-bold text-primary hover:underline"
-              >
-                Forgot password?
-              </Link>
+                  Password
+                  <span className="align-middle text-base leading-none text-error"> *</span>
+                </label>
+                <Link
+                  href={`/reset-password?from=${encodeURIComponent(basePath)}`}
+                  className="text-xs font-bold text-primary hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••••••"
+                error={errors.password?.message}
+                adornment={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="flex h-full items-center justify-center text-on-surface-variant transition-colors hover:text-primary"
+                  >
+                    <Icon name={showPassword ? "visibility_off" : "visibility"} size={20} />
+                  </button>
+                }
+                {...field("password", { required: "Password is required." })}
+              />
             </div>
+
 
             <div className="flex flex-col gap-2">
               <button
@@ -286,9 +296,22 @@ export function SignInScreen({
               </button>
               {showRegister && (
                 <p className="text-center text-sm text-on-surface-variant">
-                  New to the portal?{" "}
-                  <Link href="/registration" className="font-bold text-primary hover:underline">
+                  Don't have an account yet?{" "}
+                  <Link 
+                    href="/registration" 
+                    className="font-bold text-primary border-b border-transparent hover:border-current transition-colors"
+                  >
                     Create an account
+                  </Link>
+                </p>
+              )}
+              {portal === "user" && (
+                <p className="text-center text-sm text-on-surface-variant">
+                  <Link 
+                    href="/admin/login" 
+                    className="font-bold text-primary border-b border-transparent hover:border-current transition-colors"
+                  >
+                    Administrator Login
                   </Link>
                 </p>
               )}

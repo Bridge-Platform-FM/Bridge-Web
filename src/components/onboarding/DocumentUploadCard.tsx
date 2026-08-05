@@ -10,11 +10,9 @@ import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewMod
 export interface UploadSlot {
   key: string;
   label: string;
-  /** Which face of a two-sided document (Aadhaar) this slot captures. */
   side?: DocSide;
 }
 
-/** A slot that has been successfully scanned + uploaded. */
 export interface ScannedDoc {
   file: File;
   s3Key: string;
@@ -53,11 +51,6 @@ function isImage(file: File) {
   return file.type.startsWith("image/");
 }
 
-/**
- * Document section per the Stitch "Document Upload" screen: badge header +
- * one or more dropzone slots. On select, each file is virus-scanned + uploaded
- * (showing a per-slot loader); the resulting s3Key is surfaced via onChange.
- */
 export function DocumentUploadCard({
   title,
   subtitle,
