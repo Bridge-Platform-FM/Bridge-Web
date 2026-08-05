@@ -39,7 +39,6 @@ const SESSION_ENDPOINTS: Record<
  *   - "user"       → GET /api/v1/sessions/limit-status
  *   - "admin"      → GET /api/v1/admin/sessions/limit-status
  *   - "superadmin" → GET /api/v1/admin/sessions/limit-status
-
  *
  * The access token is automatically attached by the shared axios request
  * interceptor — no extra headers needed at the call site.
