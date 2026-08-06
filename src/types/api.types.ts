@@ -950,6 +950,7 @@ export interface PlatformFlags {
   registrationOpen: boolean;
   aiMatchingEngine: boolean;
   geoLocationMatching: boolean;
+  awsS3Storage: boolean;
 }
 
 /**

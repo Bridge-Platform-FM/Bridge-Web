@@ -61,6 +61,7 @@ const PLATFORM_FLAGS: { key: keyof PlatformFlags; label: string; description: st
   { key: "registrationOpen", label: "Registration Open", description: "Allow new users to create accounts.",          icon: "how_to_reg"  },
   { key: "aiMatchingEngine", label: "AI Matching Engine", description: "Rule-based connection matching.",      icon: "memory"      },
   { key: "geoLocationMatching", label: "Geo Location Matching", description: "Factor proximity into match scoring.",  icon: "location_on" },
+  { key: "awsS3Storage", label: "AWS S3 Storage", description: "Store files in AWS S3 instead of Azure Blob Storage.", icon: "cloud" },
 ];
 
 /** Number inputs: empty string → 0 rather than NaN. */
@@ -318,6 +319,10 @@ export default function SystemManagementPage() {
   const setFlag = <K extends keyof PlatformFlags>(key: K, value: PlatformFlags[K]) => {
     flags.setValue((prev) => ({ ...prev, [key]: value }));
   };
+  const flagChanges = PLATFORM_FLAGS.reduce<Partial<PlatformFlags>>((acc, { key }) => {
+    if (flags.value[key] !== flags.saved[key]) acc[key] = flags.value[key];
+    return acc;
+  }, {});
 
   /* ----- Confirm-then-save ----- */
 
@@ -348,7 +353,7 @@ export default function SystemManagementPage() {
       changes: PLATFORM_FLAGS.filter((f) => flags.value[f.key] !== flags.saved[f.key]).map((f) =>
         changeLine(f.label, flags.value[f.key])
       ),
-      save: () => saveSection(flags, () => updatePlatformFlags(flags.value), "Platform controls"),
+      save: () => saveSection(flags, () => updatePlatformFlags(flagChanges), "Platform controls"),
     },
     // Reset compares against each row's own default_value, not the edited working copy —
     // it lists what the DB will actually change, including rows the user never touched.
