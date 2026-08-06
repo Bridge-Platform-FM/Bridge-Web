@@ -1,9 +1,28 @@
+"use client";
+
 import { useEffect, useState } from 'react';
 import { fetchUserDashboard } from '@/services/dashboard.service';
 import { RoleDashboard } from './RoleDashboard';
 
+interface ApiError {
+  message: string;
+  status?: number;
+  data?: unknown;
+}
+
+interface DashboardData {
+  profile?: any;
+  stats?: {
+    connectionsReceived: number;
+    activeDealRooms: number;
+    connectionsAccepted: number;
+    kycDocumentsCount: number;
+    [key: string]: any;
+  };
+}
+
 export function B2BView() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,7 +35,13 @@ export function B2BView() {
         setError(null);
       } catch (err) {
         console.error('Error fetching dashboard:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch dashboard');
+        if (err && typeof err === 'object' && 'message' in err) {
+          setError((err as ApiError).message);
+        } else if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError('Failed to fetch dashboard');
+        }
       } finally {
         setLoading(false);
       }
@@ -47,7 +72,7 @@ export function B2BView() {
     );
   }
 
-  if (!data) {
+  if (!data || !data.stats) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center text-gray-600">

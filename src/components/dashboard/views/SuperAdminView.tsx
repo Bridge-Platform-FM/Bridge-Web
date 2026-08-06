@@ -1,9 +1,38 @@
+"use client";
+
 import { useEffect, useState } from 'react';
 import { fetchSuperAdminDashboard } from '@/services/dashboard.service';
 import { RoleDashboard } from './RoleDashboard';
 
+interface ApiError {
+  message: string;
+  status?: number;
+  data?: unknown;
+}
+
+interface DashboardData {
+  adminProfile?: {
+    name: string;
+    role: string;
+  };
+  stats?: {
+    totalUsers: number;
+    totalOrganizations: number;
+    kycPending: number;
+    activeToday: number;
+    kycApproved: number;
+    kycRejected: number;
+    suspendedUsers: number;
+    newRegistrationsLast7Days: number;
+    totalAdmins: number;
+    activeAdmins: number;
+    suspendedAdmins: number;
+    [key: string]: any;
+  };
+}
+
 export function SuperAdminView() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,7 +45,13 @@ export function SuperAdminView() {
         setError(null);
       } catch (err) {
         console.error('Error fetching dashboard:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch dashboard');
+        if (err && typeof err === 'object' && 'message' in err) {
+          setError((err as ApiError).message);
+        } else if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError('Failed to fetch dashboard');
+        }
       } finally {
         setLoading(false);
       }
@@ -25,7 +60,6 @@ export function SuperAdminView() {
     fetchDashboard();
   }, []);
 
-  // Format number with commas (e.g., 1000 → "1,000")
   const formatNumber = (num: number | undefined): string => {
     if (num === undefined || num === null) return "0";
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -53,7 +87,7 @@ export function SuperAdminView() {
     );
   }
 
-  if (!data) {
+  if (!data || !data.stats) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center text-gray-600">

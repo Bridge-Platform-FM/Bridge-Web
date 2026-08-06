@@ -1,9 +1,33 @@
+"use client";
+
 import { useEffect, useState } from 'react';
 import { fetchAdminDashboard } from '@/services/dashboard.service';
 import { RoleDashboard } from './RoleDashboard';
 
+interface ApiError {
+  message: string;
+  status?: number;
+  data?: unknown;
+}
+
+interface DashboardData {
+  adminProfile?: {
+    name: string;
+    role: string;
+  };
+  stats?: {
+    totalUsers: number;
+    suspendedUsers: number;
+    newRegistrationsLast7Days: number;
+    kycPending: number;
+    kycApproved: number;
+    kycRejected: number;
+    [key: string]: any;
+  };
+}
+
 export function AdminView() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,7 +40,13 @@ export function AdminView() {
         setError(null);
       } catch (err) {
         console.error('Error fetching dashboard:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch dashboard');
+        if (err && typeof err === 'object' && 'message' in err) {
+          setError((err as ApiError).message);
+        } else if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError('Failed to fetch dashboard');
+        }
       } finally {
         setLoading(false);
       }
@@ -47,7 +77,7 @@ export function AdminView() {
     );
   }
 
-  if (!data) {
+  if (!data || !data.stats) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center text-gray-600">

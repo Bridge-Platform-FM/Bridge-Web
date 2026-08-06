@@ -1,10 +1,38 @@
+"use client";
+
 import { useEffect, useState } from 'react';
 import { fetchUserDashboard } from '@/services/dashboard.service';
 import { RoleDashboard } from './RoleDashboard';
 
+interface ApiError {
+  message: string;
+  status?: number;
+  data?: unknown;
+}
+
+interface DashboardData {
+  profile?: {
+    firstName: string;
+    lastName: string;
+    organizationName: string;
+    role: string;
+    isActive: boolean;
+    kycStatus: string;
+  };
+  stats?: {
+    connectionsSent: number;
+    connectionsReceived: number;
+    connectionsAccepted: number;
+    activeDealRooms: number;
+    kycDocumentsCount: number;
+    upcomingMeetingsCount: number;
+    profileViews: number;
+    watchlistCount: number;
+  };
+}
 
 export function StartupView() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -17,7 +45,14 @@ export function StartupView() {
         setError(null);
       } catch (err) {
         console.error('Error fetching dashboard:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch dashboard');
+        // Handle ApiError object from axios interceptor
+        if (err && typeof err === 'object' && 'message' in err) {
+          setError((err as ApiError).message);
+        } else if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError('Failed to fetch dashboard');
+        }
       } finally {
         setLoading(false);
       }
@@ -48,7 +83,8 @@ export function StartupView() {
     );
   }
 
-  if (!data) {
+  // Guard on both data and data.stats to prevent render crashes
+  if (!data || !data.stats) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center text-gray-600">
