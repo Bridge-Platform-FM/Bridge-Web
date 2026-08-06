@@ -1,28 +1,13 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import type { ApiError } from '@/lib/axios';
 import { fetchUserDashboard } from '@/services/dashboard.service';
 import { RoleDashboard } from './RoleDashboard';
-
-interface ApiError {
-  message: string;
-  status?: number;
-  data?: unknown;
-}
-
-interface DashboardData {
-  profile?: any;
-  stats?: {
-    activeDealRooms: number;
-    connectionsAccepted: number;
-    watchlistCount: number;
-    upcomingMeetingsCount: number;
-    [key: string]: any;
-  };
-}
+import type { UserDashboardData } from '@/types/dashboard';
 
 export function InvestorView() {
-  const [data, setData] = useState<DashboardData | null>(null);
+  const [data, setData] = useState<UserDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,7 +37,7 @@ export function InvestorView() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
           <p className="mt-4 text-gray-600">Loading dashboard...</p>
@@ -63,7 +48,7 @@ export function InvestorView() {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center h-full">
         <div className="text-center text-red-600">
           <p className="text-lg font-semibold">Error loading dashboard</p>
           <p className="text-sm mt-2">{error}</p>
@@ -74,7 +59,7 @@ export function InvestorView() {
 
   if (!data || !data.stats) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center h-full">
         <div className="text-center text-gray-600">
           <p>No dashboard data available</p>
         </div>

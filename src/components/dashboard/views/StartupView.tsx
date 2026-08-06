@@ -1,38 +1,13 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import type { ApiError } from '@/lib/axios';
 import { fetchUserDashboard } from '@/services/dashboard.service';
 import { RoleDashboard } from './RoleDashboard';
-
-interface ApiError {
-  message: string;
-  status?: number;
-  data?: unknown;
-}
-
-interface DashboardData {
-  profile?: {
-    firstName: string;
-    lastName: string;
-    organizationName: string;
-    role: string;
-    isActive: boolean;
-    kycStatus: string;
-  };
-  stats?: {
-    connectionsSent: number;
-    connectionsReceived: number;
-    connectionsAccepted: number;
-    activeDealRooms: number;
-    kycDocumentsCount: number;
-    upcomingMeetingsCount: number;
-    profileViews: number;
-    watchlistCount: number;
-  };
-}
+import type { UserDashboardData } from '@/types/dashboard';
 
 export function StartupView() {
-  const [data, setData] = useState<DashboardData | null>(null);
+  const [data, setData] = useState<UserDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,7 +20,6 @@ export function StartupView() {
         setError(null);
       } catch (err) {
         console.error('Error fetching dashboard:', err);
-        // Handle ApiError object from axios interceptor
         if (err && typeof err === 'object' && 'message' in err) {
           setError((err as ApiError).message);
         } else if (err instanceof Error) {
@@ -63,7 +37,7 @@ export function StartupView() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
           <p className="mt-4 text-gray-600">Loading dashboard...</p>
@@ -74,7 +48,7 @@ export function StartupView() {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center h-full">
         <div className="text-center text-red-600">
           <p className="text-lg font-semibold">Error loading dashboard</p>
           <p className="text-sm mt-2">{error}</p>
@@ -83,10 +57,9 @@ export function StartupView() {
     );
   }
 
-  // Guard on both data and data.stats to prevent render crashes
   if (!data || !data.stats) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center h-full">
         <div className="text-center text-gray-600">
           <p>No dashboard data available</p>
         </div>
