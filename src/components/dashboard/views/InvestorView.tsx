@@ -1,19 +1,89 @@
-"use client";
-
-import { RoleDashboard } from "./RoleDashboard";
+import { useEffect, useState } from 'react';
+import { fetchUserDashboard } from '@/services/dashboard.service';
+import { RoleDashboard } from './RoleDashboard';
 
 export function InvestorView() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        setLoading(true);
+        const response = await fetchUserDashboard();
+        setData(response.data);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching dashboard:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch dashboard');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboard();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <p className="mt-4 text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center text-red-600">
+          <p className="text-lg font-semibold">Error loading dashboard</p>
+          <p className="text-sm mt-2">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center text-gray-600">
+          <p>No dashboard data available</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <RoleDashboard
       title="Investor Dashboard"
-      subtitle="Discover startups and manage your portfolio."
+      subtitle="Manage your portfolio and connect with startups."
       stats={[
-        { label: "New Deals", value: "23", icon: "handshake" },
-        { label: "Portfolio Cos.", value: "11", icon: "donut_large" },
-        { label: "Watchlist", value: "34", icon: "bookmark" },
-        { label: "Meetings", value: "5", icon: "event" },
+        {
+          label: "New Deals",
+          value: String(data.stats.activeDealRooms || 0),
+          icon: "handshake"
+        },
+        {
+          label: "Portfolio Cos.",
+          value: String(data.stats.connectionsAccepted || 0),
+          icon: "donut_large"
+        },
+        {
+          label: "Watchlist",
+          value: String(data.stats.watchlistCount || 0),
+          icon: "bookmark"
+        },
+        {
+          label: "Meetings",
+          value: String(data.stats.upcomingMeetingsCount || 0),
+          icon: "event"
+        },
       ]}
-      placeholder="Review your deal flow, track portfolio companies, and manage documents."
+      placeholder="Review deal opportunities, track your portfolio, and schedule meetings."
     />
   );
 }

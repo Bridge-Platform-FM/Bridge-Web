@@ -1,17 +1,93 @@
-"use client";
-
-import { RoleDashboard } from "./RoleDashboard";
+import { useEffect, useState } from 'react';
+import { fetchSuperAdminDashboard } from '@/services/dashboard.service';
+import { RoleDashboard } from './RoleDashboard';
 
 export function SuperAdminView() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        setLoading(true);
+        const response = await fetchSuperAdminDashboard();
+        setData(response.data);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching dashboard:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch dashboard');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboard();
+  }, []);
+
+  // Format number with commas (e.g., 1000 → "1,000")
+  const formatNumber = (num: number | undefined): string => {
+    if (num === undefined || num === null) return "0";
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <p className="mt-4 text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center text-red-600">
+          <p className="text-lg font-semibold">Error loading dashboard</p>
+          <p className="text-sm mt-2">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center text-gray-600">
+          <p>No dashboard data available</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <RoleDashboard
       title="Super Admin Dashboard"
       subtitle="Platform-wide overview and controls."
       stats={[
-        { label: "Total Users", value: "12,480", icon: "group" },
-        { label: "Organizations", value: "1,032", icon: "corporate_fare" },
-        { label: "Pending KYC", value: "57", icon: "verified_user" },
-        { label: "Active Today", value: "3,219", icon: "trending_up" },
+        {
+          label: "Total Users",
+          value: formatNumber(data.stats.totalUsers),
+          icon: "group"
+        },
+        {
+          label: "Organizations",
+          value: formatNumber(data.stats.totalOrganizations),
+          icon: "corporate_fare"
+        },
+        {
+          label: "Pending KYC",
+          value: String(data.stats.kycPending || 0),
+          icon: "verified_user"
+        },
+        {
+          label: "Active Today",
+          value: formatNumber(data.stats.activeToday),
+          icon: "trending_up"
+        },
       ]}
       placeholder="Manage users, organizations, KYC approvals, and platform settings from here."
     />
