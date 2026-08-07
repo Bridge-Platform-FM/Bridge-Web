@@ -288,7 +288,7 @@ export default function CompleteProfilePage() {
                         </button>
                       )}
                     </div>
-                    <p className="px-1 text-xs text-on-surface-variant">JPG, GIF or PNG. Max size of 800K</p>
+                    <p className="px-1 text-xs text-on-surface-variant">JPG, GIF or PNG. Max size of 5MB</p>
                   </div>
                 )}
               />

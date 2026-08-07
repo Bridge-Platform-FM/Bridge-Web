@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { initials } from "@/lib/admin-format";
 import { KYC_STATUS_META, StatusPill, VERIFY_META } from "@/components/dashboard/kyc-status";
 import { fetchUserLimitConfig, updateUserLimitConfig } from "@/services/admin.service";
-import type { AdminUserListItem } from "@/types/api.types";
+import type { AdminUserListItem, UpdateUserLimitConfigPayload } from "@/types/api.types";
 import type { ApiError } from "@/lib/axios";
 
 /* -------------------------------------------------------------------------- */
@@ -99,6 +99,7 @@ export function UserDetailDrawer({ user, onClose }: { user: AdminUserListItem | 
 
   // ── Limit config state ────────────────────────────────────────────────────
   const [limits, setLimits] = useState<LimitFields>(LIMIT_EMPTY);
+  const [hasSubscription, setHasSubscription] = useState(false);
   const [limitLoading, setLimitLoading] = useState(false);
   const [limitSaving, setLimitSaving] = useState(false);
   const [limitError, setLimitError] = useState<string | null>(null);
@@ -108,6 +109,7 @@ export function UserDetailDrawer({ user, onClose }: { user: AdminUserListItem | 
   useEffect(() => {
     if (!user?.userId) {
       setLimits(LIMIT_EMPTY);
+      setHasSubscription(false);
       setLimitError(null);
       setLimitSuccess(false);
       return;
@@ -117,6 +119,7 @@ export function UserDetailDrawer({ user, onClose }: { user: AdminUserListItem | 
     setLimitSuccess(false);
     fetchUserLimitConfig(user.userId)
       .then((config) => {
+        setHasSubscription(!!config.has_subscription);
         setLimits({
           allowed_connections: String(config.allowed_connections),
           allowed_free_trial_days: String(config.allowed_free_trial_days),
@@ -142,11 +145,20 @@ export function UserDetailDrawer({ user, onClose }: { user: AdminUserListItem | 
 
   const handleSaveLimits = useCallback(async () => {
     if (!user?.userId) return;
-    const payload = {
-      allowed_connections: Number(limits.allowed_connections),
-      allowed_free_trial_days: Number(limits.allowed_free_trial_days),
-      allowed_premium_days: Number(limits.allowed_premium_days),
-    };
+    // Only the fields shown for this user are sent, so the hidden ones aren't overwritten.
+    const raw = hasSubscription
+      ? [limits.allowed_premium_days]
+      : [limits.allowed_connections, limits.allowed_free_trial_days];
+    if (raw.some((v) => v.trim() === "")) {
+      setLimitError("All values are required.");
+      return;
+    }
+    const payload: UpdateUserLimitConfigPayload = hasSubscription
+      ? { allowed_premium_days: Number(limits.allowed_premium_days) }
+      : {
+          allowed_connections: Number(limits.allowed_connections),
+          allowed_free_trial_days: Number(limits.allowed_free_trial_days),
+        };
     if (Object.values(payload).some((v) => isNaN(v) || v < 0 || !Number.isInteger(v))) {
       setLimitError("All values must be non-negative whole numbers.");
       return;
@@ -161,7 +173,7 @@ export function UserDetailDrawer({ user, onClose }: { user: AdminUserListItem | 
     } finally {
       setLimitSaving(false);
     }
-  }, [user?.userId, limits]);
+  }, [user?.userId, limits, hasSubscription]);
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -209,30 +221,36 @@ export function UserDetailDrawer({ user, onClose }: { user: AdminUserListItem | 
           {limitLoading ? (
             // Skeleton placeholders while the config loads.
             <div className="space-y-2">
-              {[1, 2, 3].map((i) => (
+              {[1, 2].map((i) => (
                 <div key={i} className="h-16 animate-pulse rounded-xl bg-surface-container-low" />
               ))}
             </div>
           ) : (
             <div className="space-y-2">
-              <LimitInput
-                label="Connections Allowed"
-                value={limits.allowed_connections}
-                onChange={handleLimitChange("allowed_connections")}
-                disabled={limitSaving}
-              />
-              <LimitInput
-                label="Free Trial Days"
-                value={limits.allowed_free_trial_days}
-                onChange={handleLimitChange("allowed_free_trial_days")}
-                disabled={limitSaving}
-              />
-              <LimitInput
-                label="Premium Days"
-                value={limits.allowed_premium_days}
-                onChange={handleLimitChange("allowed_premium_days")}
-                disabled={limitSaving}
-              />
+              {/* Subscribers get premium days; everyone else gets connections + trial days. */}
+              {hasSubscription ? (
+                <LimitInput
+                  label="Premium Days"
+                  value={limits.allowed_premium_days}
+                  onChange={handleLimitChange("allowed_premium_days")}
+                  disabled={limitSaving}
+                />
+              ) : (
+                <>
+                  <LimitInput
+                    label="Connections Allowed"
+                    value={limits.allowed_connections}
+                    onChange={handleLimitChange("allowed_connections")}
+                    disabled={limitSaving}
+                  />
+                  <LimitInput
+                    label="Free Trial Days"
+                    value={limits.allowed_free_trial_days}
+                    onChange={handleLimitChange("allowed_free_trial_days")}
+                    disabled={limitSaving}
+                  />
+                </>
+              )}
 
               {limitError && (
                 <p className="flex items-center gap-1.5 text-xs font-medium text-error">

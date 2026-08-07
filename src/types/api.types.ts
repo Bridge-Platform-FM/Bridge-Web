@@ -711,6 +711,10 @@ export interface UserLimitConfig {
   allowed_premium_days: number;
   /** False when no custom config has been saved yet (defaults are returned). */
   is_custom: boolean;
+  /** True when the user has an active, non-expired subscription. */
+  has_subscription: boolean;
+  /** Sent only on the subscription branch. */
+  is_subscription_expired?: boolean;
 }
 
 /**
