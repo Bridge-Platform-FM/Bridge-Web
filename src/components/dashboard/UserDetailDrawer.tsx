@@ -215,7 +215,7 @@ export function UserDetailDrawer({ user, onClose }: { user: AdminUserListItem | 
 
           {/* Connection Limits */}
           <h3 className="mb-3 mt-6 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
-            Connection Limits
+            {hasSubscription ? "Premium Config" : "Free Trial Config"}
           </h3>
 
           {limitLoading ? (

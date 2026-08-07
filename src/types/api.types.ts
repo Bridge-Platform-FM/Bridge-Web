@@ -277,14 +277,17 @@ export interface KycDocFile {
  * typed `number` plus one file object per side. Aadhaar is two-sided (front + back);
  * PAN is single-sided (front only). `number` is sent as a string to preserve PAN's
  * alphanumeric format and Aadhaar's 12 digits / leading zeros.
+ *
+ * Both keys are optional because a re-upload after a rejection sends only the documents
+ * the reviewer rejected; the backend upserts whichever types are present.
  */
 export interface SaveKycInfoPayload {
-  AADHAAR: {
+  AADHAAR?: {
     number: string;
     front: KycDocFile;
     back: KycDocFile;
   };
-  PAN: {
+  PAN?: {
     number: string;
     front: KycDocFile;
   };
@@ -322,6 +325,9 @@ export interface GetKycDocsResponse {
   submissionTime: string;
   /** ISO 8601 timestamp of when the review window expires (drives the countdown). */
   expiryTime: string;
+  kycStatus?: string | null;
+  /** The admin's reason for rejecting. Only set when `kycStatus` is "Rejected". */
+  rejectionReason?: string | null;
 }
 
 /* ===========================================================================

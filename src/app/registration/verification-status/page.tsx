@@ -1,13 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/Textarea";
+import { Loader } from "@/components/common/loader";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
 import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewModal";
+import { DocumentUploadCard, type ScannedDoc, type UploadSlot } from "@/components/onboarding/DocumentUploadCard";
 import { useFilePreview } from "@/lib/useFilePreview";
 import { getKycDocs } from "@/services/file.service";
-import type { GetKycDocsResponse, KycDocEntry } from "@/types/api.types";
+import { saveKycInfo } from "@/services/kyc.service";
+import { AADHAAR_REGEX, PAN_REGEX } from "@/lib/validation";
+import type { GetKycDocsResponse, KycDocEntry, KycDocFile, SaveKycInfoPayload } from "@/types/api.types";
+import { toast } from "sonner";
 import type { ApiError } from "@/lib/axios";
 
 /** A submitted document: label + the s3 key returned by the scan upload. */
@@ -77,8 +84,58 @@ function TimeBox({ value, unit }: { value: string; unit: string }) {
 type DocType = "AADHAAR" | "PAN";
 type DocsByType = Partial<Record<DocType, KycDocEntry>>;
 
-/** Human label per document type, used in the rejection list. */
-const DOC_TYPE_LABEL: Record<DocType, string> = { AADHAAR: "Aadhaar Card", PAN: "PAN Card" };
+/**
+ * Per-document config for the re-upload cards — the same card/validation setup the
+ * document-upload step uses, so a resubmission collects exactly the same shape. The map
+ * key doubles as the scan API's `docType`.
+ */
+const REUPLOAD_CONFIG: Record<
+  DocType,
+  { title: string; subtitle: string; icon: string; slots: UploadSlot[]; numberLabel: string; maxLength: number; placeholder: string; uppercase: boolean; test: (v: string) => boolean; numberError: string }
+> = {
+  AADHAAR: {
+    title: "Aadhaar Card",
+    subtitle: "Front and back view required",
+    icon: "badge",
+    slots: [
+      { key: "front", label: "Front Side", side: "front" },
+      { key: "back", label: "Back Side", side: "back" },
+    ],
+    numberLabel: "Aadhaar Number",
+    maxLength: 12,
+    placeholder: "1234 5678 9012",
+    uppercase: false,
+    test: (v) => AADHAAR_REGEX.test(v),
+    numberError: "Enter a valid 12-digit Aadhaar number.",
+  },
+  PAN: {
+    title: "PAN Card",
+    subtitle: "Clear photo of the original card",
+    icon: "credit_card",
+    slots: [{ key: "pan", label: "PAN Card" }],
+    numberLabel: "PAN Number",
+    maxLength: 10,
+    placeholder: "ABCDE1234F",
+    uppercase: true,
+    test: (v) => PAN_REGEX.test(v.toUpperCase()),
+    numberError: "Enter a valid PAN (e.g. ABCDE1234F).",
+  },
+};
+
+/** Map a scanned slot to the save-kyc-info file shape (s3 key + file metadata). */
+const toKycFile = (doc: ScannedDoc): KycDocFile => ({
+  s3_key: doc.s3Key,
+  mimetype: doc.mimetype,
+  file_name: doc.fileName,
+  file_size: doc.fileSize,
+});
+
+/** The document types the reviewer marked `Rejected` — the only ones we let them replace. */
+function collectRejectedTypes(byType: DocsByType): DocType[] {
+  return (Object.keys(REUPLOAD_CONFIG) as DocType[]).filter(
+    (t) => byType[t]?.status?.toLowerCase() === "rejected",
+  );
+}
 
 /**
  * Merge the API's `docDetails` (an array of single-key objects like `[{AADHAAR:…},{PAN:…}]`)
@@ -98,48 +155,37 @@ function buildSubmittedDocs(byType: DocsByType): SubmittedDoc[] {
   ].filter((d): d is SubmittedDoc => !!d.s3Key);
 }
 
-/** A rejected document: which doc + why the reviewer rejected it. */
-interface Rejection {
-  label: string;
-  reason: string;
-}
-
-/** Collect the rejected documents (status `rejected`) with their rejection reasons. */
-function collectRejections(byType: DocsByType): Rejection[] {
-  return (Object.keys(byType) as DocType[])
-    .filter((t) => byType[t]?.status?.toLowerCase() === "rejected")
-    .map((t) => ({
-      label: DOC_TYPE_LABEL[t],
-      reason: byType[t]?.rejection_reason || "No reason provided.",
-    }));
-}
-
 export default function VerificationStatusPage() {
   const [kyc, setKyc] = useState<GetKycDocsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [previewKey, setPreviewKey] = useState<string | null>(null);
+  // Re-upload state, keyed by document type: freshly scanned files, the retyped number,
+  // and the in-flight/validation state of the resubmission.
+  const [reFiles, setReFiles] = useState<Partial<Record<DocType, Record<string, ScannedDoc>>>>({});
+  const [reNumbers, setReNumbers] = useState<Partial<Record<DocType, string>>>({});
+  // Which numbers the user has unlocked with the pencil — locked by default so the
+  // pre-filled value isn't edited by accident when only the photo was the problem.
+  const [editingNumbers, setEditingNumbers] = useState<Partial<Record<DocType, boolean>>>({});
+  const [resubmitting, setResubmitting] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await getKycDocs();
+      setKyc(res);
+      setLoadError(null);
+    } catch (err) {
+      setLoadError((err as ApiError)?.message || "Couldn't load your verification status.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   // Fetch the submitted documents + submission/expiry timestamps on mount.
   useEffect(() => {
-    let cancelled = false;
-    getKycDocs()
-      .then((res) => {
-        if (cancelled) return;
-        setKyc(res);
-        setLoadError(null);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setLoadError((err as ApiError)?.message || "Couldn't load your verification status.");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- load() drives loading state
+    load();
+  }, [load]);
 
   // Expiry as epoch ms; the countdown is recomputed from this each tick (no drift).
   const expiryMs = useMemo(() => {
@@ -158,12 +204,54 @@ export default function VerificationStatusPage() {
 
   const byType = useMemo(() => (kyc ? mergeDocDetails(kyc.docDetails) : {}), [kyc]);
   const submitted = buildSubmittedDocs(byType);
-  const rejections = collectRejections(byType);
-  const isRejected = rejections.length > 0;
+  // The company-level status is the authoritative one — a rejected submission leaves every
+  // per-document `KycDocEntry.status` at "pending", so those can't be the driver here.
+  const isRejected = kyc?.kycStatus?.toLowerCase() === "rejected";
   const hours = Math.floor(remaining / 3600);
   const mins = Math.floor((remaining % 3600) / 60);
   const secs = remaining % 60;
   const pad = (n: number) => String(n).padStart(2, "0");
+
+  // Only the documents the reviewer actually flagged can be replaced here.
+  const rejectedTypes = isRejected ? collectRejectedTypes(byType) : [];
+  /** The number to send for a type: whatever they retyped, else the one already on file. */
+  const numberFor = (t: DocType) => reNumbers[t] ?? byType[t]?.number ?? "";
+  const canResubmit =
+    rejectedTypes.length > 0 &&
+    rejectedTypes.every((t) => {
+      const cfg = REUPLOAD_CONFIG[t];
+      return cfg.slots.every((s) => !!reFiles[t]?.[s.key]) && cfg.test(numberFor(t));
+    });
+
+  const handleResubmit = async () => {
+    const payload: SaveKycInfoPayload = {};
+    for (const t of rejectedTypes) {
+      const cfg = REUPLOAD_CONFIG[t];
+      const files = reFiles[t] ?? {};
+      const number = cfg.uppercase ? numberFor(t).toUpperCase() : numberFor(t);
+      if (t === "AADHAAR") {
+        payload.AADHAAR = { number, front: toKycFile(files.front), back: toKycFile(files.back) };
+      } else {
+        payload.PAN = { number, front: toKycFile(files.pan) };
+      }
+    }
+
+    setResubmitting(true);
+    try {
+      const res = await saveKycInfo(payload);
+      toast.success(res.message ?? "Documents resubmitted for verification.");
+      // The backend clears the company-level rejection on resubmit, so re-fetching flips
+      // this page back to the "in progress" state.
+      setReFiles({});
+      setReNumbers({});
+      setEditingNumbers({});
+      await load();
+    } catch (err) {
+      toast.error((err as ApiError)?.message ?? "Couldn't resubmit your documents. Please try again.");
+    } finally {
+      setResubmitting(false);
+    }
+  };
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)] w-full items-center justify-center px-4 py-4">
@@ -176,42 +264,71 @@ export default function VerificationStatusPage() {
 
       {/* Status hero */}
       <div className="flex flex-col items-center px-4 text-center">
-        <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-primary-container text-primary shadow-sm">
-          <Icon name="pending_actions" size={24} />
+        <div
+          className={`mb-3 flex size-12 items-center justify-center rounded-full shadow-sm ${
+            isRejected ? "bg-error-container text-error" : "bg-primary-container text-primary"
+          }`}
+        >
+          <Icon name={isRejected ? "gpp_bad" : "pending_actions"} size={24} />
         </div>
         <h1 className="mb-2 font-headline text-2xl font-extrabold tracking-tight text-on-surface md:text-3xl">
-          Verification in Progress
+          {isRejected ? "Verification Unsuccessful" : "Verification in Progress"}
         </h1>
         <p className="max-w-[600px] text-base leading-relaxed text-on-surface-variant">
-          We&apos;ve received your documents. Our compliance team is currently performing a secure audit to ensure your account&apos;s safety.
+          {isRejected
+            ? "Our compliance team couldn't verify your documents. Please review the reason below, then re-upload the corrected documents."
+            : "We've received your documents. Our compliance team is currently performing a secure audit to ensure your account's safety."}
         </p>
       </div>
 
-      {/* Timer + info */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="flex flex-col items-center justify-center rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-5 shadow-sm">
-          <span className="mb-4 font-label text-sm uppercase tracking-wider text-on-surface-variant">Estimated Time Remaining</span>
-          <div className="flex items-center gap-4">
-            <TimeBox value={loading || expiryMs == null ? "--" : pad(hours)} unit="Hours" />
-            <span className="mb-6 text-2xl font-bold text-surface-dim">:</span>
-            <TimeBox value={loading || expiryMs == null ? "--" : pad(mins)} unit="Mins" />
-            <span className="mb-6 text-2xl font-bold text-surface-dim">:</span>
-            <TimeBox value={loading || expiryMs == null ? "--" : pad(secs)} unit="Secs" />
+      {/* Why it was rejected — the admin's note from the review, read-only */}
+      {isRejected && (
+        <div className="flex w-full flex-col gap-2">
+          <label
+            htmlFor="rejectionReason"
+            className="flex items-center gap-2 px-1 font-headline text-base font-extrabold tracking-tight text-error"
+          >
+            <Icon name="error" size={20} />
+            Reason for rejection
+          </label>
+          <Textarea
+            id="rejectionReason"
+            value={kyc?.rejectionReason || "No reason provided."}
+            readOnly
+            rows={3}
+            className="cursor-default"
+          />
+        </div>
+      )}
+
+      {/* Timer + info — both are about a review still in flight, so they're dropped once
+          the submission has been rejected. */}
+      {!isRejected && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="flex flex-col items-center justify-center rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-5 shadow-sm">
+            <span className="mb-4 font-label text-sm uppercase tracking-wider text-on-surface-variant">Estimated Time Remaining</span>
+            <div className="flex items-center gap-4">
+              <TimeBox value={loading || expiryMs == null ? "--" : pad(hours)} unit="Hours" />
+              <span className="mb-6 text-2xl font-bold text-surface-dim">:</span>
+              <TimeBox value={loading || expiryMs == null ? "--" : pad(mins)} unit="Mins" />
+              <span className="mb-6 text-2xl font-bold text-surface-dim">:</span>
+              <TimeBox value={loading || expiryMs == null ? "--" : pad(secs)} unit="Secs" />
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-outline-variant/10 bg-surface-container-high p-5">
+            <h3 className="mb-3 font-headline font-bold text-on-surface">What happens next?</h3>
+            <ul className="space-y-3">
+              {NEXT_STEPS.map((s) => (
+                <li key={s.text} className="flex items-start gap-3">
+                  <Icon name={s.icon} size={20} className="text-primary" />
+                  <p className="text-sm text-on-surface-variant">{s.text}</p>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
-
-        <div className="rounded-xl border border-outline-variant/10 bg-surface-container-high p-5">
-          <h3 className="mb-3 font-headline font-bold text-on-surface">What happens next?</h3>
-          <ul className="space-y-3">
-            {NEXT_STEPS.map((s) => (
-              <li key={s.text} className="flex items-start gap-3">
-                <Icon name={s.icon} size={20} className="text-primary" />
-                <p className="text-sm text-on-surface-variant">{s.text}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
+      )}
 
       {/* Submitted documents */}
       <div>
@@ -236,6 +353,80 @@ export default function VerificationStatusPage() {
           </p>
         )}
       </div>
+
+      {/* Replace the rejected documents — only the ones the reviewer flagged. */}
+      {rejectedTypes.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <h3 className="font-headline text-lg font-bold text-on-surface">
+            Re-upload rejected document{rejectedTypes.length > 1 ? "s" : ""}
+          </h3>
+
+          {/* Document numbers, side by side. Pre-filled from what's on file and locked —
+              the pencil unlocks one if the number itself was the problem. */}
+          <div className={`grid grid-cols-1 gap-3 ${rejectedTypes.length > 1 ? "md:grid-cols-2" : ""}`}>
+            {rejectedTypes.map((t) => {
+              const cfg = REUPLOAD_CONFIG[t];
+              const number = numberFor(t);
+              const numberInvalid = number.length > 0 && !cfg.test(number);
+              const editing = !!editingNumbers[t];
+              return (
+                <Input
+                  key={t}
+                  id={`${t}-number`}
+                  type="text"
+                  label={cfg.numberLabel}
+                  required
+                  maxLength={cfg.maxLength}
+                  placeholder={cfg.placeholder}
+                  className={cfg.uppercase ? "uppercase" : ""}
+                  inputMode={cfg.uppercase ? undefined : "numeric"}
+                  value={number}
+                  readOnly={!editing}
+                  error={numberInvalid ? cfg.numberError : undefined}
+                  onChange={(e) => setReNumbers((prev) => ({ ...prev, [t]: e.target.value }))}
+                  adornment={
+                    <button
+                      type="button"
+                      onClick={() => setEditingNumbers((prev) => ({ ...prev, [t]: !prev[t] }))}
+                      aria-label={`${editing ? "Done editing" : "Edit"} ${cfg.numberLabel}`}
+                      className="flex h-full items-center justify-center text-on-surface-variant transition-colors hover:text-primary"
+                    >
+                      <Icon name={editing ? "check" : "edit"} size={20} />
+                    </button>
+                  }
+                />
+              );
+            })}
+          </div>
+
+          {rejectedTypes.map((t) => {
+            const cfg = REUPLOAD_CONFIG[t];
+            return (
+              <DocumentUploadCard
+                key={t}
+                title={cfg.title}
+                subtitle={cfg.subtitle}
+                icon={cfg.icon}
+                scanType="image"
+                docType={t}
+                slots={cfg.slots}
+                maxSizeMB={10}
+                onChange={(docs) => setReFiles((prev) => ({ ...prev, [t]: docs }))}
+              />
+            );
+          })}
+
+          <Button
+            type="button"
+            variant="primary"
+            disabled={!canResubmit || resubmitting}
+            onClick={handleResubmit}
+            className="h-12 rounded-xl text-base"
+          >
+            {resubmitting ? <Loader size={18} /> : "Resubmit for Verification"}
+          </Button>
+        </div>
+      )}
 
       {/* Actions */}
       <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
