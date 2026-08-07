@@ -100,6 +100,12 @@ export const API_ENDPOINTS = {
   // Fetch super admin platform-wide KPIs — users, orgs, KYC, active today, etc (GET).
   SUPER_ADMIN_DASHBOARD: `${SUPER_ADMIN}/dashboard`,
 
+  // ----- Admin / Super-Admin Self-Service Profile -----
+  // Fetch the signed-in admin's own profile (GET).
+  ADMIN_GET_PROFILE: `${ADMIN}/profile`,
+  // Save/update the signed-in admin's own profile (PUT).
+  ADMIN_SAVE_PROFILE: `${ADMIN}/profile`,
+
   // ----- Admin / Super-Admin back-office -----
   // User Management list + detail. TODO: replace with the real paths from the curl.
   ADMIN_USERS: `${ADMIN}/get-user-list`,

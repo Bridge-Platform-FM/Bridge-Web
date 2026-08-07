@@ -23,6 +23,7 @@ import type {
   UserSuspensionPayload,
   MatchingEngineStats,
 } from "@/types/api.types";
+import type { ProfileField } from "@/services/user.service";
 
 /**
  * Admin / super-admin back-office data (User Management + KYC Review). Each function
@@ -34,7 +35,83 @@ import type {
  * access token rides on the httpOnly session cookie.
  */
 
+// ── Admin Self-Service Profile ────────────────────────────────────────────
 
+export interface GetAdminProfileResponse {
+  success?: boolean;
+  message?: string;
+  /** Same ProfileField[] shape as the user profile endpoint. */
+  data?: ProfileField[];
+}
+
+export interface SaveAdminProfileResponse {
+  success?: boolean;
+  message?: string;
+  data?: unknown;
+}
+
+/**
+ * Module-level cache for the signed-in admin's own profile. Mirrors the user
+ * profile cache in user.service.ts — collapsed into a single request per TTL
+ * window so multiple components don't each issue their own GET on every navigation.
+ *
+ * A rejection evicts the cache entry immediately so a failed load never sticks
+ * and the profile page's Retry button always hits the network.
+ */
+let adminProfileCache: { at: number; promise: Promise<GetAdminProfileResponse> } | null = null;
+const ADMIN_PROFILE_TTL_MS = 5 * 60_000; // 5 minutes
+
+/** Drop the cached admin profile. Called after a save and on logout / role switch. */
+export function clearAdminProfileCache(): void {
+  adminProfileCache = null;
+}
+
+/**
+ * Fetch the signed-in admin's own profile fields from GET /api/v1/admin/profile.
+ * Auth rides on the httpOnly session cookie (`withCredentials`).
+ *
+ * Response shape is identical to getUserProfile() (ProfileField[]) so the profile
+ * page can reuse all rendering logic regardless of the signed-in role.
+ *
+ * Served from the module cache when younger than ADMIN_PROFILE_TTL_MS — call
+ * `clearAdminProfileCache()` after anything that changes the profile.
+ */
+export function getAdminProfile(): Promise<GetAdminProfileResponse> {
+  if (adminProfileCache && Date.now() - adminProfileCache.at < ADMIN_PROFILE_TTL_MS) {
+    return adminProfileCache.promise;
+  }
+
+  const promise = api
+    .get<GetAdminProfileResponse>(API_ENDPOINTS.ADMIN_GET_PROFILE)
+    .then((res) => res.data)
+    .catch((err) => {
+      // Never cache a failure — drop the entry so the next call (a Retry button,
+      // a remount) actually hits the network again.
+      adminProfileCache = null;
+      throw err;
+    });
+
+  adminProfileCache = { at: Date.now(), promise };
+  return promise;
+}
+
+/**
+ * Save changes to the signed-in admin's own editable profile fields
+ * via PUT /api/v1/admin/profile.
+ *
+ * Only name, country_code, and mobile_number are accepted — the backend schema
+ * rejects email and role. Clears the cache so the next read reflects the update.
+ */
+export async function saveAdminProfile(
+  payload: Record<string, unknown>
+): Promise<SaveAdminProfileResponse> {
+  const { data } = await api.put<SaveAdminProfileResponse>(
+    API_ENDPOINTS.ADMIN_SAVE_PROFILE,
+    payload
+  );
+  clearAdminProfileCache();
+  return data;
+}
 
 /**
  * Map the backend `kyc_status` column (title-case, e.g. "Approved"/"Rejected"/
