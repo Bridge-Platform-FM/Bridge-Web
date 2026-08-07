@@ -121,3 +121,89 @@ export async function getUserRoleDetails(params: {
   const { data } = await api.get<GetProfileResponse>(API_ENDPOINTS.USER_ROLE_DETAILS, { params });
   return data.data ?? [];
 }
+
+/* ----- Role switch ----------------------------------------------------------
+ * Switching role changes which subset of the (single, wide) `user` row matters:
+ * a Startup fills funding_stage / use_of_funds, an Investor fills investor_type /
+ * ticket_size_amt_min. These two calls collect whatever the target role still
+ * needs, then commit the switch — see app/dashboard/switch-role/page.tsx.
+ * -------------------------------------------------------------------------- */
+
+/**
+ * A field the target role needs before the switch can complete. Deliberately the
+ * same shape as `ProfileField` so `ProfileFieldRow` renders it unchanged; the
+ * extra keys come from the backend's `role_field_metadata` row and are optional
+ * so a partial response still works.
+ */
+export interface SwitchRoleField extends ProfileField {
+  isRequired?: boolean;
+  placeholder?: string;
+  helpText?: string;
+  displayOrder?: number;
+}
+
+interface SwitchRoleFieldsResponse {
+  success?: boolean;
+  message?: string;
+  data?: SwitchRoleField[];
+}
+
+/**
+ * Cached per target role, for the same reason `profileCache` exists: the switch
+ * modal asks "does this role need anything?" and the page it navigates to then
+ * needs the same list. Caching the *promise* collapses those into one request
+ * (and survives StrictMode's double-invoke in dev).
+ */
+let switchFieldsCache: { role: string; at: number; promise: Promise<SwitchRoleField[]> } | null = null;
+const SWITCH_FIELDS_TTL_MS = 60_000;
+
+/** Drop the cached switch-role fields (after a successful switch, or on logout). */
+export function clearSwitchRoleFieldsCache(): void {
+  switchFieldsCache = null;
+}
+
+/**
+ * Which fields does `role` still need? (GET /api/v1/users/switch-role/fields)
+ *
+ * An empty array is meaningful — the role needs nothing, so the caller should
+ * switch immediately instead of routing the user through the form.
+ */
+export function fetchSwitchRoleFields(role: string): Promise<SwitchRoleField[]> {
+  if (
+    switchFieldsCache &&
+    switchFieldsCache.role === role &&
+    Date.now() - switchFieldsCache.at < SWITCH_FIELDS_TTL_MS
+  ) {
+    return switchFieldsCache.promise;
+  }
+
+  const promise = api
+    .get<SwitchRoleFieldsResponse>(API_ENDPOINTS.SWITCH_ROLE_FIELDS, { params: { role } })
+    .then((res) => res.data.data ?? [])
+    .catch((err) => {
+      // Never cache a failure, so Retry actually re-hits the network.
+      if (switchFieldsCache?.promise === promise) switchFieldsCache = null;
+      throw err;
+    });
+
+  switchFieldsCache = { role, at: Date.now(), promise };
+  return promise;
+}
+
+/**
+ * Save the collected fields AND commit the switch in one call
+ * (POST /api/v1/users/switch-role). The backend writes the `user` columns, flips
+ * `company_user_role` and re-issues the session cookies for the new role — the
+ * JWT is the only place the active role lives, so nothing has switched until
+ * this resolves.
+ */
+export async function submitRoleSwitch(
+  role: string,
+  fields: Record<string, unknown>,
+): Promise<{ success?: boolean; message?: string; data?: { role?: string } }> {
+  const { data } = await api.post(API_ENDPOINTS.SWITCH_ROLE_SUBMIT, { role, fields });
+  // Both cached copies describe the role we just left.
+  clearUserProfileCache();
+  clearSwitchRoleFieldsCache();
+  return data;
+}

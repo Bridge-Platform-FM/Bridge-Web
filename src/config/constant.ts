@@ -178,6 +178,11 @@ export const API_ENDPOINTS = {
   GET_PROFILE: `${USERS}/profile`,
   // Save/update the current user's profile fields (PUT). API is not yet live.
   SAVE_PROFILE: `${USERS}/profile`,
+  // Fields the target role still needs before a role switch (GET ?role=<role>).
+  // An empty `data` array means nothing to collect — switch straight away.
+  SWITCH_ROLE_FIELDS: `${USERS}/switch-role/fields`,
+  // Save those fields AND commit the switch in one transaction (POST).
+  SWITCH_ROLE_SUBMIT: `${USERS}/switch-role`,
 
   // ----- Navbar search -----
   // Typeahead user search (GET ?q=<query>).

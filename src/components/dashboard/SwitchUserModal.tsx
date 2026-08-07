@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Modal } from "@/components/modal/Modal";
 import { Loader } from "@/components/common/loader";
 import { SelectableOptionRow } from "@/components/ui/SelectableOptionRow";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { fetchSwitchRoleFields } from "@/services/user.service";
 import { USER_ROLES, ROLE_META, type Role } from "@/lib/roles";
 import type { ApiError } from "@/lib/axios";
 
@@ -20,6 +22,7 @@ interface SwitchUserModalProps {
  * useAuth().switchRole, then closes. Reuses the shared Modal + SelectableOptionRow.
  */
 export function SwitchUserModal({ open, onClose }: SwitchUserModalProps) {
+  const router = useRouter();
   const { role: currentRole, switchRole } = useAuth();
   const [selected, setSelected] = useState<Role>(
     (currentRole && USER_ROLES.includes(currentRole) ? currentRole : USER_ROLES[0])
@@ -34,9 +37,20 @@ export function SwitchUserModal({ open, onClose }: SwitchUserModalProps) {
     }
     setSwitching(true);
     try {
-      await switchRole(selected);
-      toast.success(`Switched to ${ROLE_META[selected].label}.`);
+      // Roles use different subsets of the profile, so the target role may need
+      // data this user has never supplied. Collect it first — the switch itself
+      // is committed by that page's save, so nothing changes if they back out.
+      const pending = await fetchSwitchRoleFields(selected);
+
+      if (pending.length === 0) {
+        await switchRole(selected);
+        toast.success(`Switched to ${ROLE_META[selected].label}.`);
+        onClose();
+        return;
+      }
+
       onClose();
+      router.push(`/dashboard/switch-role?role=${selected}`);
     } catch (err) {
       toast.error((err as ApiError).message ?? "Couldn't switch account type. Please try again.");
     } finally {
@@ -50,6 +64,7 @@ export function SwitchUserModal({ open, onClose }: SwitchUserModalProps) {
       onClose={onClose}
       title="Switch Account Type"
       maxWidthClass="max-w-md"
+      closeDisabled={switching}
       footer={
         <button
           type="button"
