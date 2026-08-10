@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/input";
@@ -130,11 +130,19 @@ const toKycFile = (doc: ScannedDoc): KycDocFile => ({
   file_size: doc.fileSize,
 });
 
-/** The document types the reviewer marked `Rejected` — the only ones we let them replace. */
+/**
+ * The document types the user is allowed to replace, given the submission was rejected.
+ *
+ * Normally the reviewer marks the offending documents `Rejected` one by one before
+ * rejecting the submission, and only those are offered. But the admin's Reject button is
+ * only blocked when every document is already approved — so a reviewer can reject the
+ * submission outright with every document still `Pending`. That left the user staring at
+ * a rejection banner with nothing to act on, so fall back to every submitted type.
+ */
 function collectRejectedTypes(byType: DocsByType): DocType[] {
-  return (Object.keys(REUPLOAD_CONFIG) as DocType[]).filter(
-    (t) => byType[t]?.status?.toLowerCase() === "rejected",
-  );
+  const types = Object.keys(REUPLOAD_CONFIG) as DocType[];
+  const flagged = types.filter((t) => byType[t]?.status?.toLowerCase() === "rejected");
+  return flagged.length > 0 ? flagged : types.filter((t) => !!byType[t]);
 }
 
 /**
@@ -169,22 +177,33 @@ export default function VerificationStatusPage() {
   const [editingNumbers, setEditingNumbers] = useState<Partial<Record<DocType, boolean>>>({});
   const [resubmitting, setResubmitting] = useState(false);
 
+  // Set to true by the mount effect's cleanup, and checked before every setState below:
+  // load() is awaited both on mount and from handleResubmit, so navigating away with
+  // either fetch in flight would otherwise update an unmounted component.
+  const cancelled = useRef(false);
+
   const load = useCallback(async () => {
     try {
       const res = await getKycDocs();
+      if (cancelled.current) return;
       setKyc(res);
       setLoadError(null);
     } catch (err) {
+      if (cancelled.current) return;
       setLoadError((err as ApiError)?.message || "Couldn't load your verification status.");
     } finally {
-      setLoading(false);
+      if (!cancelled.current) setLoading(false);
     }
   }, []);
 
   // Fetch the submitted documents + submission/expiry timestamps on mount.
   useEffect(() => {
+    cancelled.current = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- load() drives loading state
     load();
+    return () => {
+      cancelled.current = true;
+    };
   }, [load]);
 
   // Expiry as epoch ms; the countdown is recomputed from this each tick (no drift).
