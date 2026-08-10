@@ -12,6 +12,7 @@ import { normalizeValue, PROFILE_SECTIONS } from "@/app/dashboard/profile/page";
 import { getFieldOptionConfig } from "@/lib/profile-field-options";
 import { ProposalFormModal } from "@/components/dashboard/connections/ProposalFormModal";
 import { useSenderIdentity } from "@/components/dashboard/connections/sender-identity";
+import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewModal";
 import { profilePhotoKey } from "@/lib/useMyProfilePhoto";
 import type { ApiError } from "@/lib/axios";
 
@@ -50,7 +51,14 @@ const DOCUMENT_COLUMNS = new Set(["incorporation_certificate", "pitch_deck_certi
  * renders. Reuses the same value normalization + option-label mapping as My Profile so
  * stored codes read as their human labels.
  */
-function ReadOnlyField({ field }: { field: ProfileField }) {
+function ReadOnlyField({
+  field,
+  onPreview,
+}: {
+  field: ProfileField;
+  /** Open the shared preview modal for a document field's stored key. */
+  onPreview: (s3Key: string, title: string) => void;
+}) {
   const label = field.label ?? field.columnName;
   const cfg = getFieldOptionConfig(field.columnName);
   const options = cfg?.options ?? field.options ?? [];
@@ -77,10 +85,20 @@ function ReadOnlyField({ field }: { field: ProfileField }) {
       dash
     );
   } else if (DOCUMENT_COLUMNS.has(field.columnName)) {
+    // The stored value is an S3 key, never shown raw — it's a marker plus a Preview
+    // button that streams the file through the same modal My Profile uses.
     body = normalized ? (
-      <span className="inline-flex items-center gap-1.5 text-sm font-medium text-on-surface">
-        <Icon name="description" size={16} className="text-primary" />
+      <span className="inline-flex items-center gap-2 text-sm font-medium text-on-surface">
+        <Icon name="description" size={16} className="shrink-0 text-primary" />
         Document provided
+        <button
+          type="button"
+          onClick={() => onPreview(normalized, label)}
+          className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-0.5 text-sm font-semibold text-primary transition-colors hover:bg-primary-container/40"
+        >
+          <Icon name="visibility" size={16} />
+          Preview
+        </button>
       </span>
     ) : (
       dash
@@ -117,6 +135,8 @@ function UserProfilePageContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [proposalOpen, setProposalOpen] = useState(false);
+  /** Document open in the preview modal; null = closed. */
+  const [preview, setPreview] = useState<{ s3Key: string; title: string } | null>(null);
   // Deferred until the Connect modal opens — viewing someone else's profile shouldn't
   // cost a fetch of your OWN profile. Module-cached, so reopening is free.
   const { sender } = useSenderIdentity(proposalOpen);
@@ -158,7 +178,10 @@ function UserProfilePageContent() {
     const fullWidth = field.type === "textarea" || field.type === "array";
     return (
       <div key={field.columnName} className={fullWidth ? "sm:col-span-2" : ""}>
-        <ReadOnlyField field={field} />
+        <ReadOnlyField
+          field={field}
+          onPreview={(s3Key, title) => setPreview({ s3Key, title })}
+        />
       </div>
     );
   };
@@ -253,6 +276,12 @@ function UserProfilePageContent() {
           onSent={() => setProposalOpen(false)}
         />
       )}
+
+      <DocumentPreviewModal
+        s3Key={preview?.s3Key ?? null}
+        title={preview?.title}
+        onClose={() => setPreview(null)}
+      />
     </div>
   );
 }
