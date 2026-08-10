@@ -8,6 +8,8 @@ export const DOC_TYPE = {
   PAN: "PAN",
   PITCH_DECK: "PITCH_DECK",
   INCORPORATION_CERTIFICATE: "INCORPORATION_CERTIFICATE",
+  /** Not a KYC document — the backend files anything outside KYC_DOC_TYPES under `profile/`. */
+  PROFILE_PHOTO: "PROFILE_PHOTO",
 } as const;
 
 export type DocType = (typeof DOC_TYPE)[keyof typeof DOC_TYPE];

@@ -1,6 +1,7 @@
 "use client";
 
 import { Icon } from "@/components/ui/Icon";
+import { Avatar } from "@/components/ui/Avatar";
 import { ROLE_AVATAR_GRADIENT } from "@/lib/connections";
 import { DEAL_STATUS_BADGE, initials } from "./deal-room-meta";
 import type { DealRoom } from "./types";
@@ -31,11 +32,13 @@ export function DealRoomListCard({ room, onOpen }: DealRoomListCardProps) {
       />
 
       {/* Company avatar */}
-      <div
-        className={`flex size-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${ROLE_AVATAR_GRADIENT[cp.role]} font-headline text-sm font-bold text-on-primary`}
-      >
-        {initials(cp.company)}
-      </div>
+      <Avatar photoKey={cp.photoKey} alt={cp.name} className="size-10 shrink-0 rounded-lg">
+        <div
+          className={`flex size-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${ROLE_AVATAR_GRADIENT[cp.role]} font-headline text-sm font-bold text-on-primary`}
+        >
+          {initials(cp.company)}
+        </div>
+      </Avatar>
 
       {/* Main */}
       <div className="min-w-0 flex-1">

@@ -32,7 +32,13 @@ import {
 import type { UserProfilePayload } from "@/types/api.types";
 import { toast } from "sonner";
 import { buildProfile } from "@/services/user.service";
+import { scanImage } from "@/services/file.service";
+import { DOC_TYPE } from "@/config/docTypes";
 import type { ApiError } from "@/lib/axios";
+
+/** Matches the backend's `picUpload` multer config (PNG/JPEG only, 5MB). */
+const PHOTO_MIME_TYPES = ["image/png", "image/jpeg"];
+const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
 
 /** Hard character cap for the short bio. */
 const BIO_MAX_CHARS = 300;
@@ -155,7 +161,9 @@ function toUserProfilePayload(values: CompleteProfileForm, role: string): UserPr
 
 export default function CompleteProfilePage() {
   const { data, setData, goNext } = useOnboarding();
+  // Local object URL for the preview circle; the form value holds the uploaded s3Key.
   const [photo, setPhoto] = useState<string | null>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
   // Snapshot of the form taken when Preview is clicked. Captured at click time
   // (not in render) so it reflects the latest values from the uncontrolled inputs.
   const [previewData, setPreviewData] = useState<CompleteProfileForm | null>(null);
@@ -266,15 +274,37 @@ export default function CompleteProfilePage() {
                   <div className="flex flex-col gap-2">
                     <div className="flex gap-3">
                       <label className="cursor-pointer rounded-lg border border-outline-variant/30 bg-surface-container-low px-4 py-2 text-sm font-semibold text-on-surface transition-colors hover:bg-surface-container hover:border-outline-variant/60">
-                        Upload photo
+                        {photoUploading ? "Uploading…" : "Upload photo"}
                         <input
                           type="file"
-                          accept="image/*"
+                          accept="image/png,image/jpeg"
                           className="hidden"
-                          onChange={(e) => {
+                          disabled={photoUploading}
+                          onChange={async (e) => {
                             const f = e.target.files?.[0] ?? null;
-                            setPhoto(f ? URL.createObjectURL(f) : null);
-                            field.onChange(f ? f.name : "");
+                            // Let the same file be re-picked after a failure.
+                            e.target.value = "";
+                            if (!f) return;
+                            if (!PHOTO_MIME_TYPES.includes(f.type)) {
+                              toast.error("Profile photo must be a PNG or JPEG image.");
+                              return;
+                            }
+                            if (f.size > PHOTO_MAX_BYTES) {
+                              toast.error("Profile photo must be 5MB or smaller.");
+                              return;
+                            }
+                            setPhotoUploading(true);
+                            try {
+                              // Same scan+upload pipeline the KYC documents use; the backend
+                              // files any non-KYC docType under `company/<id>/<user>/profile/`.
+                              const { s3Key } = await scanImage(f, { docType: DOC_TYPE.PROFILE_PHOTO });
+                              setPhoto(URL.createObjectURL(f));
+                              field.onChange(s3Key);
+                            } catch (err) {
+                              toast.error((err as ApiError)?.message ?? "Couldn't upload your photo. Please try again.");
+                            } finally {
+                              setPhotoUploading(false);
+                            }
                           }}
                         />
                       </label>
@@ -288,7 +318,7 @@ export default function CompleteProfilePage() {
                         </button>
                       )}
                     </div>
-                    <p className="px-1 text-xs text-on-surface-variant">JPG, GIF or PNG. Max size of 800K</p>
+                    <p className="px-1 text-xs text-on-surface-variant">JPG, GIF or PNG. Max size of 5MB</p>
                   </div>
                 )}
               />

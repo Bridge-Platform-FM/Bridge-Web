@@ -9,6 +9,12 @@ import { Icon } from "@/components/ui/Icon";
 import { Card } from "@/components/ui/Card";
 import { Loader } from "@/components/common/loader";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
+import {
+  PASSWORD_RULES,
+  PasswordRequirements,
+  PasswordStrengthMeter,
+  metRuleCount,
+} from "@/components/auth/PasswordStrength";
 import { resetPassword } from "@/services/auth.service";
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "@/lib/messages";
 import type { ApiError } from "@/lib/axios";
@@ -17,17 +23,6 @@ interface ResetPasswordForm {
   newPassword: string;
   confirmPassword: string;
 }
-
-/** Live checklist rules — together these equal the canonical PASSWORD_REGEX. */
-const RULES: { label: string; test: (v: string) => boolean }[] = [
-  { label: "At least 8 characters", test: (v) => v.length >= 8 },
-  { label: "An uppercase letter", test: (v) => /[A-Z]/.test(v) },
-  { label: "A lowercase letter", test: (v) => /[a-z]/.test(v) },
-  { label: "A number", test: (v) => /\d/.test(v) },
-  { label: "A special character (@$!%*?&)", test: (v) => /[@$!%*?&]/.test(v) },
-];
-
-const STRENGTH_LABELS = ["Too weak", "Weak", "Fair", "Good", "Strong"];
 
 /**
  * Step 3 of the password-reset flow: choose a new password. Built from the Stitch
@@ -58,8 +53,7 @@ export function ResetPasswordScreen({ from = "/login" }: { from?: string }) {
   const newPassword = useWatch({ control, name: "newPassword" }) ?? "";
   const confirmPassword = useWatch({ control, name: "confirmPassword" }) ?? "";
 
-  const metCount = RULES.filter((r) => r.test(newPassword)).length;
-  const allMet = metCount === RULES.length;
+  const allMet = metRuleCount(newPassword) === PASSWORD_RULES.length;
   const matches = newPassword.length > 0 && newPassword === confirmPassword;
   const canSubmit = allMet && matches && !isSubmitting;
 
@@ -123,24 +117,7 @@ export function ResetPasswordScreen({ from = "/login" }: { from?: string }) {
               </button>
             </div>
 
-            {/* Strength meter */}
-            <div className="pt-1">
-              <span className="text-[10px] font-bold uppercase text-on-surface-variant">
-                Strength: {STRENGTH_LABELS[metCount]}
-              </span>
-              <div className="mt-1.5 flex gap-1">
-                {[0, 1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className={`h-1 flex-1 rounded-full transition-colors ${
-                      i < Math.round((metCount / RULES.length) * 4)
-                        ? "bg-primary"
-                        : "bg-surface-variant"
-                    }`}
-                  />
-                ))}
-              </div>
-            </div>
+            <PasswordStrengthMeter value={newPassword} />
           </div>
 
           {/* Confirm Password */}
@@ -178,32 +155,7 @@ export function ResetPasswordScreen({ from = "/login" }: { from?: string }) {
           </div>
 
           {/* Requirements checklist */}
-          <div className="space-y-3 rounded-xl bg-surface-container-low p-4">
-            <p className="font-label text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
-              Password Requirements
-            </p>
-            <div className="grid grid-cols-1 gap-y-2">
-              {RULES.map((rule) => {
-                const met = rule.test(newPassword);
-                return (
-                  <div
-                    key={rule.label}
-                    className={`flex items-center gap-3 text-sm transition-opacity ${
-                      met ? "text-on-surface-variant" : "text-on-surface-variant opacity-60"
-                    }`}
-                  >
-                    <Icon
-                      name={met ? "check_circle" : "circle"}
-                      size={18}
-                      filled={met}
-                      className={met ? "text-primary" : "text-outline"}
-                    />
-                    <span className={met ? "font-medium" : ""}>{rule.label}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <PasswordRequirements value={newPassword} />
           {errors.newPassword && newPassword.length === 0 && (
             <span className="px-1 text-xs font-medium text-error">Enter a new password.</span>
           )}

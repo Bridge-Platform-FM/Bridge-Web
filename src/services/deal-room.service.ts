@@ -61,6 +61,7 @@ interface RawRoom {
   // renders a state if that column is ever added.
   requester_state?: string;
   requester_country?: string;
+  requester_profile_photo?: string | null;
   /** UUID of the recipient user. */
   recipient_user_id: string;
   recipient_first_name?: string;
@@ -73,6 +74,8 @@ interface RawRoom {
   recipient_company_name?: string;
   recipient_state?: string;
   recipient_country?: string;
+  /** Storage key for the recipient's profile picture (`user.profile_photo`). */
+  recipient_profile_photo?: string | null;
 }
 
 /** One message row from `GET /deal-rooms/:id/messages` (+ nested sender in history). */
@@ -135,6 +138,7 @@ function toDealRoom(raw: RawRoom): DealRoom {
         state: raw.recipient_state ?? "",
         country: raw.recipient_country ?? "",
         role: raw.recipient_role_code,
+        photoKey: raw.recipient_profile_photo,
       }
     : {
         userId: raw.requester_user_id,
@@ -145,6 +149,7 @@ function toDealRoom(raw: RawRoom): DealRoom {
         state: raw.requester_state ?? "",
         country: raw.requester_country ?? "",
         role: raw.requester_role_code,
+        photoKey: raw.requester_profile_photo,
       };
 
   return {
@@ -164,6 +169,7 @@ function toDealRoom(raw: RawRoom): DealRoom {
       state: cp.state,
       country: cp.country,
       role: normalizeRole(cp.role) ?? "startup",
+      photoKey: cp.photoKey ?? null,
     },
     status: raw.deal_room_status === "Closed" ? "CLOSED" : "ACTIVE",
     isArchived: raw.archived_at != null,

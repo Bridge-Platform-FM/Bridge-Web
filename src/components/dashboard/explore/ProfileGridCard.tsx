@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { Icon } from "@/components/ui/Icon";
+import { Avatar } from "@/components/ui/Avatar";
 import { CompatibilityRing } from "@/components/dashboard/explore/CompatibilityRing";
 import {
   ROLE_GRADIENT,
@@ -29,7 +29,6 @@ export function ProfileGridCard({
   onConnect: (match: ExploreMatch) => void;
   onViewProfile: (match: ExploreMatch) => void;
 }) {
-  const [photoFailed, setPhotoFailed] = useState(false);
   const fullName = [match.first_name, match.last_name].filter(Boolean).join(" ").trim();
   const location = formatLocation(match.country, match.continent);
   const facts = roleFacts(match).slice(0, 6);
@@ -43,21 +42,17 @@ export function ProfileGridCard({
 
       {/* ── Header: avatar · identity · compatibility ── */}
       <div className="flex items-start gap-4">
-        {match?.profile_photo && !photoFailed ? (
-          // eslint-disable-next-line @next/next/no-img-element -- remote portrait, no fixed dimensions
-          <img
-            src={match.profile_photo}
-            alt={fullName || match.organization_name}
-            onError={() => setPhotoFailed(true)}
-            className="size-16 shrink-0 rounded-xl object-cover"
-          />
-        ) : (
+        <Avatar
+          photoKey={match?.profile_photo}
+          alt={fullName || match.organization_name}
+          className="size-16 shrink-0 rounded-xl"
+        >
           <div
             className={`flex size-16 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${ROLE_GRADIENT[match.role]} text-lg font-black text-white`}
           >
             {companyInitials(fullName || match.organization_name)}
           </div>
-        )}
+        </Avatar>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <h3 className="font-headline text-lg font-bold text-on-surface">
