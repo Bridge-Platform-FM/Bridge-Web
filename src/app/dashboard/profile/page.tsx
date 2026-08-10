@@ -26,6 +26,9 @@ import { profilePhotoKey } from "@/lib/useMyProfilePhoto";
 import { scanDocument } from "@/services/file.service";
 import { DOC_TYPE, type DocType } from "@/config/docTypes";
 import type { ApiError } from "@/lib/axios";
+import { getAdminProfile, saveAdminProfile } from "@/services/admin.service";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { isStaffRole } from "@/lib/roles";
 
 /**
  * Columns that hold an uploaded document's S3 key (rendered with a Preview button, and
@@ -119,6 +122,19 @@ export const PROFILE_SECTIONS: { title: string; columns: string[] }[] = [
   {
     title: "About",
     columns: ["short_bio"],
+  },
+];
+
+/**
+ * Field grouping for ADMIN / SUPER_ADMIN self-service profiles.
+ * Simpler shape — only the admin's own account fields are shown.
+ * `country_code` is intentionally omitted here (folded into the phone widget
+ * at the `mobile_number` anchor, same as user profiles).
+ */
+const ADMIN_PROFILE_SECTIONS: { title: string; columns: string[] }[] = [
+  {
+    title: "Account Details",
+    columns: ["name", "email", "role", "mobile_number"],
   },
 ];
 
@@ -621,6 +637,13 @@ export function ProfileFieldRow({ field, value, editMode, onChange }: FieldProps
 // ─── page ─────────────────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
+  const { role, isLoaded } = useAuth();
+  // True for both "admin" and "super_admin" — both use the admin profile endpoint.
+  const isAdminUser = isStaffRole(role);
+  // Active section list — admin profiles show only account details; user profiles
+  // show the full role-specific section tree.
+  const activeSections = isAdminUser ? ADMIN_PROFILE_SECTIONS : PROFILE_SECTIONS;
+
   const [fields, setFields] = useState<ProfileField[]>([]);
   const [localValues, setLocalValues] = useState<Record<string, string | string[]>>({});
   const [loading, setLoading] = useState(false);
@@ -632,7 +655,9 @@ export default function ProfilePage() {
   const fetchProfile = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await getUserProfile();
+      // Admin / super-admin → dedicated self-service endpoint (no authorize() gate).
+      // Regular user → existing users/profile endpoint.
+      const res = isAdminUser ? await getAdminProfile() : await getUserProfile();
       const fetched = res.data ?? [];
       setFields(fetched);
       const init: Record<string, string | string[]> = {};
@@ -643,10 +668,12 @@ export default function ProfilePage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAdminUser]);
 
+  // Wait for the session to be read from localStorage before fetching — otherwise
+  // `isAdminUser` is always false on the first render and the wrong endpoint is called.
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { fetchProfile(); }, [fetchProfile]);
+  useEffect(() => { if (isLoaded) fetchProfile(); }, [fetchProfile, isLoaded]);
 
   const handleChange = (col: string, val: string | string[]) => {
     setLocalValues((prev) => {
@@ -763,7 +790,7 @@ export default function ProfilePage() {
     ...(hasPhoneNumber ? [PHONE_CODE_COL] : []),
     ...(hasFundingMin ? [FUNDING_CURRENCY_COL, FUNDING_MAX_COL] : []),
   ]);
-  const sectionColumns = new Set(PROFILE_SECTIONS.flatMap((s) => s.columns));
+  const sectionColumns = new Set(activeSections.flatMap((s) => s.columns));
   // Any returned field not placed in a section (and not folded) — shown last so
   // nothing silently disappears if the backend adds a new column.
   const leftoverFields = fields.filter(
@@ -783,7 +810,7 @@ export default function ProfilePage() {
         setEditMode(false);
         return;
       }
-      const res = await saveUserProfile(payload);
+      const res = isAdminUser ? await saveAdminProfile(payload) : await saveUserProfile(payload);
       toast.success(res.message ?? "Profile saved successfully!");
       // Reflect the saved values back into `fields` so a later "Discard" resets to
       // the latest saved state (not the stale fetched one).
@@ -816,8 +843,8 @@ export default function ProfilePage() {
             </div>
           </Avatar>
           <div>
-            <h1 className="font-headline text-xl font-bold text-on-surface">My Profile</h1>
-            <p className="text-xs text-on-surface-variant">View and manage your profile details</p>
+            <h1 className="font-headline text-xl font-bold text-on-surface">{isAdminUser ? "Admin Profile" : "My Profile"}</h1>
+            <p className="text-xs text-on-surface-variant">{isAdminUser ? "View and manage your admin account details" : "View and manage your profile details"}</p>
           </div>
         </div>
 
@@ -861,7 +888,7 @@ export default function ProfilePage() {
             )}
 
             <div className="flex flex-col gap-8">
-              {PROFILE_SECTIONS.map((section) => {
+              {activeSections.map((section) => {
                 // Columns this section owns that the API actually returned, in order.
                 const present = section.columns
                   .map((col) => fieldByColumn.get(col))
