@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import {
   motion,
   useMotionValue,
@@ -9,6 +9,7 @@ import {
   type PanInfo,
 } from "framer-motion";
 import { Icon } from "@/components/ui/Icon";
+import { Avatar } from "@/components/ui/Avatar";
 import { CompatibilityRing } from "@/components/dashboard/explore/CompatibilityRing";
 import {
   ROLE_GRADIENT,
@@ -45,7 +46,6 @@ const EXIT_TARGET: Record<ExploreDecision, { x?: number; y?: number }> = {
 
 /** Presentational card face (full-bleed portrait + match info). No motion/gestures. */
 export function ProfileCardFace({ match }: { match: ExploreMatch }) {
-  const [photoFailed, setPhotoFailed] = useState(false);
   const fullName = [match.first_name, match.last_name].filter(Boolean).join(" ").trim();
   const location = formatLocation(match.country, match.continent);
   const contacts = contactLinks(match);
@@ -54,16 +54,11 @@ export function ProfileCardFace({ match }: { match: ExploreMatch }) {
   return (
     <div className="relative h-full w-full overflow-hidden rounded-[32px] bg-surface-container-highest shadow-2xl">
       {/* Background: profile photo if it loads, otherwise an initials avatar */}
-      {match.profile_photo && !photoFailed ? (
-        // eslint-disable-next-line @next/next/no-img-element -- remote portrait, no fixed dimensions
-        <img
-          src={match.profile_photo}
-          alt={fullName || match.organization_name}
-          draggable={false}
-          onError={() => setPhotoFailed(true)}
-          className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover"
-        />
-      ) : (
+      <Avatar
+        photoKey={match.profile_photo}
+        alt={fullName || match.organization_name}
+        className="pointer-events-none absolute inset-0 h-full w-full select-none"
+      >
         <div
           className={`pointer-events-none absolute inset-0 flex items-center justify-center bg-gradient-to-br ${ROLE_GRADIENT[match.role]}`}
         >
@@ -71,7 +66,7 @@ export function ProfileCardFace({ match }: { match: ExploreMatch }) {
             {companyInitials(fullName || match.organization_name)}
           </span>
         </div>
-      )}
+      </Avatar>
 
       {/* Compatibility score — top-right circular progress ring */}
       <div className="absolute right-4 top-4 z-10">

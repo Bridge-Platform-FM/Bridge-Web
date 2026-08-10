@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { Modal } from "@/components/modal/Modal";
 import { Icon } from "@/components/ui/Icon";
+import { Avatar } from "@/components/ui/Avatar";
 import { CompatibilityRing } from "@/components/dashboard/explore/CompatibilityRing";
 import {
   ROLE_GRADIENT,
@@ -32,8 +32,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
  * facts and contact info — using the shared explore-format helpers. No editing.
  */
 export function MatchProfileModal({ match, onClose }: { match: ExploreMatch | null; onClose: () => void }) {
-  const [photoFailed, setPhotoFailed] = useState(false);
-
   if (!match) return null;
 
   const fullName = [match.first_name, match.last_name].filter(Boolean).join(" ").trim() || match.organization_name;
@@ -46,21 +44,13 @@ export function MatchProfileModal({ match, onClose }: { match: ExploreMatch | nu
       <div className="flex flex-col gap-6">
         {/* Identity header */}
         <div className="flex items-start gap-4">
-          {match.profile_photo && !photoFailed ? (
-            // eslint-disable-next-line @next/next/no-img-element -- remote portrait, no fixed dimensions
-            <img
-              src={match.profile_photo}
-              alt={fullName}
-              onError={() => setPhotoFailed(true)}
-              className="size-20 shrink-0 rounded-2xl object-cover"
-            />
-          ) : (
+          <Avatar photoKey={match.profile_photo} alt={fullName} className="size-20 shrink-0 rounded-2xl">
             <div
               className={`flex size-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${ROLE_GRADIENT[match.role]} text-2xl font-black text-white`}
             >
               {companyInitials(fullName)}
             </div>
-          )}
+          </Avatar>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
               <h2 className="font-headline text-xl font-bold text-on-surface">{fullName}</h2>

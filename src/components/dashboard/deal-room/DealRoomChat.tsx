@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Icon } from "@/components/ui/Icon";
 import { ROLE_AVATAR_GRADIENT } from "@/lib/connections";
+import { Avatar } from "@/components/ui/Avatar";
 import { MessageBubble } from "./MessageBubble";
 import { DealStageStepper } from "./DealStageStepper";
 import { DealSidePanel } from "./DealSidePanel";
@@ -255,11 +256,13 @@ export function DealRoomChat({
           className="flex min-w-0 flex-1 items-center gap-3 rounded-xl text-left transition-opacity hover:opacity-80"
         >
           <div className="relative shrink-0">
-            <div
-              className={`flex size-12 items-center justify-center rounded-full bg-gradient-to-br ${ROLE_AVATAR_GRADIENT[cp.role]} font-headline text-base font-bold text-on-primary`}
-            >
-              {initials(cp.name)}
-            </div>
+            <Avatar photoKey={cp.photoKey} alt={cp.name} className="size-12 rounded-full">
+              <div
+                className={`flex size-12 items-center justify-center rounded-full bg-gradient-to-br ${ROLE_AVATAR_GRADIENT[cp.role]} font-headline text-base font-bold text-on-primary`}
+              >
+                {initials(cp.name)}
+              </div>
+            </Avatar>
             <span
               aria-hidden
               className={`absolute right-0 bottom-0 size-3 rounded-full border-2 border-surface ${
@@ -381,11 +384,13 @@ export function DealRoomChat({
           {/* Typing indicator — shown while the counterparty is composing. */}
           {counterpartyTyping && !closed && (
             <div className="flex items-end gap-2.5">
-              <span
-                className={`flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${ROLE_AVATAR_GRADIENT[cp.role]} text-[11px] font-bold text-on-primary`}
-              >
-                {initials(cp.name)}
-              </span>
+              <Avatar photoKey={cp.photoKey} alt={cp.name} className="size-8 shrink-0 rounded-full">
+                <span
+                  className={`flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${ROLE_AVATAR_GRADIENT[cp.role]} text-[11px] font-bold text-on-primary`}
+                >
+                  {initials(cp.name)}
+                </span>
+              </Avatar>
               <span className="inline-flex items-center gap-1 rounded-2xl rounded-tl-sm bg-surface-container-high px-4 py-3">
                 <span className="size-1.5 animate-bounce rounded-full bg-on-surface-variant [animation-delay:-0.2s]" />
                 <span className="size-1.5 animate-bounce rounded-full bg-on-surface-variant [animation-delay:-0.1s]" />

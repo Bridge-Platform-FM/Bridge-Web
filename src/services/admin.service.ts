@@ -68,6 +68,7 @@ function toUserListItem(raw: Record<string, unknown>): AdminUserListItem {
     mobileVerified: Boolean(raw.is_mobile_number_verified),
     kycStatus: toUserKycStatus(raw.kyc_status),
     companyId: raw.company_id != null ? String(raw.company_id) : undefined,
+    photoKey: (raw.profile_photo as string | null) ?? null,
     /*
      * `is_user_suspended` is the ONLY source of truth for the Active/Suspended pill and the
      * Suspend/Reactivate action. It is the column the suspension endpoint writes
@@ -167,6 +168,7 @@ function toKycSubmission(raw: Record<string, unknown>): KycSubmissionListItem {
     // company_id is now a UUID string — coerce to string (was Number() before)
     companyId: raw.company_id != null ? String(raw.company_id) : undefined,
     applicantName: name,
+    photoKey: (raw.profile_photo as string | null) ?? null,
     email,
     countryCode: (raw.country_code as string | null) ?? null,
     phone: (raw.mobile_number as string | undefined) ?? undefined,

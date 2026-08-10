@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Drawer } from "@/components/ui/Drawer";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/input";
+import { Avatar } from "@/components/ui/Avatar";
 import { initials } from "@/lib/admin-format";
 import { KYC_STATUS_META, StatusPill, VERIFY_META } from "@/components/dashboard/kyc-status";
 import { fetchUserLimitConfig, updateUserLimitConfig } from "@/services/admin.service";
@@ -188,9 +189,11 @@ export function UserDetailDrawer({ user, onClose }: { user: AdminUserListItem | 
         <>
           {/* Identity header */}
           <div className="flex items-center gap-4 pb-4">
-            <div className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary-container font-headline text-lg font-bold text-on-primary-container">
-              {initials(user.name)}
-            </div>
+            <Avatar photoKey={user.photoKey} alt={user.name} className="size-14 shrink-0 rounded-full">
+              <div className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary-container font-headline text-lg font-bold text-on-primary-container">
+                {initials(user.name)}
+              </div>
+            </Avatar>
             <div className="min-w-0">
               <p className="truncate font-headline text-lg font-bold text-on-surface">{user.name}</p>
               <div className="mt-1">

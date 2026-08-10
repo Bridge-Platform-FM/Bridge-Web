@@ -5,8 +5,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/input";
+import { Avatar } from "@/components/ui/Avatar";
 import { Loader } from "@/components/common/loader";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { searchUsers } from "@/services/user.service";
+import { useMyProfilePhoto } from "@/lib/useMyProfilePhoto";
+import { initials } from "@/lib/admin-format";
+import { ROLE_META, isUserRole } from "@/lib/roles";
 import type { ApiError } from "@/lib/axios";
 import type { UserSearchResult } from "@/types/api.types";
 
@@ -129,11 +134,18 @@ function NavbarSearch() {
                                         key={`${u.user_id}-${u.role_id}-${u.company_id}`}
                                         type="button"
                                         onClick={() => pick(u)}
-                                        className="flex w-full flex-col items-start rounded-lg px-3 py-2 text-left transition-colors hover:bg-surface-container"
+                                        className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-surface-container"
                                     >
-                                        <span className="text-sm font-semibold text-on-surface">{name}</span>
-                                        <span className="truncate text-xs text-on-surface-variant">
-                                            {u.company_name} · {u.email}
+                                        <Avatar photoKey={u.profile_photo} alt={name} className="size-8 shrink-0 rounded-full">
+                                            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-container text-xs font-bold text-on-primary-container">
+                                                {initials(name)}
+                                            </div>
+                                        </Avatar>
+                                        <span className="flex min-w-0 flex-col">
+                                            <span className="truncate text-sm font-semibold text-on-surface">{name}</span>
+                                            <span className="truncate text-xs text-on-surface-variant">
+                                                {u.company_name} · {u.email}
+                                            </span>
                                         </span>
                                     </button>
                                 );
@@ -185,10 +197,40 @@ export function BrandLockup({ className = "", showLabel = true }: { className?: 
 }
 
 /**
+ * The signed-in identity (avatar + name + role label), shown in the dashboard navbar
+ * for every role — user, admin and super_admin alike. Renders nothing until the auth
+ * role resolves, so it never flashes a placeholder identity on first paint.
+ */
+function NavbarProfile() {
+    const { role, user } = useAuth();
+    // Only the three user roles have a `/users/profile` record — staff would just 404.
+    const photoKey = useMyProfilePhoto(isUserRole(role));
+
+    if (!role) return null;
+
+    const meta = ROLE_META[role];
+    const name = user?.name || user?.email || meta.label;
+
+    return (
+        <div className="flex min-w-0 items-center gap-3">
+            <Avatar photoKey={photoKey} alt={name} className="size-9 shrink-0 rounded-full">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-container text-on-primary-container">
+                    <Icon name={meta.icon} size={20} />
+                </div>
+            </Avatar>
+            <div className="hidden min-w-0 max-w-[160px] md:block">
+                <p className="truncate text-sm font-bold text-on-surface">{name}</p>
+                <p className="truncate text-xs text-on-surface-variant">{meta.label}</p>
+            </div>
+        </div>
+    );
+}
+
+/**
  * Dashboard variant of the navbar. Rendered inside the dashboard content column
  * (to the right of the sidebar), so it starts where the sidebar ends. It omits the
- * brand lockup (the sidebar already shows it) and surfaces only the notifications
- * control (the user/role identity lives in the sidebar).
+ * brand lockup (the sidebar already shows it) and carries the notifications control
+ * followed by the signed-in identity.
  */
 export function DashboardNavbar() {
     return (
@@ -197,13 +239,16 @@ export function DashboardNavbar() {
             <div className="w-full justify-self-center">
                 <NavbarSearch />
             </div>
-            <button
-                type="button"
-                aria-label="Notifications"
-                className="flex size-10 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container-highest hover:text-on-surface justify-self-end"
-            >
-                <Icon name="notifications" size={22} />
-            </button>
+            <div className="flex min-w-0 items-center gap-2 justify-self-end">
+                <button
+                    type="button"
+                    aria-label="Notifications"
+                    className="flex size-10 shrink-0 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container-highest hover:text-on-surface"
+                >
+                    <Icon name="notifications" size={22} />
+                </button>
+                <NavbarProfile />
+            </div>
         </header>
     );
 }

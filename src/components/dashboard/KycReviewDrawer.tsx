@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Drawer } from "@/components/ui/Drawer";
 import { Icon } from "@/components/ui/Icon";
+import { Avatar } from "@/components/ui/Avatar";
 import { Textarea } from "@/components/ui/Textarea";
 import { Loader } from "@/components/common/loader";
 import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewModal";
@@ -185,9 +186,15 @@ export function KycReviewDrawer({
         <>
           {/* Applicant */}
           <div className="flex items-center gap-4">
-            <div className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary-container font-headline text-lg font-bold text-on-primary-container">
-              {initials(submission.applicantName)}
-            </div>
+            <Avatar
+              photoKey={submission.photoKey}
+              alt={submission.applicantName}
+              className="size-14 shrink-0 rounded-full"
+            >
+              <div className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary-container font-headline text-lg font-bold text-on-primary-container">
+                {initials(submission.applicantName)}
+              </div>
+            </Avatar>
             <div className="min-w-0 flex-1 space-y-0.5">
               {submission.email && (
                 <p className="flex items-center gap-1.5 truncate text-sm text-on-surface-variant">

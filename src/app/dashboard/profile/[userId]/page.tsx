@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useState, type ReactNode } from "reac
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { AsyncState } from "@/components/ui/AsyncState";
 import { Icon } from "@/components/ui/Icon";
+import { Avatar } from "@/components/ui/Avatar";
 import { Loader } from "@/components/common/loader";
 import { normalizeRole, type Role } from "@/lib/roles";
 import { getUserRoleDetails, type ProfileField } from "@/services/user.service";
@@ -11,10 +12,12 @@ import { normalizeValue, PROFILE_SECTIONS } from "@/app/dashboard/profile/page";
 import { getFieldOptionConfig } from "@/lib/profile-field-options";
 import { ProposalFormModal } from "@/components/dashboard/connections/ProposalFormModal";
 import { useSenderIdentity } from "@/components/dashboard/connections/sender-identity";
+import { profilePhotoKey } from "@/lib/useMyProfilePhoto";
 import type { ApiError } from "@/lib/axios";
 
-/** Fields never rendered — leaked secrets, not profile content. */
-const HIDDEN_FIELDS = new Set(["password"]);
+/** Fields never rendered as a row — leaked secrets, and the profile photo, which is
+ *  shown as the header avatar rather than as its raw storage key. */
+const HIDDEN_FIELDS = new Set(["password", "profile_photo"]);
 
 /** Columns whose presence identifies the profile's role (mirrors the section
  *  groupings on My Profile — there's no explicit "role" field in this response). */
@@ -172,9 +175,15 @@ function UserProfilePageContent() {
         >
           <Icon name="arrow_back" size={20} />
         </button>
-        <div className="flex size-11 items-center justify-center rounded-2xl bg-primary-container text-on-primary-container">
-          <Icon name="account_circle" size={24} />
-        </div>
+        <Avatar
+          photoKey={profilePhotoKey(fields ?? [])}
+          alt={name || "Profile picture"}
+          className="size-11 shrink-0 rounded-2xl"
+        >
+          <div className="flex size-11 items-center justify-center rounded-2xl bg-primary-container text-on-primary-container">
+            <Icon name="account_circle" size={24} />
+          </div>
+        </Avatar>
         <div className="min-w-0">
           <h1 className="truncate font-headline text-xl font-bold text-on-surface">{name || "Profile"}</h1>
           <p className="truncate text-xs text-on-surface-variant">{company || "View-only profile"}</p>

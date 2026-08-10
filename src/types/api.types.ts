@@ -417,6 +417,8 @@ export interface AdminUserListItem {
   kycStatus: KycStatus;
   /** `company_id` — required alongside `userId` by the suspension endpoint. */
   companyId?: string;
+  /** Stored profile-picture key (`user.profile_photo`); undefined = show initials. */
+  photoKey?: string | null;
   /** Account state, derived from the user's active flag. */
   suspended: boolean;
 }
@@ -475,6 +477,8 @@ export interface KycSubmissionListItem {
   /** Backend `company_id` (UUID) — the key the overall review-action endpoint expects. */
   companyId?: string;
   applicantName: string;
+  /** Stored profile-picture key (`user.profile_photo`); undefined = show initials. */
+  photoKey?: string | null;
   email?: string;
   countryCode?: string | null;
   phone?: string;
@@ -614,6 +618,8 @@ export interface UserSearchResult {
   company_id: string;
   first_name: string;
   last_name: string;
+  /** Stored profile-picture key (`user.profile_photo`); null = show initials. */
+  profile_photo?: string | null;
   company_name: string;
   email: string;
   mobile_number: string;
@@ -664,6 +670,8 @@ export interface ConnectionRequest {
   name: string;
   company: string;
   role: Role;
+  /** Stored profile-picture key (`user.profile_photo`); undefined = show initials. */
+  photoKey?: string | null;
   intent: string;
   message?: string;
   productServiceDetails?: string;
@@ -875,6 +883,8 @@ export interface ZeroEngagementProfile {
   role: string;
   company: string;
   joinedAt: string | null;
+  /** Stored profile-picture key (`user.profile_photo`); null = show initials. */
+  profilePhoto?: string | null;
 }
  
 export interface MatchingEngineAlgorithmDistribution {

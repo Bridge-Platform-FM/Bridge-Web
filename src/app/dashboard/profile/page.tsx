@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Icon } from "@/components/ui/Icon";
+import { Avatar } from "@/components/ui/Avatar";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
@@ -21,6 +22,7 @@ import {
 import { CURRENCIES } from "@/lib/startup-profile-options";
 import { DIAL_CODES, continentForCountry } from "@/lib/countries";
 import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewModal";
+import { profilePhotoKey } from "@/lib/useMyProfilePhoto";
 import type { ApiError } from "@/lib/axios";
 
 /** Columns that hold an uploaded document's S3 key (rendered with a Preview button). */
@@ -717,9 +719,15 @@ export default function ProfilePage() {
       {/* ── Page Header ── */}
       <div className="flex shrink-0 items-center justify-between gap-4 border-b border-outline-variant/20 bg-surface-container-lowest px-8 py-5">
         <div className="flex items-center gap-3">
-          <div className="flex size-11 items-center justify-center rounded-2xl bg-primary-container text-on-primary-container">
-            <Icon name="account_circle" size={24} />
-          </div>
+          <Avatar
+            photoKey={profilePhotoKey(fields)}
+            alt="My profile picture"
+            className="size-11 shrink-0 rounded-2xl"
+          >
+            <div className="flex size-11 items-center justify-center rounded-2xl bg-primary-container text-on-primary-container">
+              <Icon name="account_circle" size={24} />
+            </div>
+          </Avatar>
           <div>
             <h1 className="font-headline text-xl font-bold text-on-surface">My Profile</h1>
             <p className="text-xs text-on-surface-variant">View and manage your profile details</p>

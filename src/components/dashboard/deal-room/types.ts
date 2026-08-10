@@ -36,6 +36,8 @@ export interface DealCounterparty {
   state?: string;
   country?: string;
   role: Role;
+  /** Stored profile-picture key (`user.profile_photo`); undefined = show initials. */
+  photoKey?: string | null;
 }
 
 /** A file attached to a message. */
