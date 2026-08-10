@@ -89,6 +89,17 @@ export const API_ENDPOINTS = {
   ADMIN_REVOKE_SELECTED_SESSIONS: `${ADMIN}/sessions/revoke-selected`,
   ADMIN_SESSION_LOGOUT: `${ADMIN}/sessions/logout`,
 
+  // ----- Dashboard APIs -----
+  // Fetch role-specific dashboard stats for the logged-in user (GET).
+  // Returns profile summary + stat counters (connections, deal rooms, documents, etc).
+  USER_DASHBOARD: `${USERS}/dashboard`,
+
+  // Fetch admin dashboard KPIs — user counts, KYC pipeline, recent activity (GET).
+  ADMIN_DASHBOARD: `${ADMIN}/dashboard`,
+
+  // Fetch super admin platform-wide KPIs — users, orgs, KYC, active today, etc (GET).
+  SUPER_ADMIN_DASHBOARD: `${SUPER_ADMIN}/dashboard`,
+
   // ----- Admin / Super-Admin back-office -----
   // User Management list + detail. TODO: replace with the real paths from the curl.
   ADMIN_USERS: `${ADMIN}/get-user-list`,
