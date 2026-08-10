@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Icon } from "@/components/ui/Icon";
 import { Avatar } from "@/components/ui/Avatar";
@@ -23,10 +23,23 @@ import { CURRENCIES } from "@/lib/startup-profile-options";
 import { DIAL_CODES, continentForCountry } from "@/lib/countries";
 import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewModal";
 import { profilePhotoKey } from "@/lib/useMyProfilePhoto";
+import { scanDocument } from "@/services/file.service";
+import { DOC_TYPE, type DocType } from "@/config/docTypes";
 import type { ApiError } from "@/lib/axios";
 
-/** Columns that hold an uploaded document's S3 key (rendered with a Preview button). */
-const DOCUMENT_COLUMNS = new Set(["incorporation_certificate", "pitch_deck_certificate"]);
+/**
+ * Columns that hold an uploaded document's S3 key (rendered with a Preview button, and
+ * a Replace/Upload control in edit mode). The value is the `docType` the scan API files
+ * the upload under.
+ */
+const DOCUMENT_COLUMNS = new Map<string, DocType>([
+  ["incorporation_certificate", DOC_TYPE.INCORPORATION_CERTIFICATE],
+  ["pitch_deck_certificate", DOC_TYPE.PITCH_DECK],
+]);
+
+/** Matches the backend's `fileUpload` multer config: PDF only, 10 MB ceiling. */
+const DOCUMENT_ACCEPT = "application/pdf";
+const DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
 
 /** Profile columns handled by the combined phone widget (rendered together). */
 const PHONE_NUMBER_COL = "mobile_number";
@@ -364,20 +377,63 @@ function FundingAmountField({
 }
 
 /**
- * Uploaded-document row — shows whether a file is present and a Preview button
- * that opens the shared `DocumentPreviewModal` for the stored S3 key.
+ * Uploaded-document row — shows whether a file is present, a Preview button that opens
+ * the shared `DocumentPreviewModal` for the stored S3 key, and (in edit mode, when the
+ * field isn't locked) an Upload/Replace control.
+ *
+ * Uploading goes through the same scan endpoint the registration step uses, so the file
+ * is virus-scanned and stored identically. It returns the new S3 key, which is handed to
+ * `onUploaded` and lands in `localValues` — the column is then saved with the rest of the
+ * form on "Save Changes", so a discarded edit never repoints the profile at the new file.
  */
 function DocumentField({
   label,
   s3Key,
   locked,
+  editable,
+  docType,
   onPreview,
+  onUploaded,
 }: {
   label: string;
   s3Key: string;
   locked: boolean;
+  /** Edit mode is on AND this field is editable — only then is upload offered. */
+  editable: boolean;
+  docType: DocType;
   onPreview: () => void;
+  onUploaded: (s3Key: string) => void;
 }) {
+  const [uploading, setUploading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Clear immediately so picking the same file again still fires onChange.
+    e.target.value = "";
+    if (!file) return;
+
+    if (file.type !== DOCUMENT_ACCEPT) {
+      toast.error("Only PDF files are allowed.");
+      return;
+    }
+    if (file.size > DOCUMENT_MAX_BYTES) {
+      toast.error("File is too large — the limit is 10 MB.");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const { s3Key: uploadedKey } = await scanDocument(file, { docType });
+      onUploaded(uploadedKey);
+      toast.success(`${label} uploaded. Click Save Changes to keep it.`);
+    } catch (err) {
+      toast.error((err as ApiError)?.message ?? "Couldn't upload the document. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-2">
       <FieldLabel id={`profile-field-${label}`} label={label} locked={locked} />
@@ -390,16 +446,42 @@ function DocumentField({
         ) : (
           <span className="text-sm text-outline-variant">Not uploaded</span>
         )}
-        {s3Key && (
-          <button
-            type="button"
-            onClick={onPreview}
-            className="flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-semibold text-primary transition-colors hover:bg-primary-container/40"
-          >
-            <Icon name="visibility" size={16} />
-            Preview
-          </button>
-        )}
+
+        <div className="flex shrink-0 items-center gap-1">
+          {s3Key && (
+            <button
+              type="button"
+              onClick={onPreview}
+              className="flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-semibold text-primary transition-colors hover:bg-primary-container/40"
+            >
+              <Icon name="visibility" size={16} />
+              Preview
+            </button>
+          )}
+
+          {editable && (
+            <>
+              <input
+                ref={inputRef}
+                type="file"
+                accept={DOCUMENT_ACCEPT}
+                onChange={handleFile}
+                className="hidden"
+                aria-hidden
+                tabIndex={-1}
+              />
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                disabled={uploading}
+                className="flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-semibold text-primary transition-colors hover:bg-primary-container/40 disabled:opacity-60"
+              >
+                {uploading ? <Loader size={16} /> : <Icon name="upload_file" size={16} />}
+                {uploading ? "Uploading…" : "Upload"}
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -599,8 +681,10 @@ export default function ProfilePage() {
   // Render one field as the right control (combined widgets for phone / funding,
   // otherwise the generic row), wrapped with the correct column span.
   const renderField = (field: ProfileField) => {
-    // Uploaded document → presence + Preview button (opens the shared modal).
-    if (DOCUMENT_COLUMNS.has(field.columnName)) {
+    // Uploaded document → presence + Preview button (opens the shared modal), plus an
+    // Upload/Replace control while editing.
+    const docType = DOCUMENT_COLUMNS.get(field.columnName);
+    if (docType) {
       const s3Key = toStringValue(localValues[field.columnName] ?? normalizeValue(field));
       const label = field.label ?? field.columnName;
       return (
@@ -609,7 +693,10 @@ export default function ProfilePage() {
             label={label}
             s3Key={s3Key}
             locked={!field.isEditable}
+            editable={editMode && field.isEditable}
+            docType={docType}
             onPreview={() => setPreview({ s3Key, title: label })}
+            onUploaded={(key) => handleChange(field.columnName, key)}
           />
         </div>
       );

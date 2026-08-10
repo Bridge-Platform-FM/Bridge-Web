@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { AsyncState } from "@/components/ui/AsyncState";
 import { ProfileCardFace, ProfileShortsCard } from "@/components/dashboard/explore/ProfileShortsCard";
@@ -82,13 +82,22 @@ export function ProfileShortsDeck({ matches, loading, error, onReload }: Profile
   const current = matches[index];
   const next = matches[index + 1];
 
+  /** Set when a request was just sent, so the exit handler knows to refetch. */
+  const reloadAfterExit = useRef(false);
+
   // Card finished flying off screen → advance the deck.
   // The swipe used to POST /matching/events here; that route isn't registered on the
   // backend (see explore.service.ts), so it only ever 404'd. Re-add once it exists.
   const handleExit = useCallback(() => {
     setIndex((i) => i + 1);
     setCommandedExit(null);
-  }, []);
+
+    
+    if (reloadAfterExit.current) {
+      reloadAfterExit.current = false;
+      onReload();
+    }
+  }, [onReload]);
 
   // Trigger an action from a button / keyboard (ignored mid-animation). "send"
   // opens the proposal modal instead of committing; reject/skip exit immediately.
@@ -114,6 +123,7 @@ export function ProfileShortsDeck({ matches, loading, error, onReload }: Profile
   // Proposal sent → fly the card out ("send") so the deck advances via handleExit.
   const handleProposalSent = useCallback(() => {
     setProposalRecipient(null);
+    reloadAfterExit.current = true;
     setCommandedExit("send");
   }, []);
 
