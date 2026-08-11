@@ -87,7 +87,7 @@ export function ConnectionDetailDrawer({ request, onClose, onAction }: Connectio
         <>
           {/* Identity + status */}
           <div className="flex items-center gap-4">
-            <ConnectionAvatar name={request.name} role={request.role} size={52} />
+            <ConnectionAvatar name={request.name} role={request.role} size={52} photoKey={request.photoKey} />
             <div className="min-w-0 flex-1">
               <p className="truncate font-headline text-base font-bold text-on-surface">{request.name}</p>
               <p className="truncate text-sm text-on-surface-variant">

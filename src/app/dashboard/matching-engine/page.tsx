@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
+import { Avatar } from "@/components/ui/Avatar";
 import { Input } from "@/components/ui/input";
 import { AsyncState } from "@/components/ui/AsyncState";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -126,12 +127,14 @@ function ChipRow({
   );
 }
 
-function AvatarInitials({ name }: { name: string }) {
+function AvatarInitials({ name, photoKey }: { name: string; photoKey?: string | null }) {
   const letters = name.split(" ").map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase();
   return (
-    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-container text-xs font-bold text-on-primary-container">
-      {letters || "?"}
-    </span>
+    <Avatar photoKey={photoKey} alt={name} className="size-8 shrink-0 rounded-full">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-container text-xs font-bold text-on-primary-container">
+        {letters || "?"}
+      </span>
+    </Avatar>
   );
 }
 
@@ -414,7 +417,7 @@ export default function MatchingEngineDashboardPage() {
                           <tr key={profile.userId} className="transition-colors hover:bg-surface-container">
                             <td className="px-5 py-4">
                               <div className="flex items-center gap-3">
-                                <AvatarInitials name={profile.name} />
+                                <AvatarInitials name={profile.name} photoKey={profile.profilePhoto} />
                                 <span className="text-sm font-semibold text-on-surface">{profile.name}</span>
                               </div>
                             </td>

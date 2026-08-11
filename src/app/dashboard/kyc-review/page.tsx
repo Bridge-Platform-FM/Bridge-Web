@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
+import { Avatar } from "@/components/ui/Avatar";
 import { Input } from "@/components/ui/input";
 import { AsyncState } from "@/components/ui/AsyncState";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -124,9 +125,11 @@ export default function KycReviewPage() {
                   onClick={() => setSelected(item)}
                   className="flex w-full items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-surface-container-low"
                 >
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-container text-sm font-bold text-on-primary-container">
-                    {initials(item.applicantName)}
-                  </div>
+                  <Avatar photoKey={item.photoKey} alt={item.applicantName} className="size-9 shrink-0 rounded-full">
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-container text-sm font-bold text-on-primary-container">
+                      {initials(item.applicantName)}
+                    </div>
+                  </Avatar>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-bold text-on-surface">{item.applicantName}</p>
                     <p className="truncate text-xs text-on-surface-variant">{item.email}</p>

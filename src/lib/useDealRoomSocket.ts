@@ -108,6 +108,7 @@ interface DealRoomSocketHandlers {
   onNewMessage: (msg: DealMessage) => void;
   /** Fired when someone marks the room read (used for "Seen" receipts). */
   onMessagesRead?: (payload: MessagesReadPayload) => void;
+  onReconnect?: () => void;
   /** Fired when the other participant starts/stops typing. */
   onUserTyping?: (payload: UserTypingPayload) => void;
   /** Fired when the other participant opens/closes this deal room. */
@@ -178,6 +179,7 @@ export function useDealRoomSocket(dealRoomId: string, handlers: DealRoomSocketHa
   // the toast. Reset to false on a successful connect so a later failure (e.g. after
   // the cookie expires mid-session) can surface again.
   const connectErrorShownRef = useRef(false);
+  const hasConnectedRef = useRef(false);
 
   useEffect(() => {
     if (!dealRoomId) return;
@@ -189,11 +191,23 @@ export function useDealRoomSocket(dealRoomId: string, handlers: DealRoomSocketHa
     const socket = io(url, { withCredentials: true, transports: ["websocket", "polling"] });
     socketRef.current = socket;
 
+    // Claim the room as read, but only while the tab is on screen so we never report a
+    // message as seen that nobody looked at. Idempotent server-side (only still-unread
+    // rows are updated), so it's safe to call liberally.
+    const markReadIfVisible = () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      socket.emit("mark_read", { dealRoomId });
+    };
+
     socket.on("connect", () => {
       connectErrorShownRef.current = false;
       socket.emit("join_deal_room", { dealRoomId });
-      // Opening the room clears any unread messages for me.
-      socket.emit("mark_read", { dealRoomId });
+      // Opening the room clears any unread messages for me — but an automatic reconnect
+      // (network blip, laptop wake) while the tab is hidden must not claim a read.
+      markReadIfVisible();
+
+      if (hasConnectedRef.current) handlersRef.current.onReconnect?.();
+      hasConnectedRef.current = true;
     });
     // Without this, an auth/CORS failure on the handshake fails completely silently —
     // no console output, no user-visible sign that real-time updates (chat, meetings,
@@ -211,10 +225,9 @@ export function useDealRoomSocket(dealRoomId: string, handlers: DealRoomSocketHa
     socket.on("new_message", (raw: RawMessage) => {
       const msg = normalizeMessage(raw);
       handlersRef.current.onNewMessage(msg);
-      // A message from the other side, seen while the tab is focused, is read immediately.
-      if (msg.sender === "them" && (typeof document === "undefined" || document.visibilityState === "visible")) {
-        socket.emit("mark_read", { dealRoomId });
-      }
+      // A message from the other side is read immediately if the tab is on screen. If it
+      // isn't, the visibilitychange listener below claims it when the tab comes back.
+      if (msg.sender === "them") markReadIfVisible();
     });
 
     socket.on("messages_read", (payload: MessagesReadPayload) => handlersRef.current.onMessagesRead?.(payload));
@@ -265,7 +278,16 @@ export function useDealRoomSocket(dealRoomId: string, handlers: DealRoomSocketHa
       toast.error(err?.message ?? "Deal room connection error."),
     );
 
+    // The tab coming back into view is the moment the user actually reads what arrived
+    // while it was hidden — without this the sender's tick stays "Delivered" until a
+    // reload. Not gated on "did we see an unread message": a backgrounded tab may have
+    // been frozen or disconnected when it arrived, so we can't know.
+    const onVisibilityChange = () => markReadIfVisible();
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
     return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      hasConnectedRef.current = false;
       if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
       typingActiveRef.current = false;
       socket.emit("leave_deal_room", { dealRoomId });

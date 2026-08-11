@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Icon } from "@/components/ui/Icon";
+import { Avatar } from "@/components/ui/Avatar";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
@@ -21,10 +22,27 @@ import {
 import { CURRENCIES } from "@/lib/startup-profile-options";
 import { DIAL_CODES, continentForCountry } from "@/lib/countries";
 import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewModal";
+import { profilePhotoKey } from "@/lib/useMyProfilePhoto";
+import { scanDocument } from "@/services/file.service";
+import { DOC_TYPE, type DocType } from "@/config/docTypes";
 import type { ApiError } from "@/lib/axios";
+import { getAdminProfile, saveAdminProfile } from "@/services/admin.service";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { isStaffRole } from "@/lib/roles";
 
-/** Columns that hold an uploaded document's S3 key (rendered with a Preview button). */
-const DOCUMENT_COLUMNS = new Set(["incorporation_certificate", "pitch_deck_certificate"]);
+/**
+ * Columns that hold an uploaded document's S3 key (rendered with a Preview button, and
+ * a Replace/Upload control in edit mode). The value is the `docType` the scan API files
+ * the upload under.
+ */
+const DOCUMENT_COLUMNS = new Map<string, DocType>([
+  ["incorporation_certificate", DOC_TYPE.INCORPORATION_CERTIFICATE],
+  ["pitch_deck_certificate", DOC_TYPE.PITCH_DECK],
+]);
+
+/** Matches the backend's `fileUpload` multer config: PDF only, 10 MB ceiling. */
+const DOCUMENT_ACCEPT = "application/pdf";
+const DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
 
 /** Profile columns handled by the combined phone widget (rendered together). */
 const PHONE_NUMBER_COL = "mobile_number";
@@ -104,6 +122,19 @@ export const PROFILE_SECTIONS: { title: string; columns: string[] }[] = [
   {
     title: "About",
     columns: ["short_bio"],
+  },
+];
+
+/**
+ * Field grouping for ADMIN / SUPER_ADMIN self-service profiles.
+ * Simpler shape — only the admin's own account fields are shown.
+ * `country_code` is intentionally omitted here (folded into the phone widget
+ * at the `mobile_number` anchor, same as user profiles).
+ */
+const ADMIN_PROFILE_SECTIONS: { title: string; columns: string[] }[] = [
+  {
+    title: "Account Details",
+    columns: ["name", "email", "role", "mobile_number"],
   },
 ];
 
@@ -362,20 +393,63 @@ function FundingAmountField({
 }
 
 /**
- * Uploaded-document row — shows whether a file is present and a Preview button
- * that opens the shared `DocumentPreviewModal` for the stored S3 key.
+ * Uploaded-document row — shows whether a file is present, a Preview button that opens
+ * the shared `DocumentPreviewModal` for the stored S3 key, and (in edit mode, when the
+ * field isn't locked) an Upload/Replace control.
+ *
+ * Uploading goes through the same scan endpoint the registration step uses, so the file
+ * is virus-scanned and stored identically. It returns the new S3 key, which is handed to
+ * `onUploaded` and lands in `localValues` — the column is then saved with the rest of the
+ * form on "Save Changes", so a discarded edit never repoints the profile at the new file.
  */
 function DocumentField({
   label,
   s3Key,
   locked,
+  editable,
+  docType,
   onPreview,
+  onUploaded,
 }: {
   label: string;
   s3Key: string;
   locked: boolean;
+  /** Edit mode is on AND this field is editable — only then is upload offered. */
+  editable: boolean;
+  docType: DocType;
   onPreview: () => void;
+  onUploaded: (s3Key: string) => void;
 }) {
+  const [uploading, setUploading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Clear immediately so picking the same file again still fires onChange.
+    e.target.value = "";
+    if (!file) return;
+
+    if (file.type !== DOCUMENT_ACCEPT) {
+      toast.error("Only PDF files are allowed.");
+      return;
+    }
+    if (file.size > DOCUMENT_MAX_BYTES) {
+      toast.error("File is too large — the limit is 10 MB.");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const { s3Key: uploadedKey } = await scanDocument(file, { docType });
+      onUploaded(uploadedKey);
+      toast.success(`${label} uploaded. Click Save Changes to keep it.`);
+    } catch (err) {
+      toast.error((err as ApiError)?.message ?? "Couldn't upload the document. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-2">
       <FieldLabel id={`profile-field-${label}`} label={label} locked={locked} />
@@ -388,16 +462,42 @@ function DocumentField({
         ) : (
           <span className="text-sm text-outline-variant">Not uploaded</span>
         )}
-        {s3Key && (
-          <button
-            type="button"
-            onClick={onPreview}
-            className="flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-semibold text-primary transition-colors hover:bg-primary-container/40"
-          >
-            <Icon name="visibility" size={16} />
-            Preview
-          </button>
-        )}
+
+        <div className="flex shrink-0 items-center gap-1">
+          {s3Key && (
+            <button
+              type="button"
+              onClick={onPreview}
+              className="flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-semibold text-primary transition-colors hover:bg-primary-container/40"
+            >
+              <Icon name="visibility" size={16} />
+              Preview
+            </button>
+          )}
+
+          {editable && (
+            <>
+              <input
+                ref={inputRef}
+                type="file"
+                accept={DOCUMENT_ACCEPT}
+                onChange={handleFile}
+                className="hidden"
+                aria-hidden
+                tabIndex={-1}
+              />
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                disabled={uploading}
+                className="flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-semibold text-primary transition-colors hover:bg-primary-container/40 disabled:opacity-60"
+              >
+                {uploading ? <Loader size={16} /> : <Icon name="upload_file" size={16} />}
+                {uploading ? "Uploading…" : "Upload"}
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -537,6 +637,13 @@ export function ProfileFieldRow({ field, value, editMode, onChange }: FieldProps
 // ─── page ─────────────────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
+  const { role, isLoaded } = useAuth();
+  // True for both "admin" and "super_admin" — both use the admin profile endpoint.
+  const isAdminUser = isStaffRole(role);
+  // Active section list — admin profiles show only account details; user profiles
+  // show the full role-specific section tree.
+  const activeSections = isAdminUser ? ADMIN_PROFILE_SECTIONS : PROFILE_SECTIONS;
+
   const [fields, setFields] = useState<ProfileField[]>([]);
   const [localValues, setLocalValues] = useState<Record<string, string | string[]>>({});
   const [loading, setLoading] = useState(false);
@@ -548,7 +655,9 @@ export default function ProfilePage() {
   const fetchProfile = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await getUserProfile();
+      // Admin / super-admin → dedicated self-service endpoint (no authorize() gate).
+      // Regular user → existing users/profile endpoint.
+      const res = isAdminUser ? await getAdminProfile() : await getUserProfile();
       const fetched = res.data ?? [];
       setFields(fetched);
       const init: Record<string, string | string[]> = {};
@@ -559,10 +668,12 @@ export default function ProfilePage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAdminUser]);
 
+  // Wait for the session to be read from localStorage before fetching — otherwise
+  // `isAdminUser` is always false on the first render and the wrong endpoint is called.
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { fetchProfile(); }, [fetchProfile]);
+  useEffect(() => { if (isLoaded) fetchProfile(); }, [fetchProfile, isLoaded]);
 
   const handleChange = (col: string, val: string | string[]) => {
     setLocalValues((prev) => {
@@ -597,8 +708,10 @@ export default function ProfilePage() {
   // Render one field as the right control (combined widgets for phone / funding,
   // otherwise the generic row), wrapped with the correct column span.
   const renderField = (field: ProfileField) => {
-    // Uploaded document → presence + Preview button (opens the shared modal).
-    if (DOCUMENT_COLUMNS.has(field.columnName)) {
+    // Uploaded document → presence + Preview button (opens the shared modal), plus an
+    // Upload/Replace control while editing.
+    const docType = DOCUMENT_COLUMNS.get(field.columnName);
+    if (docType) {
       const s3Key = toStringValue(localValues[field.columnName] ?? normalizeValue(field));
       const label = field.label ?? field.columnName;
       return (
@@ -607,7 +720,10 @@ export default function ProfilePage() {
             label={label}
             s3Key={s3Key}
             locked={!field.isEditable}
+            editable={editMode && field.isEditable}
+            docType={docType}
             onPreview={() => setPreview({ s3Key, title: label })}
+            onUploaded={(key) => handleChange(field.columnName, key)}
           />
         </div>
       );
@@ -674,7 +790,7 @@ export default function ProfilePage() {
     ...(hasPhoneNumber ? [PHONE_CODE_COL] : []),
     ...(hasFundingMin ? [FUNDING_CURRENCY_COL, FUNDING_MAX_COL] : []),
   ]);
-  const sectionColumns = new Set(PROFILE_SECTIONS.flatMap((s) => s.columns));
+  const sectionColumns = new Set(activeSections.flatMap((s) => s.columns));
   // Any returned field not placed in a section (and not folded) — shown last so
   // nothing silently disappears if the backend adds a new column.
   const leftoverFields = fields.filter(
@@ -694,7 +810,7 @@ export default function ProfilePage() {
         setEditMode(false);
         return;
       }
-      const res = await saveUserProfile(payload);
+      const res = isAdminUser ? await saveAdminProfile(payload) : await saveUserProfile(payload);
       toast.success(res.message ?? "Profile saved successfully!");
       // Reflect the saved values back into `fields` so a later "Discard" resets to
       // the latest saved state (not the stale fetched one).
@@ -717,12 +833,18 @@ export default function ProfilePage() {
       {/* ── Page Header ── */}
       <div className="flex shrink-0 items-center justify-between gap-4 border-b border-outline-variant/20 bg-surface-container-lowest px-8 py-5">
         <div className="flex items-center gap-3">
-          <div className="flex size-11 items-center justify-center rounded-2xl bg-primary-container text-on-primary-container">
-            <Icon name="account_circle" size={24} />
-          </div>
+          <Avatar
+            photoKey={profilePhotoKey(fields)}
+            alt="My profile picture"
+            className="size-11 shrink-0 rounded-2xl"
+          >
+            <div className="flex size-11 items-center justify-center rounded-2xl bg-primary-container text-on-primary-container">
+              <Icon name="account_circle" size={24} />
+            </div>
+          </Avatar>
           <div>
-            <h1 className="font-headline text-xl font-bold text-on-surface">My Profile</h1>
-            <p className="text-xs text-on-surface-variant">View and manage your profile details</p>
+            <h1 className="font-headline text-xl font-bold text-on-surface">{isAdminUser ? "Admin Profile" : "My Profile"}</h1>
+            <p className="text-xs text-on-surface-variant">{isAdminUser ? "View and manage your admin account details" : "View and manage your profile details"}</p>
           </div>
         </div>
 
@@ -766,7 +888,7 @@ export default function ProfilePage() {
             )}
 
             <div className="flex flex-col gap-8">
-              {PROFILE_SECTIONS.map((section) => {
+              {activeSections.map((section) => {
                 // Columns this section owns that the API actually returned, in order.
                 const present = section.columns
                   .map((col) => fieldByColumn.get(col))

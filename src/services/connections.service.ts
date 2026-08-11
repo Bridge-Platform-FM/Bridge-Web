@@ -43,10 +43,12 @@ interface RawConnection {
   requester_last_name?: string;
   requester_role_code?: string;
   requester_company_name?: string;
+  requester_profile_photo?: string | null;
   recipient_first_name?: string;
   recipient_last_name?: string;
   recipient_role_code?: string;
   recipient_company_name?: string;
+  recipient_profile_photo?: string | null;
 }
 
 /** Normalize one raw backend row into the UI's ConnectionRequest. */
@@ -59,12 +61,14 @@ function toConnectionRequest(raw: RawConnection, direction: ConnectionDirection)
           last: raw.recipient_last_name,
           role: raw.recipient_role_code,
           company: raw.recipient_company_name,
+          photoKey: raw.recipient_profile_photo,
         }
       : {
           first: raw.requester_first_name,
           last: raw.requester_last_name,
           role: raw.requester_role_code,
           company: raw.requester_company_name,
+          photoKey: raw.requester_profile_photo,
         };
   const name = [other.first, other.last].filter(Boolean).join(" ").trim();
   const intent = Array.isArray(raw.bussiness_intent)
@@ -77,6 +81,7 @@ function toConnectionRequest(raw: RawConnection, direction: ConnectionDirection)
     name: name || other.company || "—",
     company: other.company ?? "",
     role: normalizeRole(other.role) ?? "startup",
+    photoKey: other.photoKey,
     intent,
     message: raw.connection_message ?? "",
     productServiceDetails: raw.product_service_details ?? "",

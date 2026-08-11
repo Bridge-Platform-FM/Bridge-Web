@@ -11,6 +11,7 @@ import {
 } from "@/lib/auth-session";
 import { switchRole as switchRoleRequest } from "@/services/auth.service";
 import { clearUserProfileCache } from "@/services/user.service";
+import { clearAdminProfileCache } from "@/services/admin.service";
 import { clearFilePreviewCache } from "@/services/file.service";
 import { API_ENDPOINTS } from "@/config/constant";
 
@@ -58,9 +59,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // directly on this response, so there's nothing for the client to store.
       const res = await switchRoleRequest({ role: target });
       const data = res.data;
-      // The profile is role-scoped — drop the cached copy so the next read reflects
+      // The profile is role-scoped — drop the cached copies so the next read reflects
       // the role we just switched into.
       clearUserProfileCache();
+      clearAdminProfileCache();
       clearFilePreviewCache();
       // A role switch doesn't change the token type or the user's own id — only carry
       // `role` forward from the response; tokenType/userId must be preserved from the
@@ -128,6 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         /* ignore storage unavailability */
       }
       clearUserProfileCache();
+      clearAdminProfileCache();
       clearFilePreviewCache();
       setSessionState(null);
       router.push("/login");

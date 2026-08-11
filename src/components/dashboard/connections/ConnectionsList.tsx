@@ -2,6 +2,7 @@
 
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
+import { Avatar } from "@/components/ui/Avatar";
 import { AsyncState } from "@/components/ui/AsyncState";
 import { StatusPill } from "@/components/dashboard/kyc-status";
 import { initials, timeAgo } from "@/lib/admin-format";
@@ -9,15 +10,33 @@ import { CONNECTION_STATUS_META, ROLE_AVATAR_GRADIENT, roleLabelFor, type Status
 import type { ConnectionRequest } from "@/types/api.types";
 import type { Role } from "@/lib/roles";
 
-/** Role-tinted initials avatar, reused by the list and the detail drawer. */
-export function ConnectionAvatar({ name, role, size = 40 }: { name: string; role: Role; size?: number }) {
+/** Profile picture when there is one, else a role-tinted initials avatar. Reused by the
+ *  list and the detail drawer. */
+export function ConnectionAvatar({
+  name,
+  role,
+  size = 40,
+  photoKey,
+}: {
+  name: string;
+  role: Role;
+  size?: number;
+  photoKey?: string | null;
+}) {
   return (
-    <div
-      className={`flex shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${ROLE_AVATAR_GRADIENT[role]} font-black text-white`}
-      style={{ width: size, height: size, fontSize: size * 0.34 }}
+    <Avatar
+      photoKey={photoKey}
+      alt={name}
+      className="shrink-0 rounded-xl"
+      style={{ width: size, height: size }}
     >
-      {initials(name)}
-    </div>
+      <div
+        className={`flex shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${ROLE_AVATAR_GRADIENT[role]} font-black text-white`}
+        style={{ width: size, height: size, fontSize: size * 0.34 }}
+      >
+        {initials(name)}
+      </div>
+    </Avatar>
   );
 }
 
@@ -56,7 +75,7 @@ export function ConnectionsList({ requests, status, onSelect, loading, error, on
                 onClick={() => onSelect(r)}
                 className="flex w-full items-center gap-3 px-5 py-3.5 text-left transition-colors hover:bg-surface-container-low"
               >
-                <ConnectionAvatar name={r.name} role={r.role} size={40} />
+                <ConnectionAvatar name={r.name} role={r.role} size={40} photoKey={r.photoKey} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold text-on-surface">{r.name}</p>
                   <p className="truncate text-xs text-on-surface-variant">

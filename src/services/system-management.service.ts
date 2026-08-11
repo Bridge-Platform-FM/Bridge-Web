@@ -112,7 +112,7 @@ export const DEFAULT_TRIAL_SETTINGS: TrialSettings = {
  * object, or `otp-config`-style rows `[{ lookup, value }]`. Both collapse to one lookup
  * table before being read, so whichever the backend settles on works unchanged.
  */
-export function toTrialSettings(raw: unknown): TrialSettings {
+function flattenConfig(raw: unknown): Record<string, unknown> {
   const flat: Record<string, unknown> = {};
   if (Array.isArray(raw)) {
     raw.forEach((entry) => {
@@ -122,7 +122,11 @@ export function toTrialSettings(raw: unknown): TrialSettings {
   } else if (raw && typeof raw === "object") {
     Object.assign(flat, raw as Record<string, unknown>);
   }
+  return flat;
+}
 
+export function toTrialSettings(raw: unknown): TrialSettings {
+  const flat = flattenConfig(raw);
   const d = DEFAULT_TRIAL_SETTINGS;
   return {
     freeTrialDay: num(flat[TRIAL_KEYS.freeTrialDay], d.freeTrialDay),
@@ -159,7 +163,8 @@ export async function updateTrialSettings(changes: Partial<TrialSettings>): Prom
   await api.put(API_ENDPOINTS.SUPER_ADMIN_TRIAL_CONFIG, { trialConfig });
 }
 
-/* ----- Platform Controls (placeholder endpoint) ----- */
+/* ----- Platform Controls (mixed: placeholder endpoint + live trial-config) ----- */
+const AWS_STORAGE_LOOKUP = "aws_service_enabled";
 
 /** Shipped feature-flag state — the fallback and the "Reset Defaults" target. */
 export const DEFAULT_PLATFORM_FLAGS: PlatformFlags = {
@@ -167,6 +172,15 @@ export const DEFAULT_PLATFORM_FLAGS: PlatformFlags = {
   registrationOpen: true,
   aiMatchingEngine: true,
   geoLocationMatching: true,
+  awsS3Storage: false,
+};
+
+/** Our field name → the backend's `platform-flags` key. `awsS3Storage` goes to trial-config. */
+const FLAG_KEYS: Record<keyof Omit<PlatformFlags, "awsS3Storage">, string> = {
+  maintenanceMode: "maintenance_mode",
+  registrationOpen: "registration_open",
+  aiMatchingEngine: "ai_matching_engine",
+  geoLocationMatching: "geo_location_matching",
 };
 
 export function toPlatformFlags(raw: Record<string, unknown>): PlatformFlags {
@@ -176,23 +190,54 @@ export function toPlatformFlags(raw: Record<string, unknown>): PlatformFlags {
     registrationOpen: bool(raw.registration_open, d.registrationOpen),
     aiMatchingEngine: bool(raw.ai_matching_engine, d.aiMatchingEngine),
     geoLocationMatching: bool(raw.geo_location_matching, d.geoLocationMatching),
+    awsS3Storage: bool(raw[AWS_STORAGE_LOOKUP], d.awsS3Storage),
   };
 }
 
-function toPlatformFlagsPayload(flags: PlatformFlags): Record<string, unknown> {
-  return {
-    maintenance_mode: flags.maintenanceMode,
-    registration_open: flags.registrationOpen,
-    ai_matching_engine: flags.aiMatchingEngine,
-    geo_location_matching: flags.geoLocationMatching,
-  };
+/** Only the changed keys, so the PUT stays a partial update like the other two cards. */
+function toPlatformFlagsPayload(changes: Partial<PlatformFlags>): Record<string, unknown> {
+  const payload: Record<string, unknown> = {};
+  (Object.keys(FLAG_KEYS) as (keyof typeof FLAG_KEYS)[]).forEach((key) => {
+    if (changes[key] !== undefined) payload[FLAG_KEYS[key]] = changes[key];
+  });
+  return payload;
+}
+
+/** The live AWS S3 Storage flag, read out of the trial-config rows. */
+async function fetchAwsS3StorageFlag(): Promise<boolean> {
+  const { data } = await api.get(API_ENDPOINTS.SUPER_ADMIN_TRIAL_CONFIG);
+  const flat = flattenConfig(data?.data ?? data ?? {});
+  return bool(flat[AWS_STORAGE_LOOKUP], DEFAULT_PLATFORM_FLAGS.awsS3Storage);
 }
 
 export async function fetchPlatformFlags(): Promise<PlatformFlags> {
-  const { data } = await api.get(API_ENDPOINTS.SUPER_ADMIN_PLATFORM_FLAGS);
-  return toPlatformFlags((data?.data ?? data ?? {}) as Record<string, unknown>);
+  // Settled, not awaited together: the placeholder endpoint 404ing must not blank out the
+  // live AWS flag, and vice versa.
+  const [placeholder, aws] = await Promise.allSettled([
+    api.get(API_ENDPOINTS.SUPER_ADMIN_PLATFORM_FLAGS),
+    fetchAwsS3StorageFlag(),
+  ]);
+
+  const raw =
+    placeholder.status === "fulfilled"
+      ? ((placeholder.value.data?.data ?? placeholder.value.data ?? {}) as Record<string, unknown>)
+      : {};
+
+  return {
+    ...toPlatformFlags(raw),
+    awsS3Storage: aws.status === "fulfilled" ? aws.value : DEFAULT_PLATFORM_FLAGS.awsS3Storage,
+  };
 }
 
-export async function updatePlatformFlags(flags: PlatformFlags): Promise<void> {
-  await api.put(API_ENDPOINTS.SUPER_ADMIN_PLATFORM_FLAGS, toPlatformFlagsPayload(flags));
+export async function updatePlatformFlags(changes: Partial<PlatformFlags>): Promise<void> {
+  if (changes.awsS3Storage !== undefined) {
+    await api.put(API_ENDPOINTS.SUPER_ADMIN_TRIAL_CONFIG, {
+      trialConfig: { [AWS_STORAGE_LOOKUP]: changes.awsS3Storage },
+    });
+  }
+
+  const payload = toPlatformFlagsPayload(changes);
+  if (Object.keys(payload).length > 0) {
+    await api.put(API_ENDPOINTS.SUPER_ADMIN_PLATFORM_FLAGS, payload);
+  }
 }

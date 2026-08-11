@@ -8,7 +8,7 @@ import { BrandLockup } from "@/components/layout/navbar";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { SwitchUserModal } from "@/components/dashboard/SwitchUserModal";
 import { getNavForRole, SUPPORT_NAV } from "@/lib/dashboard-nav";
-import { ROLE_META, isStaffRole, isUserRole } from "@/lib/roles";
+import { isStaffRole, isUserRole } from "@/lib/roles";
 
 /** Width of the collapsed rail (`w-20`), in px — used to place the fixed tooltip. */
 const COLLAPSED_WIDTH = 80;
@@ -30,13 +30,14 @@ function RowLabel({ collapsed, children }: { collapsed: boolean; children: React
 
 /**
  * Dynamic dashboard sidebar. Reads the current role from `useAuth()` and renders
- * `DASHBOARD_NAV[role]` (active route highlighted via usePathname). Profile + the
- * Logout control are pinned at the bottom; user roles also get a "Switch User"
- * entry that opens the SwitchUserModal. Support is pinned above Logout for all roles.
+ * `DASHBOARD_NAV[role]` (active route highlighted via usePathname). The Logout
+ * control is pinned at the bottom; user roles also get a "Switch User" entry that
+ * opens the SwitchUserModal. Support is pinned above Logout for all roles. The
+ * signed-in identity lives in the navbar (see NavbarProfile), not here.
  */
 export function DashboardSidebar() {
   const pathname = usePathname();
-  const { role, user, logout } = useAuth();
+  const { role, logout } = useAuth();
   const [switchOpen, setSwitchOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [hoverLabel, setHoverLabel] = useState<{ text: string; top: number } | null>(null);
@@ -44,7 +45,6 @@ export function DashboardSidebar() {
   if (!role) return null;
 
   const navItems = getNavForRole(role);
-  const meta = ROLE_META[role];
 
   /** Active when the path equals the route, or is a nested child of it. */
   const isActive = (route: string) =>
@@ -119,26 +119,6 @@ export function DashboardSidebar() {
             <RowLabel collapsed={collapsed}>Switch User</RowLabel>
           </button>
         )}
-
-        <div
-          onMouseEnter={(e) => showLabel(e, `${user?.name || user?.email || meta.label} · ${meta.label}`)}
-          onMouseLeave={hideLabel}
-          className="flex items-center gap-3 rounded-xl px-3 py-2"
-        >
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-container text-on-primary-container">
-            <Icon name={meta.icon} size={20} />
-          </div>
-          <div
-            className={`min-w-0 overflow-hidden transition-[max-width,opacity] duration-200 ${
-              collapsed ? "max-w-0 opacity-0" : "max-w-[160px] flex-1 opacity-100"
-            }`}
-          >
-            <p className="truncate text-sm font-bold text-on-surface">
-              {user?.name || user?.email || meta.label}
-            </p>
-            <p className="truncate text-xs text-on-surface-variant">{meta.label}</p>
-          </div>
-        </div>
 
         {/* Support — links to the FAQ page. Hidden for staff (admin / super_admin):
             they manage the FAQs instead of raising support requests. */}

@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/modal/Modal";
 import { Textarea } from "@/components/ui/Textarea";
 import { Icon } from "@/components/ui/Icon";
+import { Avatar } from "@/components/ui/Avatar";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/Select";
 import { AsyncState } from "@/components/ui/AsyncState";
@@ -252,9 +253,11 @@ export default function UserManagementPage() {
                   >
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-container text-sm font-bold text-on-primary-container">
-                          {initials(u.name)}
-                        </div>
+                        <Avatar photoKey={u.photoKey} alt={u.name} className="size-9 shrink-0 rounded-full">
+                          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-container text-sm font-bold text-on-primary-container">
+                            {initials(u.name)}
+                          </div>
+                        </Avatar>
                         <div className="min-w-0">
                           <p className="truncate text-sm font-bold text-on-surface">{u.name}</p>
                           <p className="truncate text-xs text-on-surface-variant">

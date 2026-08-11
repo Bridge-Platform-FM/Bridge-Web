@@ -12,6 +12,12 @@ import { DIAL_CODES } from "@/lib/countries";
 import { StepProgress } from "@/components/onboarding/StepProgress";
 import { TermsModal } from "@/components/onboarding/TermsModal";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
+import {
+  PASSWORD_RULES,
+  PasswordRequirements,
+  PasswordStrengthMeter,
+  metRuleCount,
+} from "@/components/auth/PasswordStrength";
 import { toast } from "sonner";
 import { registerCompany } from "@/services/auth.service";
 import { clearSession } from "@/lib/auth-session";
@@ -87,6 +93,21 @@ export default function RegisterPage() {
   });
 
   const passwordVal = watch("password");
+
+  // The strength meter + requirements card only exist while the user is actually
+  // working on the password: focused, or left with a value that doesn't pass yet.
+  const [passwordFocused, setPasswordFocused] = useState(false);
+  const passwordComplete = metRuleCount(passwordVal) === PASSWORD_RULES.length;
+  const showPasswordHelp = passwordFocused || (passwordVal.length > 0 && !passwordComplete);
+
+  // Registered separately so the focus handlers below can wrap RHF's own onBlur.
+  const passwordField = field("password", {
+    required: "Password is required.",
+    pattern: {
+      value: PASSWORD_REGEX,
+      message: "Min 8 chars with uppercase, lowercase, number and symbol.",
+    },
+  });
 
   const role = useWatch({ control, name: "role" });
   const isB2B = role === "b2b_enterprise";
@@ -262,13 +283,12 @@ export default function RegisterPage() {
                     <Icon name={showPassword ? "visibility_off" : "visibility"} size={20} />
                   </button>
                 }
-                {...field("password", {
-                  required: "Password is required.",
-                  pattern: {
-                    value: PASSWORD_REGEX,
-                    message: "Min 8 chars with uppercase, lowercase, number and symbol.",
-                  },
-                })}
+                {...passwordField}
+                onFocus={() => setPasswordFocused(true)}
+                onBlur={(e) => {
+                  passwordField.onBlur(e);
+                  setPasswordFocused(false);
+                }}
               />
               <Input
                 id="confirmPassword"
@@ -292,6 +312,13 @@ export default function RegisterPage() {
                 })}
               />
             </div>
+
+            {showPasswordHelp && (
+              <>
+                <PasswordStrengthMeter value={passwordVal} />
+                <PasswordRequirements value={passwordVal} />
+              </>
+            )}
 
             <div className="flex flex-col gap-2">
               <label className={LABEL}>

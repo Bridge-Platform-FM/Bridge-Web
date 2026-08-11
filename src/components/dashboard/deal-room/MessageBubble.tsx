@@ -2,6 +2,7 @@
 
 import { Icon } from "@/components/ui/Icon";
 import { ROLE_AVATAR_GRADIENT } from "@/lib/connections";
+import { Avatar } from "@/components/ui/Avatar";
 import { useFilePreview } from "@/lib/useFilePreview";
 import { clockTime, initials } from "./deal-room-meta";
 import type { DealAttachment, DealCounterparty, DealMessage, PreviewableFile } from "./types";
@@ -93,11 +94,17 @@ export function MessageBubble({ message, counterparty, onPreview }: MessageBubbl
     // Row: avatar (them only) + a flex-1/min-w-0 column that owns a DEFINITE width.
     <div className={`flex w-full items-end gap-2.5 ${mine ? "justify-end" : "justify-start"}`}>
       {!mine && (
-        <span
-          className={`mb-5 flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${ROLE_AVATAR_GRADIENT[counterparty.role]} text-[11px] font-bold text-on-primary`}
+        <Avatar
+          photoKey={counterparty.photoKey}
+          alt={counterparty.name}
+          className="mb-5 size-8 shrink-0 rounded-full"
         >
-          {initials(counterparty.name)}
-        </span>
+          <span
+            className={`mb-5 flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${ROLE_AVATAR_GRADIENT[counterparty.role]} text-[11px] font-bold text-on-primary`}
+          >
+            {initials(counterparty.name)}
+          </span>
+        </Avatar>
       )}
 
       {/* flex-1 + min-w-0 gives this column a definite, shrinkable width. Alignment of the

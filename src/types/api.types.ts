@@ -277,14 +277,17 @@ export interface KycDocFile {
  * typed `number` plus one file object per side. Aadhaar is two-sided (front + back);
  * PAN is single-sided (front only). `number` is sent as a string to preserve PAN's
  * alphanumeric format and Aadhaar's 12 digits / leading zeros.
+ *
+ * Both keys are optional because a re-upload after a rejection sends only the documents
+ * the reviewer rejected; the backend upserts whichever types are present.
  */
 export interface SaveKycInfoPayload {
-  AADHAAR: {
+  AADHAAR?: {
     number: string;
     front: KycDocFile;
     back: KycDocFile;
   };
-  PAN: {
+  PAN?: {
     number: string;
     front: KycDocFile;
   };
@@ -322,6 +325,9 @@ export interface GetKycDocsResponse {
   submissionTime: string;
   /** ISO 8601 timestamp of when the review window expires (drives the countdown). */
   expiryTime: string;
+  kycStatus?: string | null;
+  /** The admin's reason for rejecting. Only set when `kycStatus` is "Rejected". */
+  rejectionReason?: string | null;
 }
 
 /* ===========================================================================
@@ -411,6 +417,8 @@ export interface AdminUserListItem {
   kycStatus: KycStatus;
   /** `company_id` — required alongside `userId` by the suspension endpoint. */
   companyId?: string;
+  /** Stored profile-picture key (`user.profile_photo`); undefined = show initials. */
+  photoKey?: string | null;
   /** Account state, derived from the user's active flag. */
   suspended: boolean;
 }
@@ -469,6 +477,8 @@ export interface KycSubmissionListItem {
   /** Backend `company_id` (UUID) — the key the overall review-action endpoint expects. */
   companyId?: string;
   applicantName: string;
+  /** Stored profile-picture key (`user.profile_photo`); undefined = show initials. */
+  photoKey?: string | null;
   email?: string;
   countryCode?: string | null;
   phone?: string;
@@ -608,6 +618,8 @@ export interface UserSearchResult {
   company_id: string;
   first_name: string;
   last_name: string;
+  /** Stored profile-picture key (`user.profile_photo`); null = show initials. */
+  profile_photo?: string | null;
   company_name: string;
   email: string;
   mobile_number: string;
@@ -658,6 +670,8 @@ export interface ConnectionRequest {
   name: string;
   company: string;
   role: Role;
+  /** Stored profile-picture key (`user.profile_photo`); undefined = show initials. */
+  photoKey?: string | null;
   intent: string;
   message?: string;
   productServiceDetails?: string;
@@ -711,6 +725,10 @@ export interface UserLimitConfig {
   allowed_premium_days: number;
   /** False when no custom config has been saved yet (defaults are returned). */
   is_custom: boolean;
+  /** True when the user has an active, non-expired subscription. */
+  has_subscription: boolean;
+  /** Sent only on the subscription branch. */
+  is_subscription_expired?: boolean;
 }
 
 /**
@@ -865,6 +883,8 @@ export interface ZeroEngagementProfile {
   role: string;
   company: string;
   joinedAt: string | null;
+  /** Stored profile-picture key (`user.profile_photo`); null = show initials. */
+  profilePhoto?: string | null;
 }
  
 export interface MatchingEngineAlgorithmDistribution {
@@ -950,6 +970,7 @@ export interface PlatformFlags {
   registrationOpen: boolean;
   aiMatchingEngine: boolean;
   geoLocationMatching: boolean;
+  awsS3Storage: boolean;
 }
 
 /**

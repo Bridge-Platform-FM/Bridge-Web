@@ -55,8 +55,9 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
     if (isLoaded && !isUserRole(role)) router.replace("/dashboard");
   }, [isLoaded, role, router]);
 
-  const load = useCallback(() => {
-    setLoading(true);
+  // `quiet` re-syncs without the full-page loader (used on socket reconnect).
+  const load = useCallback((quiet = false) => {
+    if (!quiet) setLoading(true);
     setError(null);
     Promise.all([
       fetchDealRoom(dealRoomId),
@@ -232,6 +233,7 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
   } = useDealRoomSocket(room ? dealRoomId : "", {
     onNewMessage,
     onMessagesRead,
+    onReconnect: () => load(true),
     onUserTyping,
     onStageRequested,
     onStageResponded,
@@ -259,7 +261,7 @@ export default function DealRoomChatPage({ params }: { params: Promise<{ dealRoo
         <p className="text-sm text-on-surface-variant">{error ?? "This deal room doesn't exist."}</p>
         <div className="flex gap-2">
           {error && (
-            <Button onClick={load} variant="secondary" leadingIcon="refresh">
+            <Button onClick={() => load()} variant="secondary" leadingIcon="refresh">
               Retry
             </Button>
           )}

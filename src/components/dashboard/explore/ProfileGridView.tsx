@@ -69,7 +69,12 @@ export function ProfileGridView({ matches, loading, error, onReload }: ProfileGr
           recipient={proposalRecipient}
           sender={sender}
           onClose={() => setProposalRecipient(null)}
-          onSent={() => setProposalRecipient(null)}
+          // Refetch: the profile just requested drops out of the results, and the
+          // connection allowance the ring shows has gone down by one.
+          onSent={() => {
+            setProposalRecipient(null);
+            onReload();
+          }}
         />
       )}
 
