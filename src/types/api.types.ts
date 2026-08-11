@@ -12,11 +12,6 @@ export interface RegisterPayload {
   cinNumber?: string;
 }
 
-/**
- * Response from the register endpoint (OTP is sent in parallel). Tokens are issued
- * here as httpOnly cookies directly on this response — there's nothing token-shaped
- * in the body for the client to store.
- */
 export interface RegisterResponse {
   success?: boolean;
   message?: string;
