@@ -116,6 +116,10 @@ export const API_ENDPOINTS = {
   // Role-switch review — every user holding more than one company role, one row per
   // role (GET). Approve / reject one of those rows with ADMIN_ROLE_SWITCH_ACTION.
   ADMIN_SWITCHED_ROLES: `${ADMIN}/users/switched-roles`,
+  // The profile behind one role-switch request (GET ?userId=&companyId=&roleId=).
+  // Returns the same `ProfileField[]` shape as GET /users/profile, resolved for the
+  // role being reviewed — what the review drawer shows.
+  ADMIN_ROLE_SWITCH_DETAILS: `${ADMIN}/users/role-switch-details`,
   // Approve / reject an added role (PUT, body: { companyUserRoleId, action:
   // "approve"|"reject", rejectionReason? } — reason required only when rejecting).
   ADMIN_ROLE_SWITCH_ACTION: `${ADMIN}/users/role-switch-action`,

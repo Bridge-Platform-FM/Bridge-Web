@@ -38,6 +38,14 @@ export function useFilePreview(s3Key: string | null): FilePreviewState {
     getFilePreview(s3Key)
       .then((blob) => {
         if (cancelled) return;
+        // 204 No Content — the key points at a file that isn't in storage. Only
+        // avatars answer this way (see fileController.filePreview), and they're
+        // optional, so resolve to "nothing" and let the call site's fallback show
+        // rather than handing an empty blob to <img>.
+        if (blob.size === 0) {
+          setResolved({ key: s3Key, url: null, isPdf: false, error: null });
+          return;
+        }
         url = URL.createObjectURL(blob);
         setResolved({ key: s3Key, url, isPdf: blob.type === "application/pdf", error: null });
       })
