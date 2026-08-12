@@ -37,6 +37,7 @@ const ADMIN_OPT: NavItem[] = [
   { key: "suggestion-weights", label: "Suggestion Weights", icon: "tune", route: "/dashboard/suggestion-weights" },
   { key: "user-management", label: "User Management", icon: "manage_accounts", route: "/dashboard/user-management" },
   { key: "kyc-review", label: "KYC Review", icon: "verified_user", route: "/dashboard/kyc-review" },
+  { key: "role-switch", label: "Role Switch", icon: "swap_horiz", route: "/dashboard/role-switch" },
   { key: "faq-management", label: "FAQ Management", icon: "quiz", route: "/dashboard/faq-management" },
   PROFILE,
 ];
@@ -47,6 +48,7 @@ const SUPER_ADMIN_OPT: NavItem[] = [
   { key: "suggestion-weights", label: "Suggestion Weights", icon: "tune", route: "/dashboard/suggestion-weights" },
   { key: "user-management", label: "User Management", icon: "manage_accounts", route: "/dashboard/user-management" },
   { key: "kyc-review", label: "KYC Review", icon: "verified_user", route: "/dashboard/kyc-review" },
+  { key: "role-switch", label: "Role Switch", icon: "swap_horiz", route: "/dashboard/role-switch" },
   { key: "faq-management", label: "FAQ Management", icon: "quiz", route: "/dashboard/faq-management" },
   { key: "admin-management", label: "Admin Management", icon: "admin_panel_settings", route: "/dashboard/admin-management" },
   { key: "system-management", label: "System Management", icon: "settings", route: "/dashboard/system-management" },

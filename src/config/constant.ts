@@ -113,6 +113,12 @@ export const API_ENDPOINTS = {
   // Suspend / reactivate a user (PUT). Body: { userId, companyId, isSuspended,
   // suspensionReason } — the reason is required only when suspending.
   ADMIN_USER_SUSPENSION: `${ADMIN}/users/suspension`,
+  // Role-switch review — every user holding more than one company role, one row per
+  // role (GET). Approve / reject one of those rows with ADMIN_ROLE_SWITCH_ACTION.
+  ADMIN_SWITCHED_ROLES: `${ADMIN}/users/switched-roles`,
+  // Approve / reject an added role (PUT, body: { companyUserRoleId, action:
+  // "approve"|"reject", rejectionReason? } — reason required only when rejecting).
+  ADMIN_ROLE_SWITCH_ACTION: `${ADMIN}/users/role-switch-action`,
   // KYC Review list — returns every user with their `kyc_documents` inline, so the
   // review drawer reuses the list row (no separate detail endpoint).
   ADMIN_KYC: `${ADMIN}/get-user-kyc_docs`,
@@ -176,7 +182,8 @@ export const API_ENDPOINTS = {
   // ----- User Profile -----
   // Fetch the current user's profile fields (GET).
   GET_PROFILE: `${USERS}/profile`,
-  // Save/update the current user's profile fields (PUT). API is not yet live.
+  // Save/update the current user's profile fields (PUT). Also the save behind the
+  // switch-role form — the target role's fields are ordinary `user` columns.
   SAVE_PROFILE: `${USERS}/profile`,
 
   // ----- Navbar search -----

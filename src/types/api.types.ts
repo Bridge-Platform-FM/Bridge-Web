@@ -54,8 +54,37 @@ export interface SwitchRolePayload {
 }
 
 /**
- * Response from the switch-role endpoint. The re-issued token pair is set as
- * httpOnly cookies directly on this response; the body just carries the now-active role.
+ * One profile field the target role requires but has no value for yet, as
+ * described by `user_profile_field_master` (see
+ * authService.validateAvailableProfileFields — it answers with these and nothing
+ * else). `fieldName` is the DB column — the frontend's `ProfileField.columnName`.
+ */
+export interface SwitchRoleFieldMeta {
+  fieldName: string;
+  label: string;
+  /** Which table the column lives on. Only "user" columns are writable via PUT /users/profile. */
+  sourceTable?: string;
+  /** "string" | "number" | "url" | "email" | "textarea" | "array" | … */
+  type: string;
+  isEditable?: boolean;
+  isRequired?: boolean;
+}
+
+/**
+ * Response from `POST /auth/switch-role`.
+ *
+ * The endpoint answers four different outcomes, and — importantly — the two that
+ * aren't a completed switch come back as `success: false` at **HTTP 200**, so axios
+ * resolves them normally. Always branch on `success`, never on the HTTP status:
+ *
+ *  - approved  → `success: true`,  data: { roleId, role } and the re-issued token
+ *                pair set as httpOnly cookies on this response.
+ *  - pending   → `success: false`, data: { status: "Pending" } — the role row was created
+ *                (or already existed) and is waiting on an admin decision.
+ *  - rejected  → `success: false`, data: { status: "Rejected", rejectionReason }.
+ *  - incomplete→ HTTP **400** (axios rejects), data: { missingFields } — the required
+ *                columns the target role has no value for yet. Nothing switched; the
+ *                user supplies them and the switch is retried. See `SwitchRoleErrorData`.
  */
 export interface SwitchRoleResponse {
   success?: boolean;
@@ -63,7 +92,26 @@ export interface SwitchRoleResponse {
   data?: {
     /** Raw role string from the backend; normalize via normalizeRole. */
     role?: string;
+    roleId?: number;
+    /** "Pending" / "Rejected" — present only when the switch did NOT complete. */
+    status?: string;
+    rejectionReason?: string | null;
   };
+}
+
+/** Body of the HTTP 400 "profile not completed" rejection (read off `ApiError.data`). */
+export interface SwitchRoleErrorData {
+  message?: string;
+  data?: { missingFields?: SwitchRoleFieldMeta[] };
+}
+
+/** What the caller of `switchRole()` needs to decide what to show. */
+export interface SwitchRoleOutcome {
+  /** True only when the role actually changed and new cookies were issued. */
+  switched: boolean;
+  /** Backend status when it didn't switch — "Pending" / "Rejected". */
+  status?: string;
+  message?: string;
 }
 
 /**
@@ -605,6 +653,34 @@ export interface ExploreMatchesResponse {
  * shape as GET /api/v1/users/profile — see services/user.service.ts)
  * ------------------------------------------------------------------ */
 /** One suggestion row returned by GET /api/v1/users/search?q=. */
+/**
+ * One role a user holds, as returned by the admin role-switch review list. The backend
+ * emits a row per role and only for users holding more than one, so a user with an added
+ * role appears once per role — their original plus each switch they've requested.
+ * Reuses `KycReviewStatus` because the backend writes the same Pending/Approved/Rejected
+ * values for both flows.
+ */
+export interface RoleSwitchRequest {
+  /** `company_user_role.id` — the id the approve/reject endpoint expects. */
+  companyUserRoleId: number;
+  userId: string;
+  companyId?: string;
+  userName: string;
+  email?: string;
+  companyName?: string;
+  /** Role code (STARTUP / INVESTOR / B2B) of this particular row. */
+  roleCode: string;
+  roleName?: string;
+  /** True for the role the account was originally created with. */
+  isDefaultRole: boolean;
+  status: KycReviewStatus;
+  /** Whether the user finished the target role's extra profile fields. */
+  isProfileCompleted: boolean;
+  rejectionReason?: string | null;
+  switchedAt?: string | null;
+  approvedAt?: string | null;
+}
+
 export interface UserSearchResult {
   /** UUID of the matched user. */
   user_id: string;

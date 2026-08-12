@@ -14,6 +14,7 @@ import { clearUserProfileCache } from "@/services/user.service";
 import { clearAdminProfileCache } from "@/services/admin.service";
 import { clearFilePreviewCache } from "@/services/file.service";
 import { API_ENDPOINTS } from "@/config/constant";
+import type { SwitchRoleOutcome } from "@/types/api.types";
 
 // ---------------------------------------------------------------------------
 // The backend base URL. Reads NEXT_PUBLIC_API_URL from .env.local if set,
@@ -29,8 +30,17 @@ interface AuthContextValue {
   isLoaded: boolean;
   /** Persist a session (e.g. right after login). */
   setSession: (session: Session) => void;
-  /** Switch the active role: backend re-issues a token, then we re-render. */
-  switchRole: (target: Role) => Promise<void>;
+  /**
+   * Switch the active role. Resolves with the outcome rather than throwing when the
+   * role isn't usable yet: an added role sits at Pending until an admin approves it,
+   * and that arrives as success:false at HTTP 200 (see SwitchRoleResponse).
+   */
+  switchRole: (target: Role) => Promise<SwitchRoleOutcome>;
+  /**
+   * Adopt a role the backend has already switched us into (the switch-role page
+   * commits the role as part of its own save call, so it has no token to fetch).
+   */
+  applyRole: (role: Role) => void;
   /** Revoke the current session on the backend, then clear local state and return to login. */
   logout: () => Promise<void>;
 }
@@ -53,12 +63,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSessionState(next);
   }, []);
 
-  const switchRole = useCallback(
-    async (target: Role) => {
-      // Tokens are httpOnly cookies now — the backend sets the re-issued cookie
-      // directly on this response, so there's nothing for the client to store.
-      const res = await switchRoleRequest({ role: target });
-      const data = res.data;
+  /**
+   * Adopt `role` as the active one locally. The backend has already re-issued the
+   * cookie by the time this runs — this is purely the client-side half, shared by
+   * the plain switch below and by the switch-role page (which commits the role as
+   * part of saving the target role's profile fields).
+   */
+  const applyRole = useCallback(
+    (role: Role) => {
       // The profile is role-scoped — drop the cached copies so the next read reflects
       // the role we just switched into.
       clearUserProfileCache();
@@ -69,7 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // current session or the dashboard guard (tokenType) and getUserId() drop to
       // undefined right after switching, breaking both until a full logout/login.
       const next: Session = {
-        role: normalizeRole(data?.role) ?? target,
+        role,
         user: session?.user,
         tokenType: session?.tokenType,
         userId: session?.userId,
@@ -78,6 +90,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSessionState(next);
     },
     [session?.user, session?.tokenType, session?.userId]
+  );
+
+  const switchRole = useCallback(
+    async (target: Role): Promise<SwitchRoleOutcome> => {
+      // Tokens are httpOnly cookies now — the backend sets the re-issued cookie
+      // directly on this response, so there's nothing for the client to store.
+      const res = await switchRoleRequest({ role: target });
+
+      // A role awaiting approval (or rejected) comes back as success:false at HTTP 200,
+      // so axios resolves it. Adopting the role here would switch the UI into a role the
+      // token was never re-issued for — every later request would still be the old role.
+      if (res.success === false) {
+        return { switched: false, status: res.data?.status, message: res.message };
+      }
+
+      applyRole(normalizeRole(res.data?.role) ?? target);
+      return { switched: true, message: res.message };
+    },
+    [applyRole]
   );
 
   const logout = useCallback(async () => {
@@ -145,9 +176,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoaded,
       setSession,
       switchRole,
+      applyRole,
       logout,
     }),
-    [session, isLoaded, setSession, switchRole, logout]
+    [session, isLoaded, setSession, switchRole, applyRole, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
