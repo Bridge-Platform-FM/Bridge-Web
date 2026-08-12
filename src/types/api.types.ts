@@ -668,6 +668,10 @@ export interface RoleSwitchRequest {
   userName: string;
   email?: string;
   companyName?: string;
+  /** Stored `profile_photo` key, for the shared `Avatar`. */
+  photoKey?: string | null;
+  /** `company_role_master.id` — needed to fetch this row's profile in the drawer. */
+  roleId: number;
   /** Role code (STARTUP / INVESTOR / B2B) of this particular row. */
   roleCode: string;
   roleName?: string;

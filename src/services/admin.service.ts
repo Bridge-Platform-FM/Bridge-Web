@@ -316,6 +316,8 @@ function toRoleSwitchRequest(raw: Record<string, unknown>): RoleSwitchRequest {
     userName: name,
     email,
     companyName: (raw.company_name as string | undefined) ?? undefined,
+    photoKey: (raw.profile_photo as string | null) ?? null,
+    roleId: Number(raw.role_id),
     roleCode: String(raw.role_code ?? ""),
     roleName: (raw.role_name as string | undefined) ?? undefined,
     isDefaultRole: raw.is_default_role === true,
@@ -336,6 +338,24 @@ export async function fetchSwitchedRoleUsers(): Promise<RoleSwitchRequest[]> {
   const { data } = await api.get(API_ENDPOINTS.ADMIN_SWITCHED_ROLES);
   const rows = ((data?.data ?? data) as Record<string, unknown>[]) ?? [];
   return Array.isArray(rows) ? rows.map(toRoleSwitchRequest) : [];
+}
+
+/**
+ * The profile behind one role-switch request — what the user filled in for the role
+ * they're asking for. Same `ProfileField[]` shape as the user's own profile (the
+ * backend resolves the same field config for the target user + reviewed role), so the
+ * drawer renders it with the value formatting My Profile already uses, and the photo
+ * comes out of it via `profilePhotoKey`.
+ */
+export async function fetchRoleSwitchUserDetails(params: {
+  userId: string;
+  companyId: string;
+  roleId: number;
+}): Promise<ProfileField[]> {
+  const { data } = await api.get<{ data?: ProfileField[] }>(API_ENDPOINTS.ADMIN_ROLE_SWITCH_DETAILS, {
+    params,
+  });
+  return data.data ?? [];
 }
 
 /**
