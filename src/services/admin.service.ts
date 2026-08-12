@@ -18,6 +18,7 @@ import type {
   KycSubmissionListResponse,
   ReviewKycPayload,
   ReviewKycResponse,
+  RoleSwitchRequest,
   UserLimitConfig,
   UpdateUserLimitConfigPayload,
   UserSuspensionPayload,
@@ -297,6 +298,60 @@ export async function reviewKycDocument(kycId: number, action: "APPROVE" | "REJE
     action: action.toLowerCase(),
   });
   return data;
+}
+
+/* ----- Role Switch Review ----- */
+
+/** Map one raw `users/switched-roles` row to a RoleSwitchRequest. */
+function toRoleSwitchRequest(raw: Record<string, unknown>): RoleSwitchRequest {
+  const first = (raw.first_name as string | null) ?? "";
+  const last = (raw.last_name as string | null) ?? "";
+  const email = String(raw.company_email ?? "");
+  const name = [first, last].filter(Boolean).join(" ").trim() || (raw.company_name as string) || email || "—";
+
+  return {
+    companyUserRoleId: Number(raw.company_user_role_id),
+    userId: String(raw.user_id ?? ""),
+    companyId: raw.company_id != null ? String(raw.company_id) : undefined,
+    userName: name,
+    email,
+    companyName: (raw.company_name as string | undefined) ?? undefined,
+    roleCode: String(raw.role_code ?? ""),
+    roleName: (raw.role_name as string | undefined) ?? undefined,
+    isDefaultRole: raw.is_default_role === true,
+    status: toReviewStatus(raw.status),
+    isProfileCompleted: raw.is_profile_completed === true,
+    rejectionReason: (raw.rejection_reason as string | null) ?? null,
+    switchedAt: (raw.switched_at as string | null) ?? null,
+    approvedAt: (raw.approved_at as string | null) ?? null,
+  };
+}
+
+/**
+ * Every role held by users with more than one — the review queue for added roles.
+ * The backend returns one row per role in a single call, so filtering by status
+ * happens client-side (same as the KYC Review list).
+ */
+export async function fetchSwitchedRoleUsers(): Promise<RoleSwitchRequest[]> {
+  const { data } = await api.get(API_ENDPOINTS.ADMIN_SWITCHED_ROLES);
+  const rows = ((data?.data ?? data) as Record<string, unknown>[]) ?? [];
+  return Array.isArray(rows) ? rows.map(toRoleSwitchRequest) : [];
+}
+
+/**
+ * Approve or reject one added role. `rejectionReason` is required by the backend
+ * when rejecting and ignored on approve.
+ */
+export async function reviewRoleSwitch(
+  companyUserRoleId: number,
+  action: "approve" | "reject",
+  rejectionReason?: string
+): Promise<void> {
+  await api.put(API_ENDPOINTS.ADMIN_ROLE_SWITCH_ACTION, {
+    companyUserRoleId,
+    action,
+    ...(action === "reject" ? { rejectionReason } : {}),
+  });
 }
 
 /* ----- User Limit Config ----- */

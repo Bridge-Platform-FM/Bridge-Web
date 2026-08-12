@@ -1,5 +1,6 @@
 import { api, type ApiError } from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/constant";
+import { toRoleCode } from "@/lib/roles";
 import type {
   RegisterPayload,
   RegisterResponse,
@@ -154,12 +155,20 @@ export async function resetPassword(payload: ResetPasswordPayload): Promise<Rese
 }
 
 /**
- * Switch the active user role. The backend re-issues a fresh access token scoped
- * to the chosen role; the caller persists the new tokens + role.
- * NOTE: swap the method/URL/body/headers here when the real curl is provided.
+ * Switch the active user role.
+ *
+ * The backend takes `roleCode` in its own uppercase enum (STARTUP / INVESTOR / B2B) —
+ * not our lowercase `Role` — so the mapping happens here rather than at every call site.
+ *
+ * On success the re-issued token pair is set as httpOnly cookies on the response, so
+ * there is nothing for the client to store. When the role still needs admin approval, or
+ * was rejected, the backend answers `success: false` at HTTP 200 — see SwitchRoleResponse;
+ * the caller must check `success` because axios will not throw for those.
  */
 export async function switchRole(payload: SwitchRolePayload): Promise<SwitchRoleResponse> {
-  const { data } = await api.post<SwitchRoleResponse>(API_ENDPOINTS.SWITCH_ROLE, payload);
+  const { data } = await api.post<SwitchRoleResponse>(API_ENDPOINTS.SWITCH_ROLE, {
+    roleCode: toRoleCode(payload.role),
+  });
   return data;
 }
 

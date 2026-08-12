@@ -6,16 +6,17 @@ import { toast } from "sonner";
 import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
 import { Loader } from "@/components/common/loader";
-import { AsyncState } from "@/components/ui/AsyncState";
 import { FileUploadField } from "@/components/onboarding/FileUploadField";
 import { DOC_TYPE, type DocType } from "@/config/docTypes";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { ProfileFieldRow, PROFILE_SECTIONS, normalizeValue } from "@/app/dashboard/profile/page";
+import { saveUserProfile, type SwitchRoleField } from "@/services/user.service";
 import {
-  fetchSwitchRoleFields,
-  submitRoleSwitch,
-  type SwitchRoleField,
-} from "@/services/user.service";
+  clearSwitchRoleHandoff,
+  getSwitchRoleHandoff,
+  toProfileFields,
+  type SwitchRoleHandoff,
+} from "@/lib/switch-role-handoff";
 import {
   fieldLabel,
   getFieldOptionConfig,
@@ -27,16 +28,22 @@ import { continentForCountry } from "@/lib/countries";
 import type { ApiError } from "@/lib/axios";
 
 /**
- * Switch Role — collect the target role's profile fields, then commit the switch.
+ * Switch Role — supply the fields the target role is missing.
  *
  * Each role uses a different subset of the (single, wide) `user` row, so moving
- * from Startup to Investor leaves every investor column empty. `SwitchUserModal`
- * asks the backend what the target role still needs; when the answer isn't empty
- * it sends the user here instead of switching straight away.
+ * from Startup to Investor leaves every investor column empty. `POST /auth/switch-role`
+ * refuses that switch with HTTP 400 and a `missingFields` list — the required
+ * columns with no value yet — and `SwitchUserModal` sends the user here with it
+ * rather than dropping them on My Profile to hunt for the blanks themselves.
  *
- * The switch is committed by THIS page's save, not by the modal — so backing out
- * (Cancel, browser Back, closing the tab) leaves the user on their current role
- * rather than stranding them in a role with no data behind it.
+ * The fields are NOT refetched here — they arrive through the sessionStorage
+ * hand-off (`lib/switch-role-handoff.ts`), because switch-role is the only
+ * endpoint that produces them and calling it again would just fail the same way.
+ * A direct hit on this URL with no hand-off goes back to the dashboard.
+ *
+ * Saving is `PUT /users/profile` followed by a retry of the switch, so the role
+ * only flips once its required fields actually exist — and backing out (Cancel,
+ * browser Back, closing the tab) leaves the user on their current role.
  *
  * Fields render through the same `ProfileFieldRow` as My Profile, relabelled with
  * `fieldLabel()` so a question the user first saw during registration is worded
@@ -68,47 +75,48 @@ function toPayloadValue(column: string, value: string | string[]): unknown {
 function SwitchRoleForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { role: currentRole, isLoaded, applyRole } = useAuth();
+  const { role: currentRole, isLoaded, switchRole } = useAuth();
 
   const roleParam = searchParams.get("role");
   const target: Role | null = roleParam && isRole(roleParam) && isUserRole(roleParam) ? roleParam : null;
 
-  const [fields, setFields] = useState<SwitchRoleField[]>([]);
+  const [handoff, setHandoff] = useState<SwitchRoleHandoff | null>(null);
+  const [ready, setReady] = useState(false);
   const [values, setValues] = useState<Record<string, string | string[]>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Reachable only from the switch modal, and only for the three user roles. A
-  // hand-typed or stale URL (bad ?role=, staff account, already in that role)
-  // goes back to the dashboard rather than rendering a form that can't submit.
+  // The switch-role response's missingFields, read once from the hand-off. A stale
+  // one (different role, expired, none at all) is treated as absent so the guard
+  // below sends the user back rather than rendering a form for the wrong role.
   useEffect(() => {
-    if (!isLoaded) return;
-    if (!target || !isUserRole(currentRole) || target === currentRole) {
-      router.replace("/dashboard");
-    }
-  }, [isLoaded, target, currentRole, router]);
-
-  const load = useCallback(async () => {
-    if (!target) return;
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const pending = await fetchSwitchRoleFields(target);
+    const stored = getSwitchRoleHandoff();
+    const valid = stored && stored.role === target ? stored : null;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHandoff(valid);
+    if (valid) {
       const seeded: Record<string, string | string[]> = {};
-      for (const f of pending) seeded[f.columnName] = normalizeValue(f);
-      setFields(pending);
+      for (const f of toProfileFields(valid.fields)) seeded[f.columnName] = normalizeValue(f);
       setValues(seeded);
-    } catch (err) {
-      setLoadError((err as ApiError).message ?? "Couldn't load the fields for this role.");
-    } finally {
-      setLoading(false);
     }
+    setReady(true);
   }, [target]);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { void load(); }, [load]);
+  // Reachable only from the switch modal, and only for the three user roles. A
+  // hand-typed or stale URL (bad ?role=, staff account, no hand-off) goes back to
+  // the dashboard rather than rendering a form that can't submit.
+  useEffect(() => {
+    if (!isLoaded || !ready) return;
+    if (!target || !isUserRole(currentRole) || !handoff) {
+      router.replace("/dashboard");
+    }
+  }, [isLoaded, ready, target, currentRole, handoff, router]);
+
+  /** The rendered fields, in the shape `ProfileFieldRow` expects. */
+  const fields: SwitchRoleField[] = useMemo(
+    () => (handoff ? toProfileFields(handoff.fields) : []),
+    [handoff],
+  );
 
   const handleChange = (col: string, val: string | string[]) => {
     setValues((prev) => {
@@ -124,13 +132,23 @@ function SwitchRoleForm() {
     setErrors((prev) => (prev[col] ? { ...prev, [col]: "" } : prev));
   };
 
-  const handleSave = async () => {
-    if (saving || !target) return;
+  /**
+   * Leave the flow. The hand-off has done its job by now — leaving it behind
+   * would let a Back navigation re-open this form for a switch that's settled.
+   */
+  const finish = useCallback(() => {
+    clearSwitchRoleHandoff();
+    router.replace("/dashboard");
+  }, [router]);
 
-    // Required fields first — no request until the form is complete.
+  const handleSave = async () => {
+    if (saving || !target || !handoff) return;
+
+    // Required fields first — no request until the form is complete. Locked
+    // (company-owned) columns are skipped: nothing on this page can fill them.
     const found: Record<string, string> = {};
     for (const f of fields) {
-      if (f.isRequired && isBlank(values[f.columnName])) {
+      if (f.isRequired && f.isEditable && isBlank(values[f.columnName])) {
         found[f.columnName] = `${fieldLabel(f.columnName, f.label)} is required.`;
       }
     }
@@ -142,30 +160,43 @@ function SwitchRoleForm() {
 
     setSaving(true);
     try {
+      // PUT /users/profile writes `user` columns only, so company-owned fields
+      // (organization name, GST, …) come through as non-editable and are never sent.
       const payload: Record<string, unknown> = {};
       for (const f of fields) {
+        if (!f.isEditable) continue;
         const value = values[f.columnName];
         if (isBlank(value)) continue;
         const out = toPayloadValue(f.columnName, value);
         if (out !== undefined) payload[f.columnName] = out;
       }
+      if (Object.keys(payload).length > 0) await saveUserProfile(payload);
 
-      const res = await submitRoleSwitch(target, payload);
-      // The backend has re-issued the session cookie for the new role by now, so
-      // adopt it locally (this also drops the role-scoped caches).
-      applyRole(target);
-      toast.success(res.message ?? `Switched to ${ROLE_META[target].label}.`);
-      router.replace("/dashboard");
+      // The switch was refused for exactly these fields, so retry it now that they
+      // exist. It can still come back Pending/Rejected — that's an admin decision,
+      // not a form error, so it ends the flow rather than keeping the user here.
+      const outcome = await switchRole(target);
+      if (!outcome.switched) {
+        if (outcome.status?.toLowerCase() === "rejected") {
+          toast.error(outcome.message ?? `Your ${ROLE_META[target].label} role was rejected.`);
+        } else {
+          toast.info(outcome.message ?? `Your ${ROLE_META[target].label} role has been sent for approval.`);
+        }
+        finish();
+        return;
+      }
+      toast.success(outcome.message ?? `Switched to ${ROLE_META[target].label}.`);
+      finish();
     } catch (err) {
       const e = err as ApiError;
       // The backend reports per-field problems as data:[{field,message}] — map them
       // back onto the inputs instead of dropping them into a single toast.
       const fieldErrs = (e.data as { data?: { field: string; message: string }[] } | undefined)?.data;
-      if (fieldErrs?.length) {
+      if (Array.isArray(fieldErrs) && fieldErrs.length > 0) {
         setErrors(Object.fromEntries(fieldErrs.map((f) => [f.field, f.message])));
         toast.error(fieldErrs[0].message);
       } else {
-        toast.error(e.message ?? "Couldn't complete the switch. Please try again.");
+        toast.error(e.message ?? "Couldn't save these details. Please try again.");
       }
     } finally {
       setSaving(false);
@@ -202,7 +233,6 @@ function SwitchRoleForm() {
             label={label}
             required={field.isRequired}
             optional={!field.isRequired}
-            hint={field.helpText}
             error={error}
             scanType="document"
             docType={docType}
@@ -224,21 +254,18 @@ function SwitchRoleForm() {
         <div className="flex flex-col gap-1">
           {/* Relabelled to registration's wording; ProfileFieldRow is untouched. */}
           <ProfileFieldRow
-            field={{ ...field, label, isEditable: true }}
+            field={{ ...field, label }}
             value={values[field.columnName] ?? ""}
             editMode
             onChange={handleChange}
           />
-          {field.helpText && !error && (
-            <span className="px-1 text-xs text-on-surface-variant">{field.helpText}</span>
-          )}
           {error && <span className="px-1 text-xs font-medium text-error">{error}</span>}
         </div>
       </div>
     );
   };
 
-  if (!isLoaded || !target) return null;
+  if (!isLoaded || !ready || !target || !handoff) return null;
 
   return (
     <div className="flex h-full flex-col">
@@ -261,55 +288,55 @@ function SwitchRoleForm() {
       {/* ── Body ── */}
       <div className="thin-scrollbar flex-1 overflow-y-auto px-8 py-7">
         <div className="mx-auto max-w-4xl">
-          <AsyncState
-            loading={loading}
-            error={loadError}
-            onRetry={load}
-            isEmpty={fields.length === 0}
-            emptyIcon="task_alt"
-            emptyText="Nothing else is needed for this role."
-          >
-            <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-primary/20 bg-primary-container/30 px-4 py-3 text-sm text-on-primary-container">
-              <Icon name="info" size={18} />
-              <span>
-                Your account stays a {currentRole ? ROLE_META[currentRole].label : "user"} until you
-                save.
-              </span>
+          {fields.length === 0 ? (
+            <div className="flex h-64 flex-col items-center justify-center gap-3 text-center text-on-surface-variant">
+              <Icon name="task_alt" size={48} />
+              <p className="text-sm">Nothing else is needed for this role.</p>
             </div>
+          ) : (
+            <>
+              <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-primary/20 bg-primary-container/30 px-4 py-3 text-sm text-on-primary-container">
+                <Icon name="info" size={18} />
+                <span>
+                  Your account stays a {currentRole ? ROLE_META[currentRole].label : "user"} until
+                  you save.
+                </span>
+              </div>
 
-            <div className="flex flex-col gap-8">
-              {sections.map((section) => (
-                <section key={section.title} className="flex flex-col gap-4">
-                  <h3 className="border-b border-outline-variant/20 pb-2 font-headline text-sm font-bold uppercase tracking-wide text-on-surface">
-                    {section.title}
-                  </h3>
-                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                    {section.fields.map(renderField)}
-                  </div>
-                </section>
-              ))}
+              <div className="flex flex-col gap-8">
+                {sections.map((section) => (
+                  <section key={section.title} className="flex flex-col gap-4">
+                    <h3 className="border-b border-outline-variant/20 pb-2 font-headline text-sm font-bold uppercase tracking-wide text-on-surface">
+                      {section.title}
+                    </h3>
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                      {section.fields.map(renderField)}
+                    </div>
+                  </section>
+                ))}
 
-              {leftover.length > 0 && (
-                <section className="flex flex-col gap-4">
-                  <h3 className="border-b border-outline-variant/20 pb-2 font-headline text-sm font-bold uppercase tracking-wide text-on-surface">
-                    Additional Information
-                  </h3>
-                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                    {leftover.map(renderField)}
-                  </div>
-                </section>
-              )}
-            </div>
-          </AsyncState>
+                {leftover.length > 0 && (
+                  <section className="flex flex-col gap-4">
+                    <h3 className="border-b border-outline-variant/20 pb-2 font-headline text-sm font-bold uppercase tracking-wide text-on-surface">
+                      Additional Information
+                    </h3>
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                      {leftover.map(renderField)}
+                    </div>
+                  </section>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
       {/* ── Footer ── */}
-      {!loading && !loadError && fields.length > 0 && (
+      {fields.length > 0 && (
         <div className="flex shrink-0 items-center justify-end gap-3 border-t border-outline-variant/20 bg-surface-container-lowest px-8 py-4">
           <button
             type="button"
-            onClick={() => router.replace("/dashboard")}
+            onClick={finish}
             disabled={saving}
             className="flex h-10 items-center gap-1.5 rounded-xl border border-outline-variant/30 px-5 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-60"
           >
