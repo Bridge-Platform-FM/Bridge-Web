@@ -88,6 +88,8 @@ export default function RoleSwitchReviewPage() {
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState<"approve" | "reject" | null>(null);
   const [previewKey, setPreviewKey] = useState<string | null>(null);
+  /** Bumped by the drawer's Retry button to re-run the detail fetch. */
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     if (isLoaded && !isStaffRole(role)) router.replace("/dashboard");
@@ -107,27 +109,51 @@ export default function RoleSwitchReviewPage() {
     load();
   }, [load]);
 
-  /** The profile behind the open request — one call per opened row. */
-  const loadDetails = useCallback(() => {
-    const { userId, companyId, roleId } = selected ?? {};
-    if (!userId || !companyId || !roleId) return;
-    setDetailLoading(true);
-    setDetailError(null);
-    fetchRoleSwitchUserDetails({ userId, companyId, roleId })
-      .then(setFields)
-      .catch((err: ApiError) => setDetailError(err.message ?? "Couldn't load this user's details."))
-      .finally(() => setDetailLoading(false));
-  }, [selected]);
-
-  // Reset first, so a previously opened request's fields or half-typed reason
-  // never show under a different name.
+  /**
+   * The profile behind the open request — one call per opened row.
+   *
+   * Fetched inside the effect, and every result is gated on a `cancelled` flag scoped
+   * to that effect run (the same guard `useFilePreview` uses). Without it, opening row
+   * A then row B while A is still in flight lets A's slower response land last and
+   * overwrite B's fields: the header would name B while the profile below showed A —
+   * and the reviewer would approve or reject against the wrong person's data.
+   * Cleanup runs before the next effect, so a late response is dropped, not rendered.
+   *
+   * Resetting here too (rather than in a second effect) keeps that reset ordered with
+   * the fetch it belongs to. `retry` re-runs this for the AsyncState Retry button.
+   */
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- resets on open
     setFields([]);
     setReason("");
     setDetailError(null);
-    if (selected) loadDetails();
-  }, [selected, loadDetails]);
+
+    const { userId, companyId, roleId } = selected ?? {};
+    if (!userId || !companyId || !roleId) {
+      // Closing the drawer cancels any in-flight fetch, whose `finally` is then
+      // skipped — clear the flag here so the next open doesn't inherit a stale spinner.
+      setDetailLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setDetailLoading(true);
+    fetchRoleSwitchUserDetails({ userId, companyId, roleId })
+      .then((data) => {
+        if (!cancelled) setFields(data);
+      })
+      .catch((err: ApiError) => {
+        if (!cancelled) setDetailError(err.message ?? "Couldn't load this user's details.");
+      })
+      .finally(() => {
+        // A cancelled run must not clear the loading state its successor just set.
+        if (!cancelled) setDetailLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selected, retry]);
 
   const review = async (action: "approve" | "reject") => {
     if (!selected) return;
@@ -348,7 +374,7 @@ export default function RoleSwitchReviewPage() {
             <AsyncState
               loading={detailLoading}
               error={detailError}
-              onRetry={loadDetails}
+              onRetry={() => setRetry((n) => n + 1)}
               isEmpty={fields.length === 0}
               emptyIcon="person_off"
               emptyText="No profile details for this role yet."
