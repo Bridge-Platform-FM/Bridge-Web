@@ -188,10 +188,25 @@ export async function setUserSuspension(payload: UserSuspensionPayload): Promise
   });
 }
 
+/** Map one raw suspension/reactivation entry (used for both `suspension` and `suspensionHistory`). */
+function toAdminUserSuspensionInfo(rawSuspension: Record<string, unknown>): AdminUserDetail["suspension"] {
+  return {
+    isSuspended: rawSuspension.isSuspended === true,
+    lastAction: (rawSuspension.lastAction as "suspended" | "reactivated" | null) ?? null,
+    reason: (rawSuspension.reason as string | null) ?? null,
+    actionBy: (rawSuspension.actionBy as string | null) ?? null,
+    actionAt: (rawSuspension.actionAt as string | null) ?? null,
+    isLockedBySuperAdmin: rawSuspension.isLockedBySuperAdmin === true,
+  };
+}
+
 /** Map the raw GET /admin/users/:userId response to our AdminUserDetail. */
 function toAdminUserDetail(raw: Record<string, unknown>): AdminUserDetail {
   const rawFields = Array.isArray(raw.fields) ? (raw.fields as Record<string, unknown>[]) : [];
   const rawSuspension = (raw.suspension ?? {}) as Record<string, unknown>;
+  const rawSuspensionHistory = Array.isArray(raw.suspensionHistory)
+    ? (raw.suspensionHistory as Record<string, unknown>[])
+    : [];
   return {
     userId: String(raw.userId ?? ""),
     firstName: (raw.firstName as string | undefined) ?? undefined,
@@ -216,14 +231,8 @@ function toAdminUserDetail(raw: Record<string, unknown>): AdminUserDetail {
       unit: (f.unit as string | null) ?? null,
       displayOrder: f.displayOrder != null ? Number(f.displayOrder) : undefined,
     })),
-    suspension: {
-      isSuspended: rawSuspension.isSuspended === true,
-      lastAction: (rawSuspension.lastAction as "suspended" | "reactivated" | null) ?? null,
-      reason: (rawSuspension.reason as string | null) ?? null,
-      actionBy: (rawSuspension.actionBy as string | null) ?? null,
-      actionAt: (rawSuspension.actionAt as string | null) ?? null,
-      isLockedBySuperAdmin: rawSuspension.isLockedBySuperAdmin === true,
-    },
+    suspension: toAdminUserSuspensionInfo(rawSuspension),
+    suspensionHistory: rawSuspensionHistory.map(toAdminUserSuspensionInfo),
   };
 }
 

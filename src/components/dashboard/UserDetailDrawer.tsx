@@ -50,6 +50,90 @@ function VerifyRow({ icon, label, verified }: { icon: string; label: string; ver
   );
 }
 
+/** One suspend/reactivate entry inside the Suspension History timeline. */
+function SuspensionEntry({ entry, isCurrent }: { entry: AdminUserDetail["suspensionHistory"][number]; isCurrent?: boolean }) {
+  const suspended = entry.lastAction === "suspended";
+  return (
+    <div className="relative pb-4 last:pb-0">
+      <span
+        className={`absolute -left-6 top-0.5 flex size-5 items-center justify-center rounded-full border-2 border-surface-container-lowest ${
+          suspended ? "bg-error-container text-on-error-container" : "bg-primary-container text-on-primary-container"
+        }`}
+      >
+        <Icon name={suspended ? "block" : "restart_alt"} size={13} />
+      </span>
+      <div className={`rounded-xl bg-surface-container-low p-3 ${isCurrent ? "outline outline-2 outline-error/35" : ""}`}>
+        <div className="flex items-baseline justify-between gap-3">
+          <span className={`text-sm font-bold ${suspended ? "text-error" : "text-primary"}`}>
+            {suspended ? "Suspended" : "Reactivated"}
+            {isCurrent && (
+              <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wide text-error">· current</span>
+            )}
+          </span>
+          {entry.actionAt && (
+            <span className="whitespace-nowrap text-xs font-medium text-on-surface-variant">
+              {formatDate(entry.actionAt)}
+            </span>
+          )}
+        </div>
+        {entry.reason && <p className="mt-1.5 text-sm text-on-surface-variant">{entry.reason}</p>}
+        {entry.isLockedBySuperAdmin && (
+          <p className="mt-1.5 text-xs font-medium text-on-surface-variant">
+            Set by a super admin — only a super admin can change this.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Suspension History section: the current entry is always visible; earlier
+ * entries stay collapsed behind a toggle so a long history doesn't dominate
+ * the drawer. Renders nothing if the user has no suspension history at all.
+ */
+function SuspensionHistorySection({ suspensionHistory }: { suspensionHistory: AdminUserDetail["suspensionHistory"] }) {
+  const [expanded, setExpanded] = useState(false);
+  if (suspensionHistory.length === 0) return null;
+
+  const [current, ...earlier] = suspensionHistory;
+
+  return (
+    <>
+      <h3 className="mb-2 mt-6 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
+        Suspension History
+      </h3>
+      <div className="relative pl-6 mx-[-6px] before:absolute before:inset-y-1.5 before:left-[9px] before:w-px before:bg-outline-variant/50">
+        <SuspensionEntry entry={current} isCurrent />
+
+        {earlier.length > 0 && (
+          <div className="relative pb-4 last:pb-0">
+            <button
+              type="button"
+              onClick={() => setExpanded((e) => !e)}
+              aria-expanded={expanded}
+              className="group flex w-full items-center gap-2.5 rounded-lg py-0.5 text-left"
+            >
+              <span className="absolute -left-6 top-0 flex size-5 items-center justify-center rounded-full border-2 border-surface-container-lowest bg-surface-container-high text-on-surface-variant transition-colors group-hover:bg-primary-container group-hover:text-on-primary-container">
+                <Icon
+                  name="expand_more"
+                  size={15}
+                  className={`transition-transform ${expanded ? "rotate-180" : ""}`}
+                />
+              </span>
+              <span className="text-sm font-bold text-on-surface-variant transition-colors group-hover:text-primary">
+                {expanded ? "Hide earlier history" : `${earlier.length} earlier ${earlier.length === 1 ? "action" : "actions"}`}
+              </span>
+            </button>
+
+            {expanded && <div className="mt-3">{earlier.map((entry, i) => <SuspensionEntry key={i} entry={entry} />)}</div>}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 /** Labeled number input for the limit config section. */
 function LimitInput({
   label,
@@ -164,9 +248,9 @@ export function UserDetailDrawer({ user, onClose }: { user: AdminUserListItem | 
       .then((config) => {
         setHasSubscription(!!config.has_subscription);
         setLimits({
-          allowed_connections: String(config.allowed_connections),
-          allowed_free_trial_days: String(config.allowed_free_trial_days),
-          allowed_premium_days: String(config.allowed_premium_days),
+          allowed_connections: config.allowed_connections != null ? String(config.allowed_connections) : "",
+          allowed_free_trial_days: config.allowed_free_trial_days != null ? String(config.allowed_free_trial_days) : "",
+          allowed_premium_days: config.allowed_premium_days != null ? String(config.allowed_premium_days) : "",
         });
       })
       .catch((err: ApiError) => setLimitError(err.message))
@@ -303,34 +387,7 @@ export function UserDetailDrawer({ user, onClose }: { user: AdminUserListItem | 
 
               {/* Suspension / reactivation history — only shown once the user has at
                   least one entry in user_suspension_history. */}
-              {detail.suspension.reason && (
-                <>
-                  <h3 className="mb-2 mt-6 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
-                    Suspension History
-                  </h3>
-                  <div className="rounded-xl bg-surface-container-low p-3">
-                    <div className="flex items-center gap-2 text-sm font-bold text-on-surface">
-                      <Icon
-                        name={detail.suspension.lastAction === "suspended" ? "block" : "restart_alt"}
-                        size={18}
-                        className={detail.suspension.lastAction === "suspended" ? "text-error" : "text-primary"}
-                      />
-                      {detail.suspension.lastAction === "suspended" ? "Suspended" : "Reactivated"}
-                      {detail.suspension.actionAt && (
-                        <span className="ml-auto text-xs font-medium text-on-surface-variant">
-                          {formatDate(detail.suspension.actionAt)}
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-1.5 text-sm text-on-surface-variant">{detail.suspension.reason}</p>
-                    {detail.suspension.isLockedBySuperAdmin && (
-                      <p className="mt-1.5 text-xs font-medium text-on-surface-variant">
-                        Set by a super admin — only a super admin can change this.
-                      </p>
-                    )}
-                  </div>
-                </>
-              )}
+              <SuspensionHistorySection suspensionHistory={detail.suspensionHistory} />
             </>
           ) : null}
 

@@ -529,6 +529,8 @@ export interface AdminUserDetail {
   roleCode: string;
   fields: AdminUserDetailField[];
   suspension: AdminUserSuspensionInfo;
+  /** Full suspend/reactivate history for this user, newest first. `suspension` above mirrors index 0. */
+  suspensionHistory: AdminUserSuspensionInfo[];
 }
 
 /** KYC review state used by the tabs/list + per-document status. */
