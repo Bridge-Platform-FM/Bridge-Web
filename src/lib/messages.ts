@@ -15,6 +15,10 @@ export const ERROR_MESSAGES = {
   SESSION_LIMIT_FETCH_FAILED: "Couldn't check active sessions. Please try again.",
   /** Revoking the selected sessions failed (generic fallback; backend message takes priority). */
   SESSION_REVOKE_FAILED: "Couldn't log out the selected session(s). Please try again.",
+  /** GSTIN failed the sandbox.co.in check (generic fallback; backend message takes priority). */
+  GST_VERIFICATION_FAILED: "GSTIN could not be verified. Please check the number and try again.",
+  /** CIN failed the verification check (generic fallback; backend message takes priority). */
+  CIN_VERIFICATION_FAILED: "CIN could not be verified. Please check the number and try again.",
 } as const;
 
 /**
@@ -32,4 +36,6 @@ export const SUCCESS_MESSAGES = {
   REGISTRATION: "Registration successful.",
   RESET_PASSWORD_OTP_SENT: "We've sent a one-time code to your email.",
   RESET_PASSWORD_SUCCESS: "Password reset successfully. Please sign in.",
+  GST_VERIFIED: "GSTIN verified successfully.",
+  CIN_VERIFIED: "CIN verified successfully.",
 } as const;

@@ -33,6 +33,12 @@ const SUBSCRIPTIONS = `${BASE}/subscriptions`;
 export const API_ENDPOINTS = {
   // TODO: replace with the real register path from the curl.
   REGISTER: `${AUTH}/company-registration`,
+  // Checks a GSTIN against sandbox.co.in — called when the GST field loses focus
+  // on the registration form, ahead of the full submit.
+  VERIFY_GST: `${AUTH}/verify-gst`,
+  // Checks a CIN — mirrors VERIFY_GST. Currently backed by a fixed mock response
+  // on the backend pending a real CIN verification API.
+  VERIFY_CIN: `${AUTH}/verify-cin`,
   // TODO: replace with the real login path from the curl.
   LOGIN: `${AUTH}/login`,
   // Login MFA: client sends the chosen channel; backend triggers the OTP send.
