@@ -7,6 +7,7 @@ import type {
   AdminPermission,
   UpdateAdminPayload,
   AdminAccountStatus,
+  AdminUserDetail,
   AdminUserListItem,
   AdminUserListResponse,
   CreateAdminPayload,
@@ -185,6 +186,63 @@ export async function setUserSuspension(payload: UserSuspensionPayload): Promise
     isSuspended: payload.isSuspended,
     ...(payload.suspensionReason ? { suspensionReason: payload.suspensionReason } : {}),
   });
+}
+
+/** Map the raw GET /admin/users/:userId response to our AdminUserDetail. */
+function toAdminUserDetail(raw: Record<string, unknown>): AdminUserDetail {
+  const rawFields = Array.isArray(raw.fields) ? (raw.fields as Record<string, unknown>[]) : [];
+  const rawSuspension = (raw.suspension ?? {}) as Record<string, unknown>;
+  return {
+    userId: String(raw.userId ?? ""),
+    firstName: (raw.firstName as string | undefined) ?? undefined,
+    lastName: (raw.lastName as string | undefined) ?? undefined,
+    profilePhoto: (raw.profilePhoto as string | null) ?? null,
+    companyId: String(raw.companyId ?? ""),
+    companyName: (raw.companyName as string | undefined) ?? undefined,
+    email: String(raw.email ?? ""),
+    countryCode: (raw.countryCode as string | null) ?? null,
+    mobileNumber: (raw.mobileNumber as string | undefined) ?? undefined,
+    emailVerified: Boolean(raw.emailVerified),
+    mobileVerified: Boolean(raw.mobileVerified),
+    kycStatus: toUserKycStatus(raw.kycStatus),
+    roleId: Number(raw.roleId),
+    roleName: (raw.roleName as string | undefined) ?? undefined,
+    roleCode: String(raw.roleCode ?? ""),
+    fields: rawFields.map((f) => ({
+      fieldName: String(f.fieldName ?? ""),
+      label: String(f.label ?? ""),
+      value: (f.value as string | number | boolean | string[] | null) ?? null,
+      datatype: (f.datatype as string | undefined) ?? undefined,
+      unit: (f.unit as string | null) ?? null,
+      displayOrder: f.displayOrder != null ? Number(f.displayOrder) : undefined,
+    })),
+    suspension: {
+      isSuspended: rawSuspension.isSuspended === true,
+      lastAction: (rawSuspension.lastAction as "suspended" | "reactivated" | null) ?? null,
+      reason: (rawSuspension.reason as string | null) ?? null,
+      actionBy: (rawSuspension.actionBy as string | null) ?? null,
+      actionAt: (rawSuspension.actionAt as string | null) ?? null,
+      isLockedBySuperAdmin: rawSuspension.isLockedBySuperAdmin === true,
+    },
+  };
+}
+
+/**
+ * Fetch one user's role-shaped profile fields plus their latest suspension /
+ * reactivation reason, for the User Management "View Profile" drawer.
+ * `companyId` and `roleCode` come from the list row already loaded on the page
+ * (AdminUserListItem) — the backend requires both rather than resolving a
+ * "default role" itself.
+ */
+export async function fetchUserDetail(
+  userId: string,
+  companyId: string,
+  roleCode: string
+): Promise<AdminUserDetail> {
+  const { data } = await api.get(API_ENDPOINTS.ADMIN_USER_DETAIL(userId), {
+    params: { companyId, roleCode },
+  });
+  return toAdminUserDetail((data?.data ?? {}) as Record<string, unknown>);
 }
 
 /* ----- KYC Review ----- */

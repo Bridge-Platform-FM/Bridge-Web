@@ -480,8 +480,56 @@ export interface AdminUserListResponse {
   total: number;
 }
 
-/** Detail shown in the User Management drawer (currently the same list record). */
-export type AdminUserDetail = AdminUserListItem;
+/**
+ * One role-specific field on the admin user-detail drawer, resolved server-side
+ * against `role_field_metadata` for the user's role — same source as the
+ * user-facing `USER_ROLE_DETAILS` endpoint.
+ */
+export interface AdminUserDetailField {
+  fieldName: string;
+  label: string;
+  value: string | number | boolean | string[] | null;
+  datatype?: string;
+  unit?: string | null;
+  displayOrder?: number;
+}
+
+/** Latest suspend/reactivate action from `user_suspension_history`, if any. */
+export interface AdminUserSuspensionInfo {
+  isSuspended: boolean;
+  lastAction: "suspended" | "reactivated" | null;
+  reason: string | null;
+  actionBy?: string | null;
+  actionAt?: string | null;
+  /** True when the last action was applied by a super admin (a plain admin can't override it). */
+  isLockedBySuperAdmin: boolean;
+}
+
+/**
+ * Full detail fetched on-demand by GET /admin/users/:userId when the "View Profile"
+ * drawer opens — role-shaped profile fields plus the latest suspension/reactivation
+ * reason. Distinct from `AdminUserListItem`, which only carries the list-row columns.
+ */
+export interface AdminUserDetail {
+  userId: string;
+  firstName?: string;
+  lastName?: string;
+  /** Stored profile-picture key (`user.profile_photo`); undefined = show initials. */
+  profilePhoto?: string | null;
+  companyId: string;
+  companyName?: string;
+  email: string;
+  countryCode?: string | null;
+  mobileNumber?: string;
+  emailVerified: boolean;
+  mobileVerified: boolean;
+  kycStatus: KycStatus;
+  roleId: number;
+  roleName?: string;
+  roleCode: string;
+  fields: AdminUserDetailField[];
+  suspension: AdminUserSuspensionInfo;
+}
 
 /** KYC review state used by the tabs/list + per-document status. */
 export type KycReviewStatus = "PENDING" | "APPROVED" | "REJECTED";

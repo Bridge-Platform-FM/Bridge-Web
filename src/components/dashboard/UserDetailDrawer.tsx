@@ -5,10 +5,11 @@ import { Drawer } from "@/components/ui/Drawer";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/input";
 import { Avatar } from "@/components/ui/Avatar";
-import { initials } from "@/lib/admin-format";
-import { KYC_STATUS_META, StatusPill, VERIFY_META } from "@/components/dashboard/kyc-status";
-import { fetchUserLimitConfig, updateUserLimitConfig } from "@/services/admin.service";
-import type { AdminUserListItem, UpdateUserLimitConfigPayload } from "@/types/api.types";
+import { formatDate, initials } from "@/lib/admin-format";
+import { KYC_STATUS_META, StatusPill, USER_STATUS_META, VERIFY_META } from "@/components/dashboard/kyc-status";
+import { fetchUserDetail, fetchUserLimitConfig, updateUserLimitConfig } from "@/services/admin.service";
+import { toRoleCode } from "@/lib/roles";
+import type { AdminUserDetail, AdminUserListItem, UpdateUserLimitConfigPayload } from "@/types/api.types";
 import type { ApiError } from "@/lib/axios";
 
 /* -------------------------------------------------------------------------- */
@@ -27,6 +28,13 @@ export function Field({ icon, label, value }: { icon: string; label: string; val
       </div>
     </div>
   );
+}
+
+/** Render a role-detail field's value as text; arrays join with a comma. */
+function formatFieldValue(value: string | number | boolean | string[] | null): string | undefined {
+  if (value === null || value === undefined || value === "") return undefined;
+  if (Array.isArray(value)) return value.length ? value.join(", ") : undefined;
+  return String(value);
 }
 
 /** A "<thing> — Verified/Pending" row reusing the shared StatusPill. */
@@ -90,13 +98,47 @@ const LIMIT_EMPTY: LimitFields = {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Right-side drawer showing one user's details + their configurable connection
- * limits. Basic info is rendered directly from the passed-in list row (no fetch).
- * The limit config section fetches from /admin/users/:userId/limit-config when
- * the drawer opens and returns system defaults when no custom config exists yet.
+ * Right-side drawer showing one user's full profile + their configurable connection
+ * limits. `user` (the list row) only supplies which user was clicked and the
+ * userId/companyId/role needed to fetch GET /admin/users/:userId — every displayed
+ * profile field (name, email, phone, company, KYC/verification, role-specific
+ * fields, suspension history) is rendered from that fetch's response, not from the
+ * list row, so it always reflects the single-user endpoint rather than the list.
+ * The limit config section is unrelated and still fetches from
+ * /admin/users/:userId/limit-config when the drawer opens.
  */
 export function UserDetailDrawer({ user, onClose }: { user: AdminUserListItem | null; onClose: () => void }) {
-  const phone = user ? `${user.countryCode ? `${user.countryCode} ` : ""}${user.mobileNumber ?? ""}`.trim() : "";
+  // ── Role details + suspension history ─────────────────────────────────────
+  const [detail, setDetail] = useState<AdminUserDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+
+  // Fetch role-shaped fields + latest suspension reason whenever the selected user
+  // changes. companyId + role come from the list row already loaded on the page.
+  useEffect(() => {
+    if (!user?.userId || !user?.companyId || !user?.role) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clearing stale detail when the selected user changes/clears
+      setDetail(null);
+      setDetailError(null);
+      return;
+    }
+    setDetailLoading(true);
+    setDetailError(null);
+    fetchUserDetail(user.userId, user.companyId, toRoleCode(user.role))
+      .then(setDetail)
+      .catch((err: ApiError) => setDetailError(err.message))
+      .finally(() => setDetailLoading(false));
+  }, [user?.userId, user?.companyId, user?.role]);
+
+  const detailName = detail
+    ? [detail.firstName, detail.lastName].filter(Boolean).join(" ").trim() ||
+      detail.companyName ||
+      detail.email ||
+      "—"
+    : "";
+  const detailPhone = detail
+    ? `${detail.countryCode ? `${detail.countryCode} ` : ""}${detail.mobileNumber ?? ""}`.trim()
+    : "";
 
   // ── Limit config state ────────────────────────────────────────────────────
   const [limits, setLimits] = useState<LimitFields>(LIMIT_EMPTY);
@@ -187,34 +229,110 @@ export function UserDetailDrawer({ user, onClose }: { user: AdminUserListItem | 
     >
       {user && (
         <>
-          {/* Identity header */}
-          <div className="flex items-center gap-4 pb-4">
-            <Avatar photoKey={user.photoKey} alt={user.name} className="size-14 shrink-0 rounded-full">
-              <div className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary-container font-headline text-lg font-bold text-on-primary-container">
-                {initials(user.name)}
+          {/* Profile — sourced entirely from GET /admin/users/:userId, not the list row. */}
+          {detailLoading && !detail ? (
+            <>
+              <div className="flex items-center gap-4 pb-4">
+                <div className="size-14 shrink-0 animate-pulse rounded-full bg-surface-container-low" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="h-4 w-36 animate-pulse rounded bg-surface-container-low" />
+                  <div className="h-5 w-20 animate-pulse rounded-full bg-surface-container-low" />
+                </div>
               </div>
-            </Avatar>
-            <div className="min-w-0">
-              <p className="truncate font-headline text-lg font-bold text-on-surface">{user.name}</p>
-              <div className="mt-1">
-                <StatusPill {...KYC_STATUS_META[user.kycStatus]} />
+              <div className="space-y-2 border-t border-outline/10 pt-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-12 animate-pulse rounded-xl bg-surface-container-low" />
+                ))}
               </div>
+            </>
+          ) : detailError && !detail ? (
+            <div className="flex flex-col items-center gap-2 py-10 text-center">
+              <Icon name="error" size={28} className="text-error" />
+              <p className="text-sm font-medium text-on-surface-variant">{detailError}</p>
             </div>
-          </div>
+          ) : detail ? (
+            <>
+              {/* Identity header */}
+              <div className="flex items-center gap-4 pb-4">
+                <Avatar photoKey={detail.profilePhoto} alt={detailName} className="size-14 shrink-0 rounded-full">
+                  <div className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary-container font-headline text-lg font-bold text-on-primary-container">
+                    {initials(detailName)}
+                  </div>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="truncate font-headline text-lg font-bold text-on-surface">{detailName}</p>
+                  {detail.roleName && (
+                    <p className="truncate text-xs text-on-surface-variant">{detail.roleName}</p>
+                  )}
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    <StatusPill {...KYC_STATUS_META[detail.kycStatus]} />
+                    <StatusPill {...USER_STATUS_META[detail.suspension.isSuspended ? "SUSPENDED" : "ACTIVE"]} />
+                  </div>
+                </div>
+              </div>
 
-          <div className="divide-y divide-outline/10 border-t border-outline/10">
-            <Field icon="mail" label="Email" value={user.email} />
-            <Field icon="call" label="Phone" value={phone || undefined} />
-            <Field icon="corporate_fare" label="Company" value={user.companyName} />
-          </div>
+              <div className="divide-y divide-outline/10 border-t border-outline/10">
+                <Field icon="mail" label="Email" value={detail.email} />
+                <Field icon="call" label="Phone" value={detailPhone || undefined} />
+                <Field icon="corporate_fare" label="Company" value={detail.companyName} />
+              </div>
 
-          {/* Verification summary */}
-          <h3 className="mb-2 mt-6 text-xs font-bold uppercase tracking-wide text-on-surface-variant">Verification</h3>
-          <div className="space-y-2">
-            <VerifyRow icon="mail" label="Email" verified={user.emailVerified} />
-            <VerifyRow icon="call" label="Mobile" verified={user.mobileVerified} />
-            <VerifyRow icon="verified_user" label="KYC" verified={user.kycStatus === "VERIFIED"} />
-          </div>
+              {/* Verification summary */}
+              <h3 className="mb-2 mt-6 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
+                Verification
+              </h3>
+              <div className="space-y-2">
+                <VerifyRow icon="mail" label="Email" verified={detail.emailVerified} />
+                <VerifyRow icon="call" label="Mobile" verified={detail.mobileVerified} />
+                <VerifyRow icon="verified_user" label="KYC" verified={detail.kycStatus === "VERIFIED"} />
+              </div>
+
+              {/* Role Details — fields resolved server-side for this user's role. */}
+              {detail.fields.length > 0 && (
+                <>
+                  <h3 className="mb-2 mt-6 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
+                    {detail.roleName ?? "Role"} Details
+                  </h3>
+                  <div className="divide-y divide-outline/10 border-t border-outline/10">
+                    {detail.fields.map((f) => (
+                      <Field key={f.fieldName} icon="list_alt" label={f.label} value={formatFieldValue(f.value)} />
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* Suspension / reactivation history — only shown once the user has at
+                  least one entry in user_suspension_history. */}
+              {detail.suspension.reason && (
+                <>
+                  <h3 className="mb-2 mt-6 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
+                    Suspension History
+                  </h3>
+                  <div className="rounded-xl bg-surface-container-low p-3">
+                    <div className="flex items-center gap-2 text-sm font-bold text-on-surface">
+                      <Icon
+                        name={detail.suspension.lastAction === "suspended" ? "block" : "restart_alt"}
+                        size={18}
+                        className={detail.suspension.lastAction === "suspended" ? "text-error" : "text-primary"}
+                      />
+                      {detail.suspension.lastAction === "suspended" ? "Suspended" : "Reactivated"}
+                      {detail.suspension.actionAt && (
+                        <span className="ml-auto text-xs font-medium text-on-surface-variant">
+                          {formatDate(detail.suspension.actionAt)}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1.5 text-sm text-on-surface-variant">{detail.suspension.reason}</p>
+                    {detail.suspension.isLockedBySuperAdmin && (
+                      <p className="mt-1.5 text-xs font-medium text-on-surface-variant">
+                        Set by a super admin — only a super admin can change this.
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
+            </>
+          ) : null}
 
           {/* Connection Limits */}
           <h3 className="mb-3 mt-6 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
