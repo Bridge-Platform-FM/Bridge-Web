@@ -206,12 +206,23 @@ export function UserDetailDrawer({ user, onClose }: { user: AdminUserListItem | 
       setDetailError(null);
       return;
     }
+    let cancelled = false;
+    setDetail(null);
     setDetailLoading(true);
     setDetailError(null);
     fetchUserDetail(user.userId, user.companyId, toRoleCode(user.role))
-      .then(setDetail)
-      .catch((err: ApiError) => setDetailError(err.message))
-      .finally(() => setDetailLoading(false));
+      .then((d) => {
+        if (!cancelled) setDetail(d);
+      })
+      .catch((err: ApiError) => {
+        if (!cancelled) setDetailError(err.message);
+      })
+      .finally(() => {
+        if (!cancelled) setDetailLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [user?.userId, user?.companyId, user?.role]);
 
   const detailName = detail
@@ -235,17 +246,20 @@ export function UserDetailDrawer({ user, onClose }: { user: AdminUserListItem | 
   // Fetch limit config whenever the selected user changes.
   useEffect(() => {
     if (!user?.userId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clearing stale limit config when the selected user changes/clears
       setLimits(LIMIT_EMPTY);
       setHasSubscription(false);
       setLimitError(null);
       setLimitSuccess(false);
       return;
     }
+    let cancelled = false;
     setLimitLoading(true);
     setLimitError(null);
     setLimitSuccess(false);
     fetchUserLimitConfig(user.userId)
       .then((config) => {
+        if (cancelled) return;
         setHasSubscription(!!config.has_subscription);
         setLimits({
           allowed_connections: config.allowed_connections != null ? String(config.allowed_connections) : "",
@@ -253,8 +267,15 @@ export function UserDetailDrawer({ user, onClose }: { user: AdminUserListItem | 
           allowed_premium_days: config.allowed_premium_days != null ? String(config.allowed_premium_days) : "",
         });
       })
-      .catch((err: ApiError) => setLimitError(err.message))
-      .finally(() => setLimitLoading(false));
+      .catch((err: ApiError) => {
+        if (!cancelled) setLimitError(err.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLimitLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [user?.userId]);
 
   // Auto-clear the success message after 3 seconds.
@@ -300,7 +321,7 @@ export function UserDetailDrawer({ user, onClose }: { user: AdminUserListItem | 
     } finally {
       setLimitSaving(false);
     }
-  }, [user?.userId, limits, hasSubscription]);
+  }, [user, limits, hasSubscription]);
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
