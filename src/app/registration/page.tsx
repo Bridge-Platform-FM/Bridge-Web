@@ -119,8 +119,8 @@ export default function RegisterPage() {
 
   // Registered separately so onBlur can trigger the sandbox.co.in check below.
   const gstField = field("gstNumber", {
-    required: "GST number is required.",
-    validate: (v) => GST_REGEX.test(v.toUpperCase()) || "Enter a valid 15-character GSTIN.",
+    required: isB2B ? "GST number is required." : false,
+    validate: (v) => !isB2B || GST_REGEX.test(v.toUpperCase()) || "Enter a valid 15-character GSTIN.",
   });
   const gstNumberVal = useWatch({ control, name: "gstNumber" });
   const [gstStatus, setGstStatus] = useState<FieldCheckStatus>("idle");
@@ -142,6 +142,10 @@ export default function RegisterPage() {
     setGstStatus("checking");
     try {
       const res = await verifyGst({ gstin: value });
+      // A 2xx response doesn't guarantee verification — check the flag explicitly.
+      if (!res.data?.verified) {
+        throw { message: res.message ?? ERROR_MESSAGES.GST_VERIFICATION_FAILED } as ApiError;
+      }
       clearErrors("gstNumber");
       verifiedGstRef.current = value;
       setGstStatus("verified");
@@ -154,10 +158,11 @@ export default function RegisterPage() {
     }
   };
 
-  // Registered separately so onBlur can trigger the CIN check below. Mirrors the GST block above.
+  // Registered separately so onBlur can trigger the CIN check below. Mirrors the GST block above,
+  // including gating the rules on isB2B for the same reason.
   const cinField = field("cinNumber", {
-    required: "CIN number is required.",
-    validate: (v) => CIN_REGEX.test(v.toUpperCase()) || "Enter a valid 21-character CIN.",
+    required: isB2B ? "CIN number is required." : false,
+    validate: (v) => !isB2B || CIN_REGEX.test(v.toUpperCase()) || "Enter a valid 21-character CIN.",
   });
   const cinNumberVal = useWatch({ control, name: "cinNumber" });
   const [cinStatus, setCinStatus] = useState<FieldCheckStatus>("idle");
@@ -176,6 +181,10 @@ export default function RegisterPage() {
     setCinStatus("checking");
     try {
       const res = await verifyCin({ cin: value });
+      // A 2xx response doesn't guarantee verification — check the flag explicitly.
+      if (!res.data?.verified) {
+        throw { message: res.message ?? ERROR_MESSAGES.CIN_VERIFICATION_FAILED } as ApiError;
+      }
       clearErrors("cinNumber");
       verifiedCinRef.current = value;
       setCinStatus("verified");
