@@ -4,6 +4,10 @@ import { toRoleCode } from "@/lib/roles";
 import type {
   RegisterPayload,
   RegisterResponse,
+  VerifyGstPayload,
+  VerifyGstResponse,
+  VerifyCinPayload,
+  VerifyCinResponse,
   LoginPayload,
   LoginResponse,
   SelectChannelPayload,
@@ -72,6 +76,26 @@ function assertNotLegacyTokenResponse(data: unknown): void {
 export async function registerCompany(payload: RegisterPayload): Promise<RegisterResponse> {
   const { data } = await api.post<RegisterResponse>(API_ENDPOINTS.REGISTER, payload);
   assertNotLegacyTokenResponse(data.data);
+  return data;
+}
+
+/**
+ * Check a GSTIN against sandbox.co.in — called when the GST field on the
+ * registration form loses focus, ahead of the full submit. The same check is
+ * re-run server-side inside company-registration, so this is purely for the
+ * live ✓ Verified / error feedback while the user is still filling the form.
+ */
+export async function verifyGst(payload: VerifyGstPayload): Promise<VerifyGstResponse> {
+  const { data } = await api.post<VerifyGstResponse>(API_ENDPOINTS.VERIFY_GST, payload);
+  return data;
+}
+
+/**
+ * Check a CIN — mirrors verifyGst above. Currently backed by a fixed mock
+ * response on the backend pending full validation of the live CIN API.
+ */
+export async function verifyCin(payload: VerifyCinPayload): Promise<VerifyCinResponse> {
+  const { data } = await api.post<VerifyCinResponse>(API_ENDPOINTS.VERIFY_CIN, payload);
   return data;
 }
 

@@ -18,6 +18,49 @@ export interface RegisterResponse {
   data?: unknown;
 }
 
+/** Payload sent to check a GSTIN (registration form, on field blur). */
+export interface VerifyGstPayload {
+  gstin: string;
+}
+
+export interface VerifyGstResponse {
+  success?: boolean;
+  message?: string;
+  data?: {
+    verified: boolean;
+    legalName?: string | null;
+    tradeName?: string | null;
+    status?: string | null;
+    pan?: string | null;
+    businessNature?: string | null;
+    stateName?: string | null;
+    stateCode?: string | null;
+    registrationDate?: string | null;
+    /** Raw response body from sandbox.co.in's gstin/verify call. */
+    verificationDetails?: unknown;
+  };
+}
+
+/** Payload sent to check a CIN (registration form, on field blur). Mirrors VerifyGstPayload. */
+export interface VerifyCinPayload {
+  cin: string;
+}
+
+export interface VerifyCinResponse {
+  success?: boolean;
+  message?: string;
+  data?: {
+    verified: boolean;
+    companyName?: string | null;
+    companyStatus?: string | null;
+    dateOfIncorporation?: string | null;
+    registeredAddress?: string | null;
+    rocCode?: string | null;
+    /** Raw response body from sandbox.co.in's mca/company/master-data/search call. */
+    verificationDetails?: unknown;
+  };
+}
+
 import type { Role } from "@/lib/roles";
 
 /** Payload sent when logging in. Field names/values match the backend schema. */
