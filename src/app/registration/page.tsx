@@ -149,6 +149,10 @@ export default function RegisterPage() {
   const handleGstBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
     gstField.onBlur(e);
     const value = e.target.value.trim().toUpperCase();
+    // Normalize the field's actual RHF value to match what gets verified/refed below —
+    // otherwise a lowercase/padded input can show "✓ Verified" while onSubmit still
+    // posts the original, differently-cased string.
+    setValue("gstNumber", value, { shouldValidate: false });
     // Let the format `validate` rule above show its own error for empty/malformed input.
     if (!value || !GST_REGEX.test(value)) return;
 
@@ -201,6 +205,8 @@ export default function RegisterPage() {
   const handleCinBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
     cinField.onBlur(e);
     const value = e.target.value.trim().toUpperCase();
+    // Normalize the field's actual RHF value — see the matching comment in handleGstBlur.
+    setValue("cinNumber", value, { shouldValidate: false });
     if (!value || !CIN_REGEX.test(value)) return;
 
     const requestId = ++cinRequestIdRef.current;
