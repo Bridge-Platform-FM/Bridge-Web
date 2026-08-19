@@ -42,12 +42,12 @@ export default function FaqManagementPage() {
   const { role, isLoaded } = useAuth();
 
   const [faqs, setFaqs] = useState<AdminFaqItem[]>([]);
+  const [canUpsert, setCanUpsert] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editFaq, setEditFaq] = useState<AdminFaqItem | null>(null);
-  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Staff-only guard
   useEffect(() => {
@@ -58,7 +58,10 @@ export default function FaqManagementPage() {
     setLoading(true);
     setError(null);
     fetchAllFaqsForAdmin()
-      .then((data) => setFaqs(data))
+      .then((data) => {
+        setFaqs(data.faqs);
+        setCanUpsert(data.isAllowdToUpsert);
+      })
       .catch((err: ApiError) => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
@@ -87,25 +90,21 @@ export default function FaqManagementPage() {
   const openCreate = () => {
     reset({ question: "", answer: "", is_active: true });
     setEditFaq(null);
-    setSubmitError(null);
     setModalOpen(true);
   };
 
   const openEdit = (faq: AdminFaqItem) => {
     reset({ question: faq.question, answer: faq.answer, is_active: faq.is_active });
     setEditFaq(faq);
-    setSubmitError(null);
     setModalOpen(true);
   };
 
   const closeModal = () => {
     setModalOpen(false);
     setEditFaq(null);
-    setSubmitError(null);
   };
 
   const onSubmit = async (values: FaqFormValues) => {
-    setSubmitError(null);
     try {
       if (editFaq) {
         const payload: UpdateFaqPayload = {
@@ -128,7 +127,7 @@ export default function FaqManagementPage() {
       load();
     } catch (err) {
       const apiErr = err as ApiError;
-      setSubmitError(apiErr.message ?? "Something went wrong. Please try again.");
+      toast.error(apiErr.message ?? "Something went wrong. Please try again.");
     }
   };
 
@@ -149,7 +148,9 @@ export default function FaqManagementPage() {
         <button
           type="button"
           onClick={openCreate}
-          className="flex shrink-0 items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-on-primary transition-colors hover:bg-primary/90"
+          disabled={!canUpsert}
+          title={canUpsert ? undefined : "You do not have permission to manage FAQs"}
+          className="flex shrink-0 items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-on-primary transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-primary"
         >
           <Icon name="add" size={18} />
           Add FAQ
@@ -204,7 +205,9 @@ export default function FaqManagementPage() {
                       <button
                         type="button"
                         onClick={() => openEdit(faq)}
-                        className="text-xs font-bold uppercase tracking-wide text-primary transition-colors hover:text-primary/70"
+                        disabled={!canUpsert}
+                        title={canUpsert ? undefined : "You do not have permission to manage FAQs"}
+                        className="text-xs font-bold uppercase tracking-wide text-primary transition-colors hover:text-primary/70 disabled:cursor-not-allowed disabled:text-on-surface-variant disabled:hover:text-on-surface-variant"
                       >
                         Edit
                       </button>
@@ -325,13 +328,6 @@ export default function FaqManagementPage() {
                   )}
                 />
               </div>
-
-              {/* API error */}
-              {submitError && (
-                <p className="mb-4 rounded-xl bg-error/10 px-4 py-3 text-sm text-error">
-                  {submitError}
-                </p>
-              )}
 
               {/* Actions */}
               <div className="flex justify-end gap-3">
