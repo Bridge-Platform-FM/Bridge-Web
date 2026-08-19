@@ -946,11 +946,17 @@ export interface AdminFaqItem {
   updated_at?: string;
 }
 
+
+export interface AdminFaqListData {
+  faqs: AdminFaqItem[];
+  isAllowdToUpsert: boolean;
+}
+
 /** Raw envelope returned by GET /api/v1/admin/faqs. */
 export interface AdminFaqListResponse {
   success?: boolean;
   message?: string;
-  data?: AdminFaqItem[];
+  data?: AdminFaqListData;
 }
 
 /** Payload for POST /api/v1/admin/faqs (create). */
