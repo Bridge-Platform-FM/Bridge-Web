@@ -1,8 +1,13 @@
 import { api, type ApiError } from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/constant";
+import { toRoleCode } from "@/lib/roles";
 import type {
   RegisterPayload,
   RegisterResponse,
+  VerifyGstPayload,
+  VerifyGstResponse,
+  VerifyCinPayload,
+  VerifyCinResponse,
   LoginPayload,
   LoginResponse,
   SelectChannelPayload,
@@ -71,6 +76,26 @@ function assertNotLegacyTokenResponse(data: unknown): void {
 export async function registerCompany(payload: RegisterPayload): Promise<RegisterResponse> {
   const { data } = await api.post<RegisterResponse>(API_ENDPOINTS.REGISTER, payload);
   assertNotLegacyTokenResponse(data.data);
+  return data;
+}
+
+/**
+ * Check a GSTIN against sandbox.co.in — called when the GST field on the
+ * registration form loses focus, ahead of the full submit. The same check is
+ * re-run server-side inside company-registration, so this is purely for the
+ * live ✓ Verified / error feedback while the user is still filling the form.
+ */
+export async function verifyGst(payload: VerifyGstPayload): Promise<VerifyGstResponse> {
+  const { data } = await api.post<VerifyGstResponse>(API_ENDPOINTS.VERIFY_GST, payload);
+  return data;
+}
+
+/**
+ * Check a CIN — mirrors verifyGst above. Currently backed by a fixed mock
+ * response on the backend pending full validation of the live CIN API.
+ */
+export async function verifyCin(payload: VerifyCinPayload): Promise<VerifyCinResponse> {
+  const { data } = await api.post<VerifyCinResponse>(API_ENDPOINTS.VERIFY_CIN, payload);
   return data;
 }
 
@@ -154,12 +179,20 @@ export async function resetPassword(payload: ResetPasswordPayload): Promise<Rese
 }
 
 /**
- * Switch the active user role. The backend re-issues a fresh access token scoped
- * to the chosen role; the caller persists the new tokens + role.
- * NOTE: swap the method/URL/body/headers here when the real curl is provided.
+ * Switch the active user role.
+ *
+ * The backend takes `roleCode` in its own uppercase enum (STARTUP / INVESTOR / B2B) —
+ * not our lowercase `Role` — so the mapping happens here rather than at every call site.
+ *
+ * On success the re-issued token pair is set as httpOnly cookies on the response, so
+ * there is nothing for the client to store. When the role still needs admin approval, or
+ * was rejected, the backend answers `success: false` at HTTP 200 — see SwitchRoleResponse;
+ * the caller must check `success` because axios will not throw for those.
  */
 export async function switchRole(payload: SwitchRolePayload): Promise<SwitchRoleResponse> {
-  const { data } = await api.post<SwitchRoleResponse>(API_ENDPOINTS.SWITCH_ROLE, payload);
+  const { data } = await api.post<SwitchRoleResponse>(API_ENDPOINTS.SWITCH_ROLE, {
+    roleCode: toRoleCode(payload.role),
+  });
   return data;
 }
 

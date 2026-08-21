@@ -1,7 +1,7 @@
 import { api } from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/constant";
 import type {
-  AdminFaqItem,
+  AdminFaqListData,
   AdminFaqListResponse,
   CreateFaqPayload,
   UpdateFaqPayload,
@@ -13,10 +13,13 @@ import type {
  * All functions require an admin JWT — attached automatically by the axios interceptor.
  */
 
-/** Fetch all FAQs (including inactive) for the admin management table. */
-export async function fetchAllFaqsForAdmin(): Promise<AdminFaqItem[]> {
+
+export async function fetchAllFaqsForAdmin(): Promise<AdminFaqListData> {
   const { data } = await api.get<AdminFaqListResponse>(API_ENDPOINTS.ADMIN_FAQS);
-  return (data?.data ?? []) as AdminFaqItem[];
+  return {
+    faqs: data?.data?.faqs ?? [],
+    isAllowdToUpsert: data?.data?.isAllowdToUpsert ?? false,
+  };
 }
 
 /** Create a new FAQ entry. */

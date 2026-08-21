@@ -149,3 +149,86 @@ export const NUMBER_COLUMNS = new Set([
 export const FUNDING_CURRENCY_COL = "funding_currency";
 export const FUNDING_MIN_COL = "funding_ask_amt_min";
 export const FUNDING_MAX_COL = "funding_ask_amt_max";
+
+/**
+ * Backend column → the EXACT label the registration flow shows for it, copied
+ * verbatim from `onboarding/StartupProfileFields.tsx`,
+ * `InvestorProfileFields.tsx`, `B2BProfileFields.tsx` and
+ * `registration/complete-profile/page.tsx`.
+ *
+ * The switch-role page renders fields the user has never filled in before, so it
+ * must name them exactly as registration did — otherwise the same question reads
+ * two different ways in the same product. Consumed through `fieldLabel()`, which
+ * falls back to whatever the API sent, so an unmapped column still renders.
+ *
+ * Not read by the My Profile pages: those keep showing the API's own label.
+ */
+const FIELD_LABELS: Record<string, string> = {
+  // ── account details ──
+  organization_name: "Company Name",
+  role: "Role",
+  company_email: "Email",
+  mobile_number: "Phone",
+  country_code: "Country Code",
+  gst_number: "GST Number",
+  cin_number: "CIN Number",
+
+  // ── personal info (every role) ──
+  first_name: "First Name",
+  last_name: "Last Name",
+  country: "Country",
+  continent: "Continent",
+  primary_sector: "Primary Sector",
+  short_bio: "Short Bio",
+
+  // ── startup ──
+  startup_industry_sector: "Industry Sector",
+  funding_stage: "Funding Stage",
+  // Registration renders one "Team Size" select; the backend splits it in two.
+  team_size_min: "Team Size",
+  team_size_max: "Team Size",
+  // Likewise one "Funding Ask Amount" widget over three columns.
+  funding_currency: "Currency",
+  funding_ask_amt_min: "Funding Ask Amount",
+  funding_ask_amt_max: "Funding Ask Amount",
+  use_of_funds: "Use of Funds",
+  business_description: "Business Description",
+  startup_intent: "Intent",
+  incorporation_certificate: "Incorporation Certificate",
+  pitch_deck_certificate: "Pitch Deck (PDF, max 20 MB)",
+
+  // ── investor ──
+  investor_sector_preference: "Sector Preferences",
+  prefrerred_investment_stage: "Preferred Investment Stages",
+  ticket_size_amt_min: "Ticket Size",
+  ticket_size_amt_max: "Ticket Size",
+  geographic_investment_preference: "Geographic Investment Preference",
+  investor_type: "Investor Type",
+  investor_intent: "Primary Intent",
+  investor_portfolio_overview: "Portfolio Overview",
+  number_of_investments_to_date: "Number of Investments to Date",
+
+  // ── b2b enterprise ──
+  b2b_sector: "Sector",
+  b2b_sub_sector: "Sub-Sector",
+  industry_vertical: "Industry Vertical",
+  business_type: "Business Type",
+  min_order_quantity: "Min Order Quantity (MOQ)",
+  revenue_band: "Revenue Band",
+  years_in_operation: "Years in Operation",
+  export_rediness: "Export Readiness",
+  b2b_intent: "Business Intent",
+  products_ervice_Offered: "Products / Services Offered",
+  business_requirements: "Business Requirements",
+
+  // ── links ──
+  // Registration says "Company LinkedIn" for startups and "LinkedIn Profile" for
+  // investor / b2b. One column, so the role-neutral wording wins.
+  company_website_url: "Company Website",
+  linkedin_profile_url: "LinkedIn Profile",
+};
+
+/** Registration's label for a column, falling back to the API's own label. */
+export function fieldLabel(columnName: string, fallback?: string): string {
+  return FIELD_LABELS[columnName] ?? fallback ?? columnName;
+}

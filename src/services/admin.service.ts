@@ -7,6 +7,7 @@ import type {
   AdminPermission,
   UpdateAdminPayload,
   AdminAccountStatus,
+  AdminUserDetail,
   AdminUserListItem,
   AdminUserListResponse,
   CreateAdminPayload,
@@ -18,6 +19,7 @@ import type {
   KycSubmissionListResponse,
   ReviewKycPayload,
   ReviewKycResponse,
+  RoleSwitchRequest,
   UserLimitConfig,
   UpdateUserLimitConfigPayload,
   UserSuspensionPayload,
@@ -186,6 +188,72 @@ export async function setUserSuspension(payload: UserSuspensionPayload): Promise
   });
 }
 
+/** Map one raw suspension/reactivation entry (used for both `suspension` and `suspensionHistory`). */
+function toAdminUserSuspensionInfo(rawSuspension: Record<string, unknown>): AdminUserDetail["suspension"] {
+  return {
+    isSuspended: rawSuspension.isSuspended === true,
+    lastAction: (rawSuspension.lastAction as "suspended" | "reactivated" | null) ?? null,
+    reason: (rawSuspension.reason as string | null) ?? null,
+    actionBy: (rawSuspension.actionBy as string | null) ?? null,
+    actionAt: (rawSuspension.actionAt as string | null) ?? null,
+    isLockedBySuperAdmin: rawSuspension.isLockedBySuperAdmin === true,
+  };
+}
+
+/** Map the raw GET /admin/users/:userId response to our AdminUserDetail. */
+function toAdminUserDetail(raw: Record<string, unknown>): AdminUserDetail {
+  const rawFields = Array.isArray(raw.fields) ? (raw.fields as Record<string, unknown>[]) : [];
+  const rawSuspension = (raw.suspension ?? {}) as Record<string, unknown>;
+  const rawSuspensionHistory = Array.isArray(raw.suspensionHistory)
+    ? (raw.suspensionHistory as Record<string, unknown>[])
+    : [];
+  return {
+    userId: String(raw.userId ?? ""),
+    firstName: (raw.firstName as string | undefined) ?? undefined,
+    lastName: (raw.lastName as string | undefined) ?? undefined,
+    profilePhoto: (raw.profilePhoto as string | null) ?? null,
+    companyId: String(raw.companyId ?? ""),
+    companyName: (raw.companyName as string | undefined) ?? undefined,
+    email: String(raw.email ?? ""),
+    countryCode: (raw.countryCode as string | null) ?? null,
+    mobileNumber: (raw.mobileNumber as string | undefined) ?? undefined,
+    emailVerified: Boolean(raw.emailVerified),
+    mobileVerified: Boolean(raw.mobileVerified),
+    kycStatus: toUserKycStatus(raw.kycStatus),
+    roleId: Number(raw.roleId),
+    roleName: (raw.roleName as string | undefined) ?? undefined,
+    roleCode: String(raw.roleCode ?? ""),
+    fields: rawFields.map((f) => ({
+      fieldName: String(f.fieldName ?? ""),
+      label: String(f.label ?? ""),
+      value: (f.value as string | number | boolean | string[] | null) ?? null,
+      datatype: (f.datatype as string | undefined) ?? undefined,
+      unit: (f.unit as string | null) ?? null,
+      displayOrder: f.displayOrder != null ? Number(f.displayOrder) : undefined,
+    })),
+    suspension: toAdminUserSuspensionInfo(rawSuspension),
+    suspensionHistory: rawSuspensionHistory.map(toAdminUserSuspensionInfo),
+  };
+}
+
+/**
+ * Fetch one user's role-shaped profile fields plus their latest suspension /
+ * reactivation reason, for the User Management "View Profile" drawer.
+ * `companyId` and `roleCode` come from the list row already loaded on the page
+ * (AdminUserListItem) — the backend requires both rather than resolving a
+ * "default role" itself.
+ */
+export async function fetchUserDetail(
+  userId: string,
+  companyId: string,
+  roleCode: string
+): Promise<AdminUserDetail> {
+  const { data } = await api.get(API_ENDPOINTS.ADMIN_USER_DETAIL(userId), {
+    params: { companyId, roleCode },
+  });
+  return toAdminUserDetail((data?.data ?? {}) as Record<string, unknown>);
+}
+
 /* ----- KYC Review ----- */
 
 /** Map a backend doc status string (e.g. "Pending") to our review enum. */
@@ -297,6 +365,80 @@ export async function reviewKycDocument(kycId: number, action: "APPROVE" | "REJE
     action: action.toLowerCase(),
   });
   return data;
+}
+
+/* ----- Role Switch Review ----- */
+
+/** Map one raw `users/switched-roles` row to a RoleSwitchRequest. */
+function toRoleSwitchRequest(raw: Record<string, unknown>): RoleSwitchRequest {
+  const first = (raw.first_name as string | null) ?? "";
+  const last = (raw.last_name as string | null) ?? "";
+  const email = String(raw.company_email ?? "");
+  const name = [first, last].filter(Boolean).join(" ").trim() || (raw.company_name as string) || email || "—";
+
+  return {
+    companyUserRoleId: Number(raw.company_user_role_id),
+    userId: String(raw.user_id ?? ""),
+    companyId: raw.company_id != null ? String(raw.company_id) : undefined,
+    userName: name,
+    email,
+    companyName: (raw.company_name as string | undefined) ?? undefined,
+    photoKey: (raw.profile_photo as string | null) ?? null,
+    roleId: Number(raw.role_id),
+    roleCode: String(raw.role_code ?? ""),
+    roleName: (raw.role_name as string | undefined) ?? undefined,
+    isDefaultRole: raw.is_default_role === true,
+    status: toReviewStatus(raw.status),
+    isProfileCompleted: raw.is_profile_completed === true,
+    rejectionReason: (raw.rejection_reason as string | null) ?? null,
+    switchedAt: (raw.switched_at as string | null) ?? null,
+    approvedAt: (raw.approved_at as string | null) ?? null,
+  };
+}
+
+/**
+ * Every role held by users with more than one — the review queue for added roles.
+ * The backend returns one row per role in a single call, so filtering by status
+ * happens client-side (same as the KYC Review list).
+ */
+export async function fetchSwitchedRoleUsers(): Promise<RoleSwitchRequest[]> {
+  const { data } = await api.get(API_ENDPOINTS.ADMIN_SWITCHED_ROLES);
+  const rows = ((data?.data ?? data) as Record<string, unknown>[]) ?? [];
+  return Array.isArray(rows) ? rows.map(toRoleSwitchRequest) : [];
+}
+
+/**
+ * The profile behind one role-switch request — what the user filled in for the role
+ * they're asking for. Same `ProfileField[]` shape as the user's own profile (the
+ * backend resolves the same field config for the target user + reviewed role), so the
+ * drawer renders it with the value formatting My Profile already uses, and the photo
+ * comes out of it via `profilePhotoKey`.
+ */
+export async function fetchRoleSwitchUserDetails(params: {
+  userId: string;
+  companyId: string;
+  roleId: number;
+}): Promise<ProfileField[]> {
+  const { data } = await api.get<{ data?: ProfileField[] }>(API_ENDPOINTS.ADMIN_ROLE_SWITCH_DETAILS, {
+    params,
+  });
+  return data.data ?? [];
+}
+
+/**
+ * Approve or reject one added role. `rejectionReason` is required by the backend
+ * when rejecting and ignored on approve.
+ */
+export async function reviewRoleSwitch(
+  companyUserRoleId: number,
+  action: "approve" | "reject",
+  rejectionReason?: string
+): Promise<void> {
+  await api.put(API_ENDPOINTS.ADMIN_ROLE_SWITCH_ACTION, {
+    companyUserRoleId,
+    action,
+    ...(action === "reject" ? { rejectionReason } : {}),
+  });
 }
 
 /* ----- User Limit Config ----- */

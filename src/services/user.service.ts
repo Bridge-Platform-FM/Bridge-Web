@@ -121,3 +121,21 @@ export async function getUserRoleDetails(params: {
   const { data } = await api.get<GetProfileResponse>(API_ENDPOINTS.USER_ROLE_DETAILS, { params });
   return data.data ?? [];
 }
+
+/* ----- Role switch ----------------------------------------------------------
+ * Switching role changes which subset of the (single, wide) `user` row matters:
+ * a Startup fills funding_stage / use_of_funds, an Investor fills investor_type /
+ * ticket_size_amt_min. There is no dedicated "fields for role X" endpoint — the
+ * target role's field list comes back from POST /auth/switch-role itself, is
+ * carried to the form by `lib/switch-role-handoff.ts`, and is saved with the
+ * ordinary `saveUserProfile` above. See app/dashboard/switch-role/page.tsx.
+ * -------------------------------------------------------------------------- */
+
+/**
+ * A field of the target role's profile, as rendered by the switch-role form.
+ * Deliberately the same shape as `ProfileField` so `ProfileFieldRow` renders it
+ * unchanged, plus the `isRequired` flag from the switch-role response.
+ */
+export interface SwitchRoleField extends ProfileField {
+  isRequired?: boolean;
+}

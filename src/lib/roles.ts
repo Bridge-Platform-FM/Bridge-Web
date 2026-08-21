@@ -84,6 +84,21 @@ export function normalizeRole(raw: unknown): Role | null {
   return ALIASES[key] ?? (isRole(key) ? key : null);
 }
 
+/**
+ * Our lowercase `Role` → the backend's uppercase `roleCode` enum. The switch-role
+ * endpoint validates against exactly INVESTOR / B2B / STARTUP (see authValidation.js),
+ * so `b2b_enterprise` has to shorten to `B2B` — the inverse of normalizeRole's aliases.
+ */
+const ROLE_CODES: Record<string, string> = {
+  startup: "STARTUP",
+  investor: "INVESTOR",
+  b2b_enterprise: "B2B",
+};
+
+export function toRoleCode(role: Role): string {
+  return ROLE_CODES[role] ?? role.toUpperCase();
+}
+
 /** Whether the given role is one of the switchable user roles. */
 export function isUserRole(role: Role | null | undefined): boolean {
   return !!role && USER_ROLES.includes(role);

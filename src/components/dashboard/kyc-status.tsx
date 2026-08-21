@@ -33,6 +33,12 @@ export const VERIFY_META = {
   UNVERIFIED: { label: "Unverified", icon: "cancel" },
 } as const;
 
+/** Account state (Active / Suspended), driven by `is_user_suspended`. */
+export const USER_STATUS_META: Record<"ACTIVE" | "SUSPENDED", StatusMeta> = {
+  ACTIVE: { label: "Active", icon: "check_circle" },
+  SUSPENDED: { label: "Suspended", icon: "block" },
+};
+
 /** Neutral icon + label pill (no status colors, per our theme). */
 export function StatusPill({ icon, label }: StatusMeta) {
   return (

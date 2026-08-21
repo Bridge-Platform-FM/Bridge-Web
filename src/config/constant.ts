@@ -33,6 +33,12 @@ const SUBSCRIPTIONS = `${BASE}/subscriptions`;
 export const API_ENDPOINTS = {
   // TODO: replace with the real register path from the curl.
   REGISTER: `${AUTH}/company-registration`,
+  // Checks a GSTIN against sandbox.co.in — called when the GST field loses focus
+  // on the registration form, ahead of the full submit.
+  VERIFY_GST: `${AUTH}/verify-gst`,
+  // Checks a CIN — mirrors VERIFY_GST. Currently backed by a fixed mock response
+  // on the backend pending a real CIN verification API.
+  VERIFY_CIN: `${AUTH}/verify-cin`,
   // TODO: replace with the real login path from the curl.
   LOGIN: `${AUTH}/login`,
   // Login MFA: client sends the chosen channel; backend triggers the OTP send.
@@ -113,6 +119,16 @@ export const API_ENDPOINTS = {
   // Suspend / reactivate a user (PUT). Body: { userId, companyId, isSuspended,
   // suspensionReason } — the reason is required only when suspending.
   ADMIN_USER_SUSPENSION: `${ADMIN}/users/suspension`,
+  // Role-switch review — every user holding more than one company role, one row per
+  // role (GET). Approve / reject one of those rows with ADMIN_ROLE_SWITCH_ACTION.
+  ADMIN_SWITCHED_ROLES: `${ADMIN}/users/switched-roles`,
+  // The profile behind one role-switch request (GET ?userId=&companyId=&roleId=).
+  // Returns the same `ProfileField[]` shape as GET /users/profile, resolved for the
+  // role being reviewed — what the review drawer shows.
+  ADMIN_ROLE_SWITCH_DETAILS: `${ADMIN}/users/role-switch-details`,
+  // Approve / reject an added role (PUT, body: { companyUserRoleId, action:
+  // "approve"|"reject", rejectionReason? } — reason required only when rejecting).
+  ADMIN_ROLE_SWITCH_ACTION: `${ADMIN}/users/role-switch-action`,
   // KYC Review list — returns every user with their `kyc_documents` inline, so the
   // review drawer reuses the list row (no separate detail endpoint).
   ADMIN_KYC: `${ADMIN}/get-user-kyc_docs`,
@@ -176,7 +192,8 @@ export const API_ENDPOINTS = {
   // ----- User Profile -----
   // Fetch the current user's profile fields (GET).
   GET_PROFILE: `${USERS}/profile`,
-  // Save/update the current user's profile fields (PUT). API is not yet live.
+  // Save/update the current user's profile fields (PUT). Also the save behind the
+  // switch-role form — the target role's fields are ordinary `user` columns.
   SAVE_PROFILE: `${USERS}/profile`,
 
   // ----- Navbar search -----

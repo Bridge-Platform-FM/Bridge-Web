@@ -15,7 +15,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { UserDetailDrawer } from "@/components/dashboard/UserDetailDrawer";
 import { TablePager } from "@/components/dashboard/TablePager";
 import { RowAction } from "@/components/dashboard/RowAction";
-import { KYC_STATUS_META, StatusPill } from "@/components/dashboard/kyc-status";
+import { KYC_STATUS_META, StatusPill, USER_STATUS_META } from "@/components/dashboard/kyc-status";
 import { fetchUsers, setUserSuspension } from "@/services/admin.service";
 import { initials } from "@/lib/admin-format";
 import { isStaffRole, ROLE_META, USER_ROLES } from "@/lib/roles";
@@ -34,12 +34,6 @@ const COLUMNS: { label: string; className?: string }[] = [
   { label: "Status" },
   { label: "Actions", className: "pr-8 text-right" },
 ];
-
-/** Neutral status pill metadata, matching Admin Management's ADMIN_STATUS_META. */
-const USER_STATUS_META = {
-  ACTIVE: { label: "Active", icon: "check_circle" },
-  SUSPENDED: { label: "Suspended", icon: "block" },
-} as const;
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },

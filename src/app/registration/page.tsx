@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { Icon } from "@/components/ui/Icon";
@@ -19,11 +19,14 @@ import {
   metRuleCount,
 } from "@/components/auth/PasswordStrength";
 import { toast } from "sonner";
-import { registerCompany } from "@/services/auth.service";
+import { registerCompany, verifyGst, verifyCin } from "@/services/auth.service";
 import { clearSession } from "@/lib/auth-session";
 import { GST_REGEX, CIN_REGEX, PHONE_REGEX, PASSWORD_REGEX, EMAIL_REGEX } from "@/lib/validation";
-import { SUCCESS_MESSAGES } from "@/lib/messages";
+import { SUCCESS_MESSAGES, ERROR_MESSAGES } from "@/lib/messages";
 import type { ApiError } from "@/lib/axios";
+
+/** Live GST/CIN-check status, driven by each field's onBlur — purely for the adornment icon. */
+type FieldCheckStatus = "idle" | "checking" | "verified";
 
 const ROLES = [
   { value: "startup", label: "Startup" },
@@ -76,6 +79,8 @@ export default function RegisterPage() {
     control,
     watch,
     setValue,
+    setError,
+    clearErrors,
     formState: { errors, isSubmitting },
   } = useForm<RegisterForm>({
     defaultValues: {
@@ -111,6 +116,122 @@ export default function RegisterPage() {
 
   const role = useWatch({ control, name: "role" });
   const isB2B = role === "b2b_enterprise";
+
+  const gstNumberVal = useWatch({ control, name: "gstNumber" });
+  const [gstStatus, setGstStatus] = useState<FieldCheckStatus>("idle");
+  // The exact value (uppercased) that last came back verified — editing after that
+  // invalidates the checkmark until the field is re-checked on the next blur.
+  const verifiedGstRef = useRef<string | null>(null);
+  // Guards against out-of-order responses: blur, edit, blur again before the first
+  // call resolves — only the response matching the latest request may apply state.
+  const gstRequestIdRef = useRef(0);
+  useEffect(() => {
+    if (verifiedGstRef.current && verifiedGstRef.current !== gstNumberVal?.toUpperCase()) {
+      setGstStatus("idle");
+    }
+  }, [gstNumberVal]);
+
+  // Registered separately so onBlur can trigger the sandbox.co.in check below. The
+  // `validate` rule is the actual submit-time gate — RHF re-runs it on submit, so
+  // baking gstStatus into it (not just format) means a failed/never-attempted check
+  // blocks submission even if setError's manual error got wiped by that re-validation,
+  // or the field was never blurred at all (paste + Enter, autofill). Rules are also
+  // gated on isB2B — see the block-level comment above isB2B for why.
+  const gstField = field("gstNumber", {
+    required: isB2B ? "GST number is required." : false,
+    validate: (v) => {
+      if (!isB2B) return true;
+      if (!GST_REGEX.test(v.toUpperCase())) return "Enter a valid 15-character GSTIN.";
+      return gstStatus === "verified" || "Please verify your GST number before continuing.";
+    },
+  });
+
+  const handleGstBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
+    gstField.onBlur(e);
+    const value = e.target.value.trim().toUpperCase();
+    // Normalize the field's actual RHF value to match what gets verified/refed below —
+    // otherwise a lowercase/padded input can show "✓ Verified" while onSubmit still
+    // posts the original, differently-cased string.
+    setValue("gstNumber", value, { shouldValidate: false });
+    // Let the format `validate` rule above show its own error for empty/malformed input.
+    if (!value || !GST_REGEX.test(value)) return;
+
+    const requestId = ++gstRequestIdRef.current;
+    setGstStatus("checking");
+    try {
+      const res = await verifyGst({ gstin: value });
+      if (requestId !== gstRequestIdRef.current) return; // superseded by a newer blur
+
+      // A 2xx response doesn't guarantee verification — check the flag explicitly.
+      if (!res.data?.verified) {
+        throw { message: res.message ?? ERROR_MESSAGES.GST_VERIFICATION_FAILED } as ApiError;
+      }
+      clearErrors("gstNumber");
+      verifiedGstRef.current = value;
+      setGstStatus("verified");
+      toast.success(res.message ?? SUCCESS_MESSAGES.GST_VERIFIED);
+    } catch (err) {
+      if (requestId !== gstRequestIdRef.current) return; // superseded by a newer blur
+
+      setGstStatus("idle");
+      const message = (err as ApiError).message ?? ERROR_MESSAGES.GST_VERIFICATION_FAILED;
+      setError("gstNumber", { type: "manual", message });
+      toast.error(message);
+    }
+  };
+
+  const cinNumberVal = useWatch({ control, name: "cinNumber" });
+  const [cinStatus, setCinStatus] = useState<FieldCheckStatus>("idle");
+  const verifiedCinRef = useRef<string | null>(null);
+  const cinRequestIdRef = useRef(0);
+  useEffect(() => {
+    if (verifiedCinRef.current && verifiedCinRef.current !== cinNumberVal?.toUpperCase()) {
+      setCinStatus("idle");
+    }
+  }, [cinNumberVal]);
+
+  // Registered separately so onBlur can trigger the CIN check below. Mirrors the GST
+  // block above, including gating the rules on isB2B and baking cinStatus into `validate`
+  // for the same reasons.
+  const cinField = field("cinNumber", {
+    required: isB2B ? "CIN number is required." : false,
+    validate: (v) => {
+      if (!isB2B) return true;
+      if (!CIN_REGEX.test(v.toUpperCase())) return "Enter a valid 21-character CIN.";
+      return cinStatus === "verified" || "Please verify your CIN number before continuing.";
+    },
+  });
+
+  const handleCinBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
+    cinField.onBlur(e);
+    const value = e.target.value.trim().toUpperCase();
+    // Normalize the field's actual RHF value — see the matching comment in handleGstBlur.
+    setValue("cinNumber", value, { shouldValidate: false });
+    if (!value || !CIN_REGEX.test(value)) return;
+
+    const requestId = ++cinRequestIdRef.current;
+    setCinStatus("checking");
+    try {
+      const res = await verifyCin({ cin: value });
+      if (requestId !== cinRequestIdRef.current) return; // superseded by a newer blur
+
+      // A 2xx response doesn't guarantee verification — check the flag explicitly.
+      if (!res.data?.verified) {
+        throw { message: res.message ?? ERROR_MESSAGES.CIN_VERIFICATION_FAILED } as ApiError;
+      }
+      clearErrors("cinNumber");
+      verifiedCinRef.current = value;
+      setCinStatus("verified");
+      toast.success(res.message ?? SUCCESS_MESSAGES.CIN_VERIFIED);
+    } catch (err) {
+      if (requestId !== cinRequestIdRef.current) return; // superseded by a newer blur
+
+      setCinStatus("idle");
+      const message = (err as ApiError).message ?? ERROR_MESSAGES.CIN_VERIFICATION_FAILED;
+      setError("cinNumber", { type: "manual", message });
+      toast.error(message);
+    }
+  };
 
   const onSubmit = async (values: RegisterForm) => {
     // Payload shaped to the backend schema (field names, role enum, password, terms).
@@ -353,11 +474,18 @@ export default function RegisterPage() {
                   required
                   placeholder="22AAAAA0000A1Z5"
                   error={errors.gstNumber?.message}
-                  adornment={<Icon name="pin" size={20} />}
-                  {...field("gstNumber", {
-                    required: "GST number is required.",
-                    validate: (v) => GST_REGEX.test(v.toUpperCase()) || "Enter a valid 15-character GSTIN.",
-                  })}
+                  adornment={
+                    gstStatus === "checking" ? (
+                      <Loader size={16} />
+                    ) : gstStatus === "verified" ? (
+                      <Icon name="check_circle" size={20} />
+                    ) : (
+                      <Icon name="pin" size={20} />
+                    )
+                  }
+                  adornmentClassName={gstStatus === "verified" ? "text-primary" : undefined}
+                  {...gstField}
+                  onBlur={handleGstBlur}
                 />
                 <Input
                   id="cinNumber"
@@ -366,11 +494,18 @@ export default function RegisterPage() {
                   required
                   placeholder="U12345MH2024PTC123456"
                   error={errors.cinNumber?.message}
-                  adornment={<Icon name="pin" size={20} />}
-                  {...field("cinNumber", {
-                    required: "CIN number is required.",
-                    validate: (v) => CIN_REGEX.test(v.toUpperCase()) || "Enter a valid 21-character CIN.",
-                  })}
+                  adornment={
+                    cinStatus === "checking" ? (
+                      <Loader size={16} />
+                    ) : cinStatus === "verified" ? (
+                      <Icon name="check_circle" size={20} />
+                    ) : (
+                      <Icon name="pin" size={20} />
+                    )
+                  }
+                  adornmentClassName={cinStatus === "verified" ? "text-primary" : undefined}
+                  {...cinField}
+                  onBlur={handleCinBlur}
                 />
               </div>
             )}
@@ -429,7 +564,7 @@ export default function RegisterPage() {
             <div className="flex flex-col gap-2">
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || gstStatus === "checking" || cinStatus === "checking"}
                 className="cta-gradient flex h-12 w-full items-center justify-center gap-2 bg-primary rounded-xl font-headline text-base font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSubmitting ? <Loader size={18} /> : "Continue"}
