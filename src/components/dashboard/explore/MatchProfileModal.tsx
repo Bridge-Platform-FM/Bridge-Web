@@ -43,32 +43,34 @@ export function MatchProfileModal({ match, onClose }: { match: ExploreMatch | nu
     <Modal open={match !== null} onClose={onClose} title="Profile" maxWidthClass="max-w-2xl">
       <div className="flex flex-col gap-6">
         {/* Identity header */}
-        <div className="flex items-start gap-4">
-          <Avatar photoKey={match.profile_photo} alt={fullName} className="size-20 shrink-0 rounded-2xl">
+        <div className="flex items-start gap-3 sm:gap-4">
+          <Avatar photoKey={match.profile_photo} alt={fullName} className="size-16 shrink-0 rounded-2xl sm:size-20">
             <div
-              className={`flex size-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${ROLE_GRADIENT[match.role]} text-2xl font-black text-white`}
+              className={`flex size-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${ROLE_GRADIENT[match.role]} text-2xl font-black text-white sm:size-20`}
             >
               {companyInitials(fullName)}
             </div>
           </Avatar>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              <h2 className="font-headline text-xl font-bold text-on-surface">{fullName}</h2>
-              {match.compatibility >= 80 && <Icon name="verified" size={18} filled className="text-secondary" />}
+            <div className="flex min-w-0 items-center gap-1.5">
+              <h2 className="truncate font-headline text-lg font-bold text-on-surface sm:text-xl">{fullName}</h2>
+              {match.compatibility >= 80 && (
+                <Icon name="verified" size={18} filled className="shrink-0 text-secondary" />
+              )}
             </div>
-            <p className="mt-0.5 flex items-center gap-1.5 text-sm font-semibold text-primary">
-              <Icon name={ROLE_ICON[match.role]} size={15} />
-              {ROLE_LABEL[match.role]}
-              <span className="font-normal text-on-surface-variant">· {match.organization_name}</span>
+            <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs font-semibold text-primary sm:text-sm">
+              <Icon name={ROLE_ICON[match.role]} size={15} className="shrink-0" />
+              <span className="shrink-0">{ROLE_LABEL[match.role]}</span>
+              <span className="truncate font-normal text-on-surface-variant">· {match.organization_name}</span>
             </p>
             {location && (
-              <p className="mt-0.5 flex items-center gap-1 text-xs text-on-surface-variant">
-                <Icon name="location_on" size={13} />
-                {location}
+              <p className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-on-surface-variant">
+                <Icon name="location_on" size={13} className="shrink-0" />
+                <span className="truncate">{location}</span>
               </p>
             )}
           </div>
-          <CompatibilityRing value={match.compatibility} size={56} className="shrink-0 text-primary" />
+          <CompatibilityRing value={match.compatibility} size={48} className="shrink-0 text-primary" />
         </div>
 
         {/* Bio */}
@@ -129,7 +131,7 @@ export function MatchProfileModal({ match, onClose }: { match: ExploreMatch | nu
                   href={c.href}
                   target={c.href.startsWith("http") ? "_blank" : undefined}
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-sm text-on-surface-variant transition-colors hover:text-primary"
+                  className="flex min-w-0 items-center gap-2 text-sm text-on-surface-variant transition-colors hover:text-primary"
                 >
                   <Icon name={c.icon} size={16} className="shrink-0 text-on-surface-variant/70" />
                   <span className="truncate">{c.value}</span>

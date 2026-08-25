@@ -62,7 +62,7 @@ export function ProfileCardFace({ match }: { match: ExploreMatch }) {
         <div
           className={`pointer-events-none absolute inset-0 flex items-center justify-center bg-gradient-to-br ${ROLE_GRADIENT[match.role]}`}
         >
-          <span className="font-headline text-[7rem] font-black text-white/90">
+          <span className="font-headline text-[5rem] font-black text-white/90 sm:text-[7rem]">
             {companyInitials(fullName || match.organization_name)}
           </span>
         </div>
@@ -74,30 +74,30 @@ export function ProfileCardFace({ match }: { match: ExploreMatch }) {
       </div>
 
       {/* Readability gradient + content */}
-      <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/95 via-black/70 to-transparent p-5 pb-24 text-white">
-        <div className="space-y-2.5">
+      <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/95 via-black/70 to-transparent p-4 pb-24 text-white sm:p-5 sm:pb-24">
+        <div className="space-y-2 sm:space-y-2.5">
           {/* Name + role + organization */}
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className="font-headline text-xl font-bold leading-tight text-white">
+            <div className="flex min-w-0 items-center gap-2">
+              <h3 className="truncate font-headline text-lg font-bold leading-tight text-white sm:text-xl">
                 {fullName || match.organization_name}
               </h3>
               {match.compatibility >= 80 && (
-                <Icon name="verified" size={18} filled className="text-secondary-fixed-dim" />
+                <Icon name="verified" size={18} filled className="shrink-0 text-secondary-fixed-dim" />
               )}
             </div>
-            <p className="flex items-center gap-1.5 text-sm font-semibold text-secondary-fixed-dim">
-              <Icon name={ROLE_ICON[match.role]} size={16} />
-              {ROLE_LABEL[match.role]}
+            <p className="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-secondary-fixed-dim">
+              <Icon name={ROLE_ICON[match.role]} size={16} className="shrink-0" />
+              <span className="shrink-0">{ROLE_LABEL[match.role]}</span>
               <span className="truncate font-normal text-white/70">· {match.organization_name}</span>
             </p>
           </div>
 
           {/* Location */}
           {location && (
-            <span className="flex items-center gap-1 text-xs text-white/70">
-              <Icon name="location_on" size={14} />
-              {location}
+            <span className="flex min-w-0 items-center gap-1 text-xs text-white/70">
+              <Icon name="location_on" size={14} className="shrink-0" />
+              <span className="truncate">{location}</span>
             </span>
           )}
 
@@ -105,7 +105,7 @@ export function ProfileCardFace({ match }: { match: ExploreMatch }) {
           {contacts.length > 0 && (
             <div className="space-y-1">
               {contacts.map((c) => (
-                <div key={c.label} className="flex items-center gap-2 text-xs text-white/80">
+                <div key={c.label} className="flex min-w-0 items-center gap-2 text-xs text-white/80">
                   <Icon name={c.icon} size={14} className="shrink-0 text-white/60" />
                   <span className="truncate">{c.value}</span>
                 </div>

@@ -143,7 +143,7 @@ export function ProfileShortsDeck({ matches, loading, error, onReload }: Profile
   const exhausted = !loading && !error && index >= matches.length;
 
   return (
-    <div className="relative flex h-full min-h-[640px] w-full items-center justify-center overflow-hidden bg-surface p-4">
+    <div className="relative flex h-full min-h-[520px] w-full items-center justify-center overflow-hidden bg-surface px-3 pb-3 pt-16 sm:min-h-[640px] sm:px-4 sm:pb-4">
       <div className="relative h-full max-h-[820px] w-full max-w-md">
         <AsyncState
           loading={loading}
