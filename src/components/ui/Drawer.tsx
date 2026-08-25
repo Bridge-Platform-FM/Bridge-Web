@@ -49,9 +49,9 @@ export function Drawer({ open, onClose, title, subtitle, children, footer, width
         className={`flex h-full w-full ${widthClass} flex-col border-l border-outline-variant/30 bg-surface-container-lowest shadow-2xl`}
       >
         {/* Header */}
-        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-outline/10 p-5">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-outline/10 p-4 sm:gap-4 sm:p-5">
           <div className="min-w-0">
-            {title && <h2 className="truncate font-headline text-xl font-bold text-on-surface">{title}</h2>}
+            {title && <h2 className="truncate font-headline text-lg font-bold text-on-surface sm:text-xl">{title}</h2>}
             {subtitle && <p className="mt-0.5 truncate text-sm text-on-surface-variant">{subtitle}</p>}
           </div>
           <button
@@ -65,11 +65,11 @@ export function Drawer({ open, onClose, title, subtitle, children, footer, width
         </div>
 
         {/* Scrollable body */}
-        <div className="thin-scrollbar flex-1 overflow-y-auto overscroll-contain p-5">{children}</div>
+        <div className="thin-scrollbar flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5">{children}</div>
 
         {/* Footer */}
         {footer !== null && footer !== undefined && (
-          <div className="flex shrink-0 items-center justify-end gap-3 border-t border-outline/10 p-4">{footer}</div>
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-outline/10 p-3 sm:gap-3 sm:p-4">{footer}</div>
         )}
       </aside>
     </div>,
