@@ -209,24 +209,24 @@ export function DocumentUploadCard({
 
   return (
     <section
-      className={`rounded-2xl p-4 ${allUploaded ? "bg-surface-container-lowest ambient-shadow" : "bg-surface-container-low"}`}
+      className={`rounded-2xl p-3 sm:p-4 ${allUploaded ? "bg-surface-container-lowest ambient-shadow" : "bg-surface-container-low"}`}
     >
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+      <div className="mb-3 flex items-center justify-between gap-2 sm:gap-3">
+        <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
           <div
-            className={`flex size-10 items-center justify-center rounded-xl ${
+            className={`flex size-9 shrink-0 items-center justify-center rounded-xl sm:size-10 ${
               allUploaded ? "bg-secondary-fixed text-on-secondary-fixed" : "bg-surface-container-highest text-on-surface-variant"
             }`}
           >
-            <Icon name={icon} size={22} />
+            <Icon name={icon} size={20} />
           </div>
-          <div>
+          <div className="min-w-0">
             <h3 className="font-headline text-sm font-bold text-on-surface">{title}</h3>
-            <p className="text-sm text-on-surface-variant">{subtitle}</p>
+            <p className="text-xs leading-snug text-on-surface-variant sm:text-sm">{subtitle}</p>
           </div>
         </div>
         {allUploaded && (
-          <span className="flex items-center gap-1.5 rounded-full bg-secondary-container px-3 py-1">
+          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-secondary-container px-2.5 py-1 sm:px-3">
             <Icon name="check_circle" size={14} filled className="text-primary" />
             <span className="text-xs font-bold text-on-secondary-container">UPLOADED</span>
           </span>
@@ -261,7 +261,9 @@ export function DocumentUploadCard({
                       className={`flex h-full flex-col items-center justify-center gap-2 px-4 text-center ${isDone ? "cursor-pointer" : ""}`}
                     >
                       <Icon name="description" size={32} className="text-primary" />
-                      <span className="line-clamp-2 text-sm font-medium text-on-surface">{file.name}</span>
+                      <span className="line-clamp-2 break-all text-xs font-medium text-on-surface sm:text-sm">
+                        {file.name}
+                      </span>
                     </div>
                   )}
 
@@ -320,15 +322,17 @@ export function DocumentUploadCard({
                     const dropped = e.dataTransfer.files?.[0];
                     if (dropped) setSlot(slot.key, dropped);
                   }}
-                  className="group h-32 w-full cursor-pointer rounded-xl border-2 border-dashed border-outline-variant/30 bg-surface-container-lowest/50 transition-colors hover:bg-surface-container-lowest"
+                  className="group flex min-h-32 w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-outline-variant/30 bg-surface-container-lowest/50 px-3 py-4 transition-colors hover:bg-surface-container-lowest sm:px-4"
                 >
-                  <div className="flex h-full flex-col items-center justify-center px-4">
-                    <div className="mb-2 flex size-10 items-center justify-center rounded-full bg-primary/5 transition-transform group-hover:scale-110">
-                      <Icon name="upload_file" size={22} className="text-primary" />
-                    </div>
-                    <p className="mb-0.5 text-center text-sm font-bold text-on-surface">Click to upload or drag &amp; drop</p>
-                    <p className="text-center text-xs text-on-surface-variant">{hint}</p>
+                  <div className="mb-2 flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/5 transition-transform group-hover:scale-110 sm:size-10">
+                    <Icon name="upload_file" size={20} className="text-primary" />
                   </div>
+                  <p className="mb-0.5 text-center text-xs font-bold leading-snug text-on-surface sm:text-sm">
+                    Click to upload or drag &amp; drop
+                  </p>
+                  <p className="text-center text-[11px] leading-snug text-on-surface-variant sm:text-xs">
+                    {hint}
+                  </p>
                 </button>
               )}
 

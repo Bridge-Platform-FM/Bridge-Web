@@ -98,12 +98,12 @@ export default function DocumentUploadPage() {
 
   return (
     <main className="flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-8">
-      <div className="mx-auto w-full max-w-3xl rounded-2xl bg-surface-container-lowest ambient-shadow border border-white/40 flex flex-col gap-2 !p-5 sm:!p-6 lg:gap-3 lg:!p-8">
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-2 rounded-2xl border border-white/40 bg-surface-container-lowest p-4 ambient-shadow sm:p-6 lg:gap-3 lg:p-8">
       <FocusedHeader backHref="/registration/complete-profile" />
       <div>
-        <h2 className="font-headline text-2xl font-extrabold tracking-tight text-on-surface">Document Upload</h2>
-        <p className="mt-1 flex items-center gap-2 text-sm text-on-surface-variant">
-          <Icon name="verified" size={16} filled className="text-primary" />
+        <h2 className="font-headline text-xl font-extrabold tracking-tight text-on-surface sm:text-2xl">Document Upload</h2>
+        <p className="mt-1 flex items-start gap-2 text-xs text-on-surface-variant sm:text-sm">
+          <Icon name="verified" size={16} filled className="mt-0.5 shrink-0 text-primary" />
           Government issued ID required for secure verification
         </p>
       </div>
@@ -194,7 +194,7 @@ export default function DocumentUploadPage() {
             type="submit"
             variant="primary"
             disabled={!allProvided || submitting}
-            className="h-12 text-base rounded-xl"
+            className="h-12 rounded-xl max-sm:px-4 max-sm:text-sm"
             trailingIcon={submitting ? undefined : "chevron_right"}
           >
             {submitting ? <Loader size={18} /> : "Submit for Verification"}
