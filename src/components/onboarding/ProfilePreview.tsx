@@ -221,12 +221,12 @@ export function ProfilePreview({ values, photoUrl, role }: ProfilePreviewProps) 
             <Icon name="person" size={40} className="text-surface-dim" />
           )}
         </div>
-        <div className="flex flex-col">
-          <span className="font-headline text-lg font-bold text-on-surface">
+        <div className="flex min-w-0 flex-col">
+          <span className="truncate font-headline text-lg font-bold text-on-surface">
             {[values.firstName, values.lastName].filter(Boolean).join(" ") || "—"}
           </span>
           {values.photo && (
-            <span className="text-sm text-on-surface-variant">
+            <span className="truncate text-sm text-on-surface-variant">
               <FileValue name={values.photo} />
             </span>
           )}

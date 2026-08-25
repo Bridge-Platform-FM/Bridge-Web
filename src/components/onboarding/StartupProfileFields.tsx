@@ -268,7 +268,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
               onClick={() => remove(i)}
               disabled={fields.length === 1}
               aria-label="Remove founder"
-              className="flex h-10 w-10 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:text-error disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex h-10 w-10 items-center justify-center justify-self-end rounded-lg text-on-surface-variant transition-colors hover:text-error disabled:cursor-not-allowed disabled:opacity-40 sm:justify-self-auto"
             >
               <Icon name="delete" size={20} />
             </button>
