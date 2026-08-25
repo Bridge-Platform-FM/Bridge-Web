@@ -12,6 +12,7 @@ import { DealSidePanel } from "./DealSidePanel";
 import { CLOSE_DEAL_REASONS, formatLocation, dayLabel, initials } from "./deal-room-meta";
 import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewModal";
 import { Modal } from "@/components/modal/Modal";
+import { Drawer } from "@/components/ui/Drawer";
 import { Loader } from "@/components/common/loader";
 import { Select } from "@/components/ui/Select";
 import { exportDealRoom, archiveDealRoom, unarchiveDealRoom } from "@/services/deal-room.service";
@@ -126,6 +127,7 @@ export function DealRoomChat({
   // Side panel open by default; the chat status-bar arrow collapses it to give the
   // chat full width (and expands it back).
   const [panelOpen, setPanelOpen] = useState(true);
+  const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
   const [closeModalOpen, setCloseModalOpen] = useState(false);
   const [closeReason, setCloseReason] = useState("");
   const [exporting, setExporting] = useState(false);
@@ -237,9 +239,9 @@ export function DealRoomChat({
     // h-full (not 100vh) fills the dashboard layout's own scroll container exactly, so
     // ONLY the message thread scrolls — the header + stepper stay pinned. min-h-0 lets
     // the flex children shrink instead of overflowing the page.
-    <div className="mx-auto flex h-full min-h-0 max-w-6xl flex-col gap-3 p-4 md:gap-4 md:p-6">
+    <div className="mx-auto flex h-full min-h-0 max-w-6xl flex-col gap-3 p-3 sm:p-4 md:gap-4 md:p-6">
       {/* Deal header */}
-      <div className="flex shrink-0 items-center gap-3">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
         <button
           type="button"
           onClick={() => router.push(backHref)}
@@ -253,12 +255,12 @@ export function DealRoomChat({
         <button
           type="button"
           onClick={() => router.push(`/dashboard/profile/${cp.userId}?roleId=${cp.roleId}&companyId=${cp.companyId}`)}
-          className="flex min-w-0 flex-1 items-center gap-3 rounded-xl text-left transition-opacity hover:opacity-80"
+          className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl text-left transition-opacity hover:opacity-80 sm:gap-3"
         >
           <div className="relative shrink-0">
-            <Avatar photoKey={cp.photoKey} alt={cp.name} className="size-12 rounded-full">
+            <Avatar photoKey={cp.photoKey} alt={cp.name} className="size-10 rounded-full sm:size-12">
               <div
-                className={`flex size-12 items-center justify-center rounded-full bg-gradient-to-br ${ROLE_AVATAR_GRADIENT[cp.role]} font-headline text-base font-bold text-on-primary`}
+                className={`flex size-10 items-center justify-center rounded-full bg-gradient-to-br ${ROLE_AVATAR_GRADIENT[cp.role]} font-headline text-base font-bold text-on-primary sm:size-12`}
               >
                 {initials(cp.name)}
               </div>
@@ -272,49 +274,52 @@ export function DealRoomChat({
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="truncate font-headline text-lg font-extrabold tracking-[-0.01em] text-on-surface md:text-xl">
+            <p className="truncate font-headline text-base font-extrabold tracking-[-0.01em] text-on-surface sm:text-lg md:text-xl">
               {cp.company || room.title}
             </p>
             {location && (
-              <p className="truncate text-sm text-on-surface-variant">{location}</p>
+              <p className="truncate text-xs text-on-surface-variant sm:text-sm">{location}</p>
             )}
           </div>
         </button>
 
         {/* Action row: Export · Archive · Close Deal (or the Closed badge) */}
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           <button
             type="button"
             onClick={handleExport}
             disabled={exporting}
-            className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/50 bg-surface-container px-4 py-2 text-sm font-bold text-on-surface-variant shadow-sm transition-colors hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-60"
+            aria-label="Export deal room"
+            className="inline-flex h-9 w-9 items-center justify-center gap-1.5 rounded-full border border-outline-variant/50 bg-surface-container text-sm font-bold text-on-surface-variant shadow-sm transition-colors hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-60 sm:h-auto sm:w-auto sm:px-4 sm:py-2"
           >
             {exporting ? <Loader size="small" /> : <Icon name="download" size={16} />}
-            {exporting ? "Exporting…" : "Export"}
+            <span className="hidden sm:inline">{exporting ? "Exporting…" : "Export"}</span>
           </button>
           <button
             type="button"
             onClick={handleToggleArchive}
             disabled={archiving}
-            className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/50 bg-surface-container px-4 py-2 text-sm font-bold text-on-surface-variant shadow-sm transition-colors hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-60"
+            aria-label={archived ? "Unarchive deal room" : "Archive deal room"}
+            className="inline-flex h-9 w-9 items-center justify-center gap-1.5 rounded-full border border-outline-variant/50 bg-surface-container text-sm font-bold text-on-surface-variant shadow-sm transition-colors hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-60 sm:h-auto sm:w-auto sm:px-4 sm:py-2"
           >
             {archiving ? <Loader size="small" /> : <Icon name={archived ? "unarchive" : "archive"} size={16} />}
-            {archived ? "Unarchive" : "Archive"}
+            <span className="hidden sm:inline">{archived ? "Unarchive" : "Archive"}</span>
           </button>
 
           {closed ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container-high px-4 py-2 text-sm font-semibold text-on-surface-variant">
+            <span className="inline-flex h-9 w-9 items-center justify-center gap-1.5 rounded-full bg-surface-container-high text-sm font-semibold text-on-surface-variant sm:h-auto sm:w-auto sm:px-4 sm:py-2">
               <Icon name="lock" size={16} />
-              Closed
+              <span className="hidden sm:inline">Closed</span>
             </span>
           ) : (
             <button
               type="button"
               onClick={handleClose}
-              className="inline-flex items-center gap-1.5 rounded-full bg-error px-4 py-2 text-sm font-bold text-on-error shadow-sm transition-opacity hover:opacity-90"
+              aria-label="Close deal"
+              className="inline-flex h-9 w-9 items-center justify-center gap-1.5 rounded-full bg-error text-sm font-bold text-on-error shadow-sm transition-opacity hover:opacity-90 sm:h-auto sm:w-auto sm:px-4 sm:py-2"
             >
               <Icon name="close" size={16} />
-              Close Deal
+              <span className="hidden sm:inline">Close Deal</span>
             </button>
           )}
         </div>
@@ -346,6 +351,18 @@ export function DealRoomChat({
               {closed ? "Chat closed" : counterpartyOnline ? "Online" : "Offline"}
             </p>
           </div>
+          <div className="md:hidden">
+            <button
+              type="button"
+              onClick={() => setMobilePanelOpen(true)}
+              aria-label="Show deal details"
+              title="Deal details"
+              className="inline-flex size-8 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
+            >
+              <Icon name="right_panel_open" size={22} />
+            </button>
+          </div>
+
           {/* Expand / collapse the side panel — a plain arrow toggle (collapsing gives the
               chat full width). Wrapped in `hidden md:block` (a confirmed-generated utility)
               because this Tailwind setup doesn't generate `md:inline-flex`/`md:flex`. */}
@@ -363,7 +380,7 @@ export function DealRoomChat({
         </div>
 
         {/* Message thread with day dividers — the ONLY scroll region on this page. */}
-        <div ref={threadRef} className="thin-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-4 md:px-6">
+        <div ref={threadRef} className="thin-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-4 sm:px-4 md:px-6">
           {messages.map((m, i) => {
             const day = dayLabel(m.at);
             const prevDay = i > 0 ? dayLabel(messages[i - 1]!.at) : null;
@@ -405,8 +422,8 @@ export function DealRoomChat({
 
         {/* Composer — replaced by a notice once the room is closed */}
         {closed ? (
-          <div className="flex shrink-0 items-center justify-center gap-2 border-t border-outline-variant/30 px-4 py-4 text-sm text-on-surface-variant">
-            <Icon name="lock" size={18} />
+          <div className="flex shrink-0 items-center justify-center gap-2 border-t border-outline-variant/30 px-3 py-4 text-center text-xs text-on-surface-variant sm:px-4 sm:text-sm">
+            <Icon name="lock" size={18} className="shrink-0" />
             This deal room is closed. You can no longer send or receive messages.
           </div>
         ) : (
@@ -428,7 +445,7 @@ export function DealRoomChat({
                 </div>
 
                 {/* Segmented toggle: View only (default) vs Allow download. */}
-                <div className="mt-2 flex items-center gap-2">
+                <div className="mt-2 flex flex-wrap items-center gap-2">
                   <span className="text-[11px] font-semibold tracking-wide text-on-surface-variant uppercase">Permission</span>
                   <div className="inline-flex rounded-lg bg-surface-container p-0.5">
                     {([
@@ -472,7 +489,7 @@ export function DealRoomChat({
               />
 
               {/* Input field with the attach button nested on the left, before the text */}
-              <div className="flex flex-1 items-end gap-1 rounded-xl bg-surface-container pl-1.5 focus-within:ring-2 focus-within:ring-primary">
+              <div className="flex min-w-0 flex-1 items-end gap-1 rounded-xl bg-surface-container pl-1.5 focus-within:ring-2 focus-within:ring-primary">
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
@@ -496,7 +513,7 @@ export function DealRoomChat({
                   }}
                   rows={1}
                   placeholder="Type your message…"
-                  className="max-h-32 min-h-12 flex-1 resize-none bg-transparent py-3 pr-4 text-sm text-on-surface outline-none placeholder:text-on-surface-variant"
+                  className="max-h-32 min-h-12 min-w-0 flex-1 resize-none bg-transparent py-3 pr-3 text-sm text-on-surface outline-none placeholder:text-on-surface-variant sm:pr-4"
                 />
               </div>
               <button
@@ -539,6 +556,33 @@ export function DealRoomChat({
           </aside>
         )}
       </div>
+      {/* Below md the same panel opens as a slide-over instead of sitting beside the chat. */}
+      <Drawer
+        open={mobilePanelOpen}
+        onClose={() => setMobilePanelOpen(false)}
+        title="Deal Details"
+        widthClass="max-w-sm"
+        footer={null}
+      >
+        <DealSidePanel
+          room={room}
+          closed={closed}
+          isLastStage={isLastStage}
+          meetingsRefreshKey={meetingsRefreshKey}
+          filesRefreshKey={filesRefreshKey}
+          onPreview={openPreview}
+          onRequestNextStage={onRequestNextStage}
+          onAcceptStage={onAcceptStage}
+          onRejectStage={onRejectStage}
+          fundingOfferRefreshKey={fundingOfferRefreshKey}
+          onSendFundingOffer={onSendFundingOffer}
+          onAcceptFundingOffer={onAcceptFundingOffer}
+          onRejectFundingOffer={onRejectFundingOffer}
+          onCounterFundingOffer={onCounterFundingOffer}
+          termSheetRefreshKey={termSheetRefreshKey}
+          onSaveTermSheet={onSaveTermSheet}
+        />
+      </Drawer>
 
       {/* Watermarked preview modal (shared by chat bubbles + the files drawer). */}
       <DocumentPreviewModal

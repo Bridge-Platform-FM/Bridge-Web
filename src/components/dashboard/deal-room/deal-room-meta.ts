@@ -7,10 +7,10 @@ import type { StatusMeta } from "@/components/dashboard/kyc-status";
 import type { DealRoom, DealRoomStatus, DealRoomTab, FundingOfferStatus } from "./types";
 
 /** The list toggle buckets — ACTIVE also includes PAUSED rooms. */
-export const DEAL_TABS: { key: DealRoomTab; label: string }[] = [
-  { key: "ACTIVE", label: "Active Deals" },
-  { key: "CLOSED", label: "Closed Deals" },
-  { key: "ARCHIVED", label: "Archived Deals" },
+export const DEAL_TABS: { key: DealRoomTab; label: string; shortLabel: string }[] = [
+  { key: "ACTIVE", label: "Active Deals", shortLabel: "Active" },
+  { key: "CLOSED", label: "Closed Deals", shortLabel: "Closed" },
+  { key: "ARCHIVED", label: "Archived Deals", shortLabel: "Archived" },
 ];
 
 /** Does a room belong to a given tab? (Paused rooms live under Active Deals.) Archived

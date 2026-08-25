@@ -23,7 +23,7 @@ export function DealRoomListCard({ room, onOpen }: DealRoomListCardProps) {
     <button
       type="button"
       onClick={() => onOpen(room)}
-      className="group relative flex w-full items-center gap-3 overflow-hidden rounded-xl bg-surface-container-lowest py-3 pr-4 pl-7 text-left shadow-sm transition-shadow hover:shadow-md"
+      className="group relative flex w-full items-center gap-3 overflow-hidden rounded-xl bg-surface-container-lowest py-3 pr-3 pl-5 text-left shadow-sm transition-shadow hover:shadow-md sm:pr-4 sm:pl-7"
     >
       {/* Accent bar */}
       <span
@@ -61,7 +61,7 @@ export function DealRoomListCard({ room, onOpen }: DealRoomListCardProps) {
 
         <div className="mt-0.5 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs text-on-surface-variant">
           <span className="inline-flex min-w-0 items-center gap-1">
-            <Icon name="person" size={13} />
+            <Icon name="person" size={13} className="shrink-0" />
             <span className="truncate">
               {cp.name}, {cp.title}
             </span>
