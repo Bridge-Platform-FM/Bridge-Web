@@ -289,8 +289,8 @@ function PhoneField({
   return (
     <div className="flex flex-col gap-2">
       <FieldLabel id="profile-field-mobile_number" label={label} locked={locked} />
-      <div className="relative flex h-10 w-full items-center rounded-lg border border-outline-variant/30 bg-surface-container-low transition-all duration-200 focus-within:border-primary focus-within:bg-surface-container-lowest focus-within:ring-2 focus-within:ring-primary/10">
-        <div className="w-[4.8rem] shrink-0">
+      <div className="relative flex h-10 w-full min-w-0 items-center rounded-lg border border-outline-variant/30 bg-surface-container-low transition-all duration-200 focus-within:border-primary focus-within:bg-surface-container-lowest focus-within:ring-2 focus-within:ring-primary/10">
+        <div className="w-[4.4rem] shrink-0 sm:w-[4.8rem]">
           <Select
             aria-label="Country code"
             searchable
@@ -298,8 +298,8 @@ function PhoneField({
             options={DIAL_CODES}
             value={codeValue || "+91"}
             onChange={onCodeChange}
-            className="flex h-10 w-full cursor-pointer items-center justify-between gap-1 bg-transparent px-3 text-left text-sm text-on-surface outline-none hover:opacity-85"
-            panelClassName="w-72 md:w-80"
+            className="flex h-10 w-full cursor-pointer items-center justify-between gap-1 bg-transparent px-2.5 text-left text-sm text-on-surface outline-none hover:opacity-85 sm:px-3"
+            panelClassName="w-64 max-w-[calc(100vw-2.5rem)] sm:w-80"
             displayValueOnly
           />
         </div>
@@ -310,9 +310,9 @@ function PhoneField({
           placeholder="9632585698"
           value={numberValue}
           onChange={(e) => onNumberChange(e.target.value)}
-          className="h-full flex-1 bg-transparent px-3 text-sm text-on-surface outline-none placeholder:text-outline-variant"
+          className="h-full min-w-0 flex-1 bg-transparent px-2.5 text-sm text-on-surface outline-none placeholder:text-outline-variant sm:px-3"
         />
-        <div className="flex shrink-0 items-center pr-3 text-on-surface-variant">
+        <div className="flex shrink-0 items-center pr-2.5 text-on-surface-variant sm:pr-3">
           <Icon name="smartphone" size={18} />
         </div>
       </div>
@@ -468,10 +468,12 @@ function DocumentField({
             <button
               type="button"
               onClick={onPreview}
-              className="flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-semibold text-primary transition-colors hover:bg-primary-container/40"
+              aria-label="Preview document"
+              title="Preview"
+              className="flex h-8 w-8 shrink-0 items-center justify-center gap-1.5 rounded-full text-sm font-semibold text-primary transition-colors hover:bg-primary-container/40 sm:h-auto sm:w-auto sm:rounded-lg sm:px-2.5 sm:py-1"
             >
               <Icon name="visibility" size={16} />
-              Preview
+              <span className="hidden sm:inline">Preview</span>
             </button>
           )}
 
@@ -490,10 +492,12 @@ function DocumentField({
                 type="button"
                 onClick={() => inputRef.current?.click()}
                 disabled={uploading}
-                className="flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-semibold text-primary transition-colors hover:bg-primary-container/40 disabled:opacity-60"
+                aria-label={uploading ? "Uploading document" : "Upload document"}
+                title={uploading ? "Uploading…" : "Upload"}
+                className="flex h-8 w-8 shrink-0 items-center justify-center gap-1.5 rounded-full text-sm font-semibold text-primary transition-colors hover:bg-primary-container/40 disabled:opacity-60 sm:h-auto sm:w-auto sm:rounded-lg sm:px-2.5 sm:py-1"
               >
                 {uploading ? <Loader size={16} /> : <Icon name="upload_file" size={16} />}
-                {uploading ? "Uploading…" : "Upload"}
+                <span className="hidden sm:inline">{uploading ? "Uploading…" : "Upload"}</span>
               </button>
             </>
           )}
@@ -831,36 +835,42 @@ export default function ProfilePage() {
   return (
     <div className="flex h-full flex-col">
       {/* ── Page Header ── */}
-      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-outline-variant/20 bg-surface-container-lowest px-8 py-5">
-        <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-outline-variant/20 bg-surface-container-lowest px-4 py-4 sm:gap-4 sm:px-6 sm:py-5 md:px-8">
+        <div className="flex min-w-0 items-center gap-3">
           <Avatar
             photoKey={profilePhotoKey(fields)}
             alt="My profile picture"
-            className="size-11 shrink-0 rounded-2xl"
+            className="size-10 shrink-0 rounded-full sm:size-11"
           >
-            <div className="flex size-11 items-center justify-center rounded-2xl bg-primary-container text-on-primary-container">
+            <div className="flex size-10 items-center justify-center rounded-full bg-primary-container text-on-primary-container sm:size-11">
               <Icon name="account_circle" size={24} />
             </div>
           </Avatar>
-          <div>
-            <h1 className="font-headline text-xl font-bold text-on-surface">{isAdminUser ? "Admin Profile" : "My Profile"}</h1>
-            <p className="text-xs text-on-surface-variant">{isAdminUser ? "View and manage your admin account details" : "View and manage your profile details"}</p>
+          <div className="min-w-0">
+            <h1 className="truncate font-headline text-lg font-bold text-on-surface sm:text-xl">
+              {isAdminUser ? "Admin Profile" : "My Profile"}
+            </h1>
+            <p className="truncate text-xs text-on-surface-variant">
+              {isAdminUser ? "View and manage your admin account details" : "View and manage your profile details"}
+            </p>
           </div>
         </div>
 
         {/* Edit toggle in top-right */}
         {!loading && fields.length > 0 && (
-          <ToggleSwitch
-            id="profile-edit-toggle"
-            checked={editMode}
-            onChange={handleToggleEdit}
-            label={editMode ? "Editing" : "Edit"}
-          />
+          <div className="shrink-0">
+            <ToggleSwitch
+              id="profile-edit-toggle"
+              checked={editMode}
+              onChange={handleToggleEdit}
+              label={editMode ? "Editing" : "Edit"}
+            />
+          </div>
         )}
       </div>
 
       {/* ── Body ── */}
-      <div className="thin-scrollbar flex-1 overflow-y-auto px-8 py-7">
+      <div className="thin-scrollbar flex-1 overflow-y-auto px-4 py-5 sm:px-6 md:px-8 md:py-7">
         {loading ? (
           <div className="flex h-64 items-center justify-center">
             <Loader size="medium" />
@@ -881,8 +891,8 @@ export default function ProfilePage() {
           <div className="mx-auto max-w-4xl">
             {/* Edit-mode banner */}
             {editMode && (
-              <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-primary/20 bg-primary-container/30 px-4 py-3 text-sm text-on-primary-container">
-                <Icon name="edit_note" size={18} />
+              <div className="mb-6 flex items-start gap-2.5 rounded-xl border border-primary/20 bg-primary-container/30 px-3 py-3 text-xs text-on-primary-container sm:px-4 sm:text-sm">
+                <Icon name="edit_note" size={18} className="mt-0.5 shrink-0" />
                 <span>Edit mode is on — make your changes and click <strong>Save Changes</strong> below.</span>
               </div>
             )}
@@ -923,11 +933,11 @@ export default function ProfilePage() {
 
       {/* ── Footer — only in edit mode ── */}
       {editMode && (
-        <div className="flex shrink-0 items-center justify-end gap-3 border-t border-outline-variant/20 bg-surface-container-lowest px-8 py-4">
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-outline-variant/20 bg-surface-container-lowest px-4 py-3 sm:gap-3 sm:px-6 sm:py-4 md:px-8">
           <button
             type="button"
             onClick={() => handleToggleEdit(false)}
-            className="flex h-10 items-center gap-1.5 rounded-xl border border-outline-variant/30 px-5 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container"
+            className="flex h-10 items-center gap-1.5 whitespace-nowrap rounded-xl border border-outline-variant/30 px-4 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container sm:px-5"
           >
             Discard
           </button>
@@ -935,7 +945,7 @@ export default function ProfilePage() {
             id="profile-save-btn"
             disabled={saving}
             onClick={handleSave}
-            className="h-10 px-6 text-sm"
+            className="h-10 whitespace-nowrap px-6 text-sm max-sm:px-4 max-sm:text-sm"
           >
             {saving ? (
               <Loader size="small" />
