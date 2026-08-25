@@ -180,7 +180,7 @@ export function ConfirmSaveModal({
       closeDisabled={saving}
       title={title}
       maxWidthClass="max-w-md"
-      bodyClassName="p-6"
+      bodyClassName="p-4 sm:p-6"
       footer={
         <>
           <button

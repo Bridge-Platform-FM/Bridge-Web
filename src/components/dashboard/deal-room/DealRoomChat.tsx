@@ -359,7 +359,7 @@ export function DealRoomChat({
               title="Deal details"
               className="inline-flex size-8 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
             >
-              <Icon name="right_panel_open" size={22} />
+              <Icon name="info" size={22} />
             </button>
           </div>
 
@@ -603,14 +603,14 @@ export function DealRoomChat({
         onClose={dismissCloseModal}
         title="Close Deal"
         maxWidthClass="max-w-md"
-        bodyClassName="p-6"
+        bodyClassName="p-4 sm:p-6"
         footer={
           <>
             <button
               type="button"
               onClick={dismissCloseModal}
               disabled={closing}
-              className="flex h-11 items-center justify-center rounded-xl border border-outline-variant/50 px-6 font-bold text-on-surface-variant transition-colors hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex h-11 items-center justify-center rounded-xl border border-outline-variant/50 px-6 font-bold max-sm:px-3 max-sm:text-sm text-on-surface-variant transition-colors hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-60"
             >
               Cancel
             </button>
@@ -618,7 +618,7 @@ export function DealRoomChat({
               type="button"
               onClick={handleConfirmClose}
               disabled={closing || !closeReason}
-              className="flex h-11 min-w-[120px] items-center justify-center rounded-xl bg-error px-6 font-bold text-on-error transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex h-11 min-w-[120px] items-center justify-center rounded-xl bg-error px-6 font-bold max-sm:px-3 max-sm:text-sm text-on-error transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {closing ? <Loader size="small" /> : "Close Deal"}
             </button>

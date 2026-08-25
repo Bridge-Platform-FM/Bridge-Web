@@ -166,7 +166,7 @@ export function MeetingDetailsModal({ meeting: source, onClose, onUpdated }: Mee
             <button
               type="button"
               onClick={() => handleToggleEdit(false)}
-              className="flex h-11 items-center justify-center rounded-xl px-5 font-bold text-on-surface-variant transition-colors hover:bg-surface-container"
+              className="flex h-11 items-center justify-center rounded-xl px-5 font-bold max-sm:px-3 max-sm:text-sm text-on-surface-variant transition-colors hover:bg-surface-container"
             >
               Cancel
             </button>
@@ -174,7 +174,7 @@ export function MeetingDetailsModal({ meeting: source, onClose, onUpdated }: Mee
               type="button"
               onClick={save}
               disabled={saving || !title.trim()}
-              className="flex h-11 items-center gap-2 rounded-xl bg-primary px-6 font-bold text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex h-11 items-center gap-2 rounded-xl bg-primary px-6 font-bold max-sm:px-3 max-sm:text-sm text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Icon name="check" size={18} />
               {saving ? "Saving…" : "Save Changes"}
@@ -185,14 +185,14 @@ export function MeetingDetailsModal({ meeting: source, onClose, onUpdated }: Mee
     >
       {editing ? (
         <div className="flex flex-col gap-5">
-          <div className="flex items-center gap-2.5 rounded-xl border border-primary/20 bg-primary-container/30 px-4 py-3 text-sm text-on-primary-container">
-            <Icon name="edit_note" size={18} />
+          <div className="flex items-start gap-2.5 rounded-xl border border-primary/20 bg-primary-container/30 px-3 py-3 text-xs text-on-primary-container sm:px-4 sm:text-sm">
+            <Icon name="edit_note" size={18} className="mt-0.5 shrink-0" />
             <span>
               Edit mode is on — make your changes and click <strong>Save Changes</strong> below.
             </span>
           </div>
           <Input label="Title" required value={title} onChange={(e) => setTitle(e.target.value)} />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Input label="Date" required type="date" min={today} value={date} onChange={(e) => handleDateChange(e.target.value)} />
             <TimePicker label="Time" required value={time} onChange={setTime} minTime={minTime} />
           </div>
