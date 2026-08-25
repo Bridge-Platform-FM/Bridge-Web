@@ -377,7 +377,7 @@ export default function SystemManagementPage() {
   if (!isLoaded || !isSuperAdmin(role)) return null;
 
   return (
-    <div className="mx-auto max-w-[1280px] px-6 pt-8 md:px-8">
+    <div className="mx-auto max-w-[1280px] px-4 pt-8 sm:px-6 md:px-8">
       <div className="mb-8">
         <h1 className="mb-2 font-headline text-3xl font-bold tracking-[-0.02em] text-on-surface md:text-4xl">
           System Management

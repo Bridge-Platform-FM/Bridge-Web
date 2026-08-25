@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
@@ -28,6 +28,13 @@ function RowLabel({ collapsed, children }: { collapsed: boolean; children: React
   );
 }
 
+interface DashboardSidebarProps {
+  /** Below `lg` the rail is an off-canvas drawer; this is its open state. */
+  open?: boolean;
+  /** Closes the mobile drawer (backdrop click, ✕, Escape, route change). */
+  onClose?: () => void;
+}
+
 /**
  * Dynamic dashboard sidebar. Reads the current role from `useAuth()` and renders
  * `DASHBOARD_NAV[role]` (active route highlighted via usePathname). The Logout
@@ -35,12 +42,27 @@ function RowLabel({ collapsed, children }: { collapsed: boolean; children: React
  * opens the SwitchUserModal. Support is pinned above Logout for all roles. The
  * signed-in identity lives in the navbar (see NavbarProfile), not here.
  */
-export function DashboardSidebar() {
+export function DashboardSidebar({ open = false, onClose }: DashboardSidebarProps) {
   const pathname = usePathname();
   const { role, logout } = useAuth();
   const [switchOpen, setSwitchOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [hoverLabel, setHoverLabel] = useState<{ text: string; top: number } | null>(null);
+
+  // Navigating closes the drawer — otherwise it stays over the page you just opened.
+  useEffect(() => {
+    onClose?.();
+  }, [pathname, onClose]);
+
+  // Escape closes it, matching Modal/Drawer behaviour elsewhere.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose?.();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
 
   if (!role) return null;
 
@@ -50,29 +72,46 @@ export function DashboardSidebar() {
   const isActive = (route: string) =>
     route === "/dashboard" ? pathname === route : pathname.startsWith(route);
 
+  const railCollapsed = collapsed && !open;
   const showLabel = (e: React.MouseEvent<HTMLElement>, text: string) => {
-    if (!collapsed) return;
+    if (!railCollapsed) return;
     const rect = e.currentTarget.getBoundingClientRect();
     setHoverLabel({ text, top: rect.top + rect.height / 2 });
   };
   const hideLabel = () => setHoverLabel(null);
 
   return (
-    <aside
-      className={`relative flex h-full shrink-0 flex-col border-r border-outline-variant/30 bg-surface-container-low transition-[width] duration-200 ${
-        collapsed ? "w-20" : "w-64"
-      }`}
-    >
+    <>
+      <div
+        aria-hidden="true"
+        onClick={onClose}
+        className={`fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity duration-200 lg:hidden ${
+          open ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+      />
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex h-full w-64 max-w-[80vw] shrink-0 flex-col border-r border-outline-variant/30 bg-surface-container-low transition-[transform,visibility] duration-200 lg:relative lg:inset-auto lg:z-auto lg:max-w-none lg:translate-x-0 lg:visible lg:transition-[width] ${
+          open ? "translate-x-0" : "invisible -translate-x-full"
+        } ${railCollapsed ? "lg:w-20" : "lg:w-64"}`}
+      >
       {/* Brand — same lockup as the global navbar. */}
-      <div className="flex items-center py-5 pl-3 pr-10">
-        <BrandLockup showLabel={!collapsed} />
+      <div className="flex items-center justify-between py-5 pl-3 pr-3 lg:pr-10">
+        <BrandLockup showLabel={!railCollapsed} />
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close navigation menu"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container-highest hover:text-on-surface lg:hidden"
+        >
+          <Icon name="close" size={22} />
+        </button>
       </div>
       <button
         type="button"
         onClick={() => setCollapsed((v) => !v)}
         aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        className="absolute -right-1 top-6 z-20 flex size-7 items-center justify-center text-on-surface-variant transition-colors hover:text-on-surface"
+        className="absolute -right-1 top-6 z-20 hidden size-7 items-center justify-center text-on-surface-variant transition-colors hover:text-on-surface lg:flex"
       >
         <Icon name={collapsed ? "chevron_right" : "chevron_left"} size={18} />
       </button>
@@ -97,7 +136,7 @@ export function DashboardSidebar() {
                   }`}
                 >
                   <Icon name={item.icon} size={20} filled={active} className="shrink-0" />
-                  <RowLabel collapsed={collapsed}>{item.label}</RowLabel>
+                  <RowLabel collapsed={railCollapsed}>{item.label}</RowLabel>
                 </Link>
               </li>
             );
@@ -116,7 +155,7 @@ export function DashboardSidebar() {
             className="mb-2 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-highest hover:text-on-surface"
           >
             <Icon name="swap_horiz" size={20} className="shrink-0" />
-            <RowLabel collapsed={collapsed}>Switch User</RowLabel>
+            <RowLabel collapsed={railCollapsed}>Switch User</RowLabel>
           </button>
         )}
 
@@ -135,7 +174,7 @@ export function DashboardSidebar() {
             }`}
           >
             <Icon name={SUPPORT_NAV.icon} size={20} filled={isActive(SUPPORT_NAV.route)} className="shrink-0" />
-            <RowLabel collapsed={collapsed}>{SUPPORT_NAV.label}</RowLabel>
+            <RowLabel collapsed={railCollapsed}>{SUPPORT_NAV.label}</RowLabel>
           </Link>
         )}
 
@@ -147,7 +186,7 @@ export function DashboardSidebar() {
           className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-error transition-colors hover:bg-error/10"
         >
           <Icon name="logout" size={20} className="shrink-0" />
-          <RowLabel collapsed={collapsed}>Logout</RowLabel>
+          <RowLabel collapsed={railCollapsed}>Logout</RowLabel>
         </button>
       </div>
 
@@ -161,6 +200,7 @@ export function DashboardSidebar() {
       )}
 
       <SwitchUserModal open={switchOpen} onClose={() => setSwitchOpen(false)} />
-    </aside>
+      </aside>
+    </>
   );
 }

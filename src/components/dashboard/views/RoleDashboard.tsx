@@ -13,10 +13,10 @@ export interface Stat {
 export function ViewHeader({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <div className="mb-6">
-      <h1 className="font-headline text-2xl font-extrabold tracking-[-0.02em] text-on-surface md:text-3xl">
+      <h1 className="font-headline text-xl font-extrabold tracking-[-0.02em] text-on-surface sm:text-2xl md:text-3xl">
         {title}
       </h1>
-      <p className="mt-1 text-on-surface-variant">{subtitle}</p>
+      <p className="mt-1 text-sm text-on-surface-variant sm:text-base">{subtitle}</p>
     </div>
   );
 }
@@ -53,7 +53,7 @@ export function RoleDashboard({
   placeholder: string;
 }) {
   return (
-    <div className="mx-auto max-w-6xl p-6 md:p-8">
+    <div className="mx-auto max-w-6xl p-4 sm:p-6 md:p-8">
       <ViewHeader title={title} subtitle={subtitle} />
       <StatGrid stats={stats} />
       <Card surface="lowest" padding="lg" className="mt-6">
