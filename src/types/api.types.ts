@@ -202,6 +202,17 @@ export interface VerifyMfaOtpResponse {
     userId?: string;
     /** The access token's `type` claim (e.g. "AUTH_ACCESS_TOKEN"), echoed back for the same reason. */
     tokenType?: string;
+    /**
+     * Raw email/mobile, only present when redirectRoute sends the user to the
+     * verify-account page — that page's resend/verify calls need the real (unmasked)
+     * values, which the login flow otherwise never captures (SignInScreen only stores
+     * masked display strings).
+     */
+    email?: string;
+    mobileNumber?: string;
+    countryCode?: string;
+    /** The registered company name — locked "Company Name" field on complete-profile. */
+    companyName?: string;
   };
 }
 

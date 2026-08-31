@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { Icon } from "@/components/ui/Icon";
 import { Loader } from "@/components/common/loader";
@@ -31,7 +31,7 @@ import {
 } from "@/components/onboarding/B2BProfileFields";
 import type { UserProfilePayload } from "@/types/api.types";
 import { toast } from "sonner";
-import { buildProfile } from "@/services/user.service";
+import { buildProfile, getUserProfile, type ProfileField } from "@/services/user.service";
 import { scanImage } from "@/services/file.service";
 import { DOC_TYPE } from "@/config/docTypes";
 import type { ApiError } from "@/lib/axios";
@@ -159,6 +159,136 @@ function toUserProfilePayload(values: CompleteProfileForm, role: string): UserPr
   return prune(common);
 }
 
+/** Reverse of `parseTeamSize`: two numbers back to their bucket ("11-50", "200+"). */
+function teamSizeToBucket(min?: number, max?: number): string {
+  if (min === undefined) return "";
+  const bucket = TEAM_SIZE_RANGES_BY_MIN[min];
+  if (!bucket) return "";
+  return bucket.max === max ? bucket.value : "";
+}
+const TEAM_SIZE_RANGES_BY_MIN: Record<number, { value: string; max: number | undefined }> = {
+  1: { value: "1-10", max: 10 },
+  11: { value: "11-50", max: 50 },
+  51: { value: "51-200", max: 200 },
+  200: { value: "200+", max: undefined },
+};
+
+/** GET /users/profile's array type comes back as a real array, or a JSON/CSV string. */
+function fieldToArray(value: string | string[] | undefined): string[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed;
+    } catch { /* not JSON — fall through to CSV split */ }
+    return value.split(",").map((s) => s.trim()).filter(Boolean);
+  }
+  return [];
+}
+/** Scalar field value → plain string; "" for anything missing/array-shaped. */
+function fieldToString(value: string | string[] | undefined): string {
+  if (value === undefined || value === null || Array.isArray(value)) return "";
+  return String(value);
+}
+
+/** Same shape as the form, but every field — including nested role sections — is optional. */
+interface ProfilePrefillPatch extends Partial<Omit<CompleteProfileForm, "startup" | "investor" | "b2b">> {
+  startup?: Partial<StartupValues>;
+  investor?: Partial<InvestorValues>;
+  b2b?: Partial<B2BValues>;
+}
+
+/**
+ * Reverse of `toUserProfilePayload`: turns GET /users/profile's flat, role-configured
+ * field list back into the form's (nested, camelCase) shape, so a returning user whose
+ * onboarding localStorage never had this data (different browser/device/session — the
+ * profile GET is the only reliable source once that's the case) still sees it prefilled.
+ * Only fields the backend actually returned are included, so nothing here clobbers a
+ * value already present from the registration-wizard's local state.
+ */
+function buildProfilePrefillPatch(fields: ProfileField[], role: string): ProfilePrefillPatch {
+  const byColumn = new Map(fields.map((f) => [f.columnName, f.value]));
+  const str = (col: string) => fieldToString(byColumn.get(col));
+  const arr = (col: string) => fieldToArray(byColumn.get(col));
+  const has = (col: string) => byColumn.has(col) && fieldToString(byColumn.get(col)) !== "";
+  const hasArr = (col: string) => byColumn.has(col) && fieldToArray(byColumn.get(col)).length > 0;
+
+  const patch: ProfilePrefillPatch = {};
+  if (has("first_name")) patch.firstName = str("first_name");
+  if (has("last_name")) patch.lastName = str("last_name");
+  if (has("short_bio")) patch.bio = str("short_bio");
+  if (has("country")) patch.country = str("country");
+  if (has("continent")) patch.continent = str("continent");
+  if (hasArr("primary_sector")) patch.primarySectors = arr("primary_sector");
+  // Locked "Account Details" fields — GET /users/profile is authoritative here too,
+  // so a returning user on a fresh session (no registration-wizard state) still sees
+  // the real values instead of a blank locked field.
+  if (has("company_email")) patch.email = str("company_email");
+  if (has("mobile_number")) patch.contact = str("mobile_number");
+  if (has("gst_number")) patch.gstNumber = str("gst_number");
+  if (has("cin_number")) patch.cinNumber = str("cin_number");
+
+  const linkedinUrl = str("linkedin_profile_url");
+  const websiteUrl = str("company_website_url");
+
+  if (role === "startup") {
+    const startup: Partial<StartupValues> = {};
+    if (hasArr("startup_industry_sector")) startup.industrySectors = arr("startup_industry_sector");
+    if (has("funding_stage")) startup.fundingStage = str("funding_stage");
+    if (has("funding_currency")) startup.fundingCurrency = str("funding_currency");
+    if (has("funding_ask_amt_min")) startup.fundingMin = str("funding_ask_amt_min");
+    if (has("funding_ask_amt_max")) startup.fundingMax = str("funding_ask_amt_max");
+    if (has("use_of_funds")) startup.useOfFunds = str("use_of_funds");
+    if (has("team_size_min")) {
+      const bucket = teamSizeToBucket(toFloat(str("team_size_min")), toFloat(str("team_size_max")));
+      if (bucket) startup.teamSize = bucket;
+    }
+    if (has("incorporation_certificate")) startup.incorporationCert = str("incorporation_certificate");
+    if (has("pitch_deck_certificate")) startup.pitchDeck = str("pitch_deck_certificate");
+    if (has("business_description")) startup.businessDescription = str("business_description");
+    if (has("startup_intent")) startup.intent = str("startup_intent");
+    if (linkedinUrl) startup.linkedinUrl = linkedinUrl;
+    if (websiteUrl) startup.websiteUrl = websiteUrl;
+    if (Object.keys(startup).length > 0) patch.startup = startup;
+  }
+
+  if (role === "investor") {
+    const investor: Partial<InvestorValues> = {};
+    if (has("ticket_size_amt_min")) investor.ticketMin = str("ticket_size_amt_min");
+    if (has("ticket_size_amt_max")) investor.ticketMax = str("ticket_size_amt_max");
+    if (hasArr("prefrerred_investment_stage")) investor.investmentStages = arr("prefrerred_investment_stage");
+    if (hasArr("investor_sector_preference")) investor.sectorPreferences = arr("investor_sector_preference");
+    if (hasArr("geographic_investment_preference")) investor.geoCountries = arr("geographic_investment_preference");
+    if (has("investor_type")) investor.investorType = str("investor_type");
+    if (has("investor_portfolio_overview")) investor.portfolioOverview = str("investor_portfolio_overview");
+    if (has("number_of_investments_to_date")) investor.numberOfInvestments = str("number_of_investments_to_date");
+    if (has("investor_intent")) investor.primaryIntent = str("investor_intent");
+    if (linkedinUrl) investor.linkedinUrl = linkedinUrl;
+    if (websiteUrl) investor.websiteUrl = websiteUrl;
+    if (Object.keys(investor).length > 0) patch.investor = investor;
+  }
+
+  if (role === "b2b_enterprise") {
+    const b2b: Partial<B2BValues> = {};
+    if (has("organization_name")) b2b.businessName = str("organization_name");
+    if (has("b2b_sector")) b2b.sector = str("b2b_sector");
+    if (has("b2b_sub_sector")) b2b.subSector = str("b2b_sub_sector");
+    if (has("industry_vertical")) b2b.industryVertical = str("industry_vertical");
+    if (has("revenue_band")) b2b.revenueBand = str("revenue_band");
+    if (has("min_order_quantity")) b2b.moq = str("min_order_quantity");
+    if (has("export_rediness")) b2b.exportReadiness = str("export_rediness");
+    if (has("years_in_operation")) b2b.yearsInOperation = str("years_in_operation");
+    if (has("products_ervice_Offered")) b2b.productsServices = str("products_ervice_Offered");
+    if (has("business_requirements")) b2b.businessRequirements = str("business_requirements");
+    if (has("b2b_intent")) b2b.businessIntent = str("b2b_intent");
+    if (linkedinUrl) b2b.linkedinUrl = linkedinUrl;
+    if (websiteUrl) b2b.websiteUrl = websiteUrl;
+    if (Object.keys(b2b).length > 0) patch.b2b = b2b;
+  }
+
+  return patch;
+}
+
 export default function CompleteProfilePage() {
   const { data, setData, goNext } = useOnboarding();
   // Local object URL for the preview circle; the form value holds the uploaded s3Key.
@@ -176,6 +306,7 @@ export default function CompleteProfilePage() {
     handleSubmit,
     setValue,
     getValues,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<CompleteProfileForm>({
     defaultValues: {
@@ -207,6 +338,38 @@ export default function CompleteProfilePage() {
 
   const bio = useWatch({ control, name: "bio" });
   const bioChars = (bio ?? "").length;
+
+  // The form above defaults from the registration-wizard's local (localStorage) state,
+  // which is empty whenever this page is reached any other way (a returning user on a
+  // fresh session/device/browser — see the login-MFA redirect fix). GET /users/profile
+  // is the authoritative source once that's the case, so fetch it once on mount and
+  // fill in anything the wizard state didn't already have. A first-time visit (nothing
+  // saved yet) simply returns empty/no fields, so this is a no-op then.
+  useEffect(() => {
+    let cancelled = false;
+    getUserProfile()
+      .then((res) => {
+        if (cancelled) return;
+        const patch = buildProfilePrefillPatch(res.data ?? [], role);
+        if (Object.keys(patch).length === 0) return;
+        const current = getValues();
+        reset({
+          ...current,
+          ...patch,
+          startup: { ...current.startup, ...(patch.startup ?? {}) },
+          investor: { ...current.investor, ...(patch.investor ?? {}) },
+          b2b: { ...current.b2b, ...(patch.b2b ?? {}) },
+        });
+      })
+      .catch(() => {
+        // No saved profile yet, or a transient failure — the form still works from
+        // whatever the registration-wizard state already had.
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onSubmit = async (values: CompleteProfileForm) => {
     // Build the backend-shaped payload (snake_case keys matching the `user` table).
