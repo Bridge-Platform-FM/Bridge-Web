@@ -42,7 +42,7 @@ export function VerifyOtpScreen({
   portal?: Portal;
 }) {
   const router = useRouter();
-  const { data } = useOnboarding();
+  const { data, setData } = useOnboarding();
 
   // Which channel the user picked on the previous screen.
   const channel = (data.mfaChannel as OtpChannel) ?? "PHONE";
@@ -67,15 +67,32 @@ export function VerifyOtpScreen({
     const destination = res.data?.redirectRoute || SUCCESS_ROUTE;
     setRedirectRoute(destination);
 
+    // The registration pages (verify-account, complete-profile) need the real
+    // (unmasked) email/mobile/company name/role for their locked fields and resend/verify
+    // calls — the login flow never captures those otherwise (SignInScreen only stores masked
+    // display strings), so persist them here whenever the backend echoes them back. This is
+    // what a returning user on a fresh session/device (no registration-wizard localStorage)
+    // relies on instead of a blank field.
+    const nextRole = normalizeRole(res.data?.role);
+    if (res.data?.email || res.data?.mobileNumber || res.data?.companyName || nextRole) {
+      setData({
+        email: res.data?.email,
+        contact: res.data?.mobileNumber,
+        countryCode: res.data?.countryCode,
+        legalName: res.data?.companyName,
+        ...(nextRole ? { role: nextRole } : {}),
+      });
+    }
+
     // Persist the real name + role echoed back here so the dashboard sidebar shows
     // the actual signed-in user (login only had the email at that point). The
     // dashboard's AuthProvider reads this from localStorage on mount.
     const current = getSession();
     const fullName = [res.data?.first_name, res.data?.last_name].filter(Boolean).join(" ").trim();
-    const nextRole = normalizeRole(res.data?.role) ?? current?.role ?? null;
-    if (nextRole) {
+    const sessionRole = nextRole ?? current?.role ?? null;
+    if (sessionRole) {
       setSession({
-        role: nextRole,
+        role: sessionRole,
         user: { ...current?.user, name: fullName || current?.user?.name },
         userId: res.data?.userId ?? current?.userId,
         tokenType: res.data?.tokenType ?? current?.tokenType,

@@ -62,7 +62,7 @@ interface RegisterForm {
 }
 
 export default function RegisterPage() {
-  const { data, setData, goNext, reset } = useOnboarding();
+  const { setData, goNext, reset } = useOnboarding();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   // Landing on registration starts a fresh signup: wipe the onboarding blob, the
@@ -73,6 +73,10 @@ export default function RegisterPage() {
   }, [reset]);
   const [termsOpen, setTermsOpen] = useState(false);
 
+  // Defaults are hardcoded empty, not sourced from `data`: this page always starts a
+  // fresh signup (see the reset() effect above), and by the time that reset actually
+  // clears `data`, react-hook-form would have already locked in whatever stale values
+  // were there at mount — reading from `data` here would just race that reset.
   const {
     register: field,
     handleSubmit,
@@ -84,15 +88,15 @@ export default function RegisterPage() {
     formState: { errors, isSubmitting },
   } = useForm<RegisterForm>({
     defaultValues: {
-      legalName: (data.legalName as string) ?? "",
-      email: (data.email as string) ?? "",
+      legalName: "",
+      email: "",
       password: "",
       confirmPassword: "",
-      countryCode: (data.countryCode as string) ?? "+91",
-      contact: (data.contact as string) ?? "",
-      role: (data.role as string) ?? "",
-      gstNumber: (data.gstNumber as string) ?? "",
-      cinNumber: (data.cinNumber as string) ?? "",
+      countryCode: "+91",
+      contact: "",
+      role: "",
+      gstNumber: "",
+      cinNumber: "",
       termsAccepted: false,
     },
   });
