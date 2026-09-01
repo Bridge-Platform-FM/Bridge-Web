@@ -10,7 +10,7 @@ import { Select } from "@/components/ui/Select";
 import { Modal } from "@/components/modal/Modal";
 import { ProfilePreview } from "@/components/onboarding/ProfilePreview";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
-import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
+import { useOnboarding, type OnboardingData } from "@/components/onboarding/OnboardingProvider";
 import { COUNTRIES, CONTINENTS, continentForCountry } from "@/lib/countries";
 import { PRIMARY_SECTORS } from "@/lib/b2b-profile-options";
 import {
@@ -78,6 +78,40 @@ function prune(obj: UserProfilePayload): UserProfilePayload {
     out[k] = val;
   }
   return out as UserProfilePayload;
+}
+
+/** True for a value we'd treat as "not filled in yet": "", undefined, null, or []. */
+function isBlank(value: unknown): boolean {
+  if (value === undefined || value === null) return true;
+  if (typeof value === "string") return value.trim() === "";
+  if (Array.isArray(value)) return value.length === 0;
+  return false;
+}
+
+/**
+ * Field-by-field merge of the live form against an incoming (fetched/default) one:
+ * anything the user has already filled in `live` wins, blank fields fall back to
+ * `incoming`. Recurses one level into plain objects — which is exactly the shape of
+ * the `startup` / `investor` / `b2b` sections — so it protects in-progress input in
+ * whichever role section is active without hardcoding field names per role.
+ */
+function mergeKeepingFilled<T extends object>(live: T, incoming: T): T {
+  const liveRec = live as Record<string, unknown>;
+  const incomingRec = incoming as Record<string, unknown>;
+  const out: Record<string, unknown> = { ...liveRec };
+  for (const key of Object.keys(incomingRec)) {
+    const liveVal = liveRec[key];
+    const incomingVal = incomingRec[key];
+    if (
+      liveVal && typeof liveVal === "object" && !Array.isArray(liveVal) &&
+      incomingVal && typeof incomingVal === "object" && !Array.isArray(incomingVal)
+    ) {
+      out[key] = mergeKeepingFilled(liveVal as object, incomingVal as object);
+    } else if (isBlank(liveVal)) {
+      out[key] = incomingVal;
+    }
+  }
+  return out as T;
 }
 
 /** Map the camelCase form values to the backend `user` table columns (snake_case). */
@@ -289,8 +323,44 @@ function buildProfilePrefillPatch(fields: ProfileField[], role: string): Profile
   return patch;
 }
 
+/**
+ * Builds the form's default values from onboarding state. Pulled out so it can be
+ * reused both by `useForm`'s initial `defaultValues` (captured once at mount — stale
+ * on a genuine fresh page load, since `OnboardingProvider`'s localStorage-load effect
+ * hasn't populated `data` yet at that point: child effects fire before parent effects
+ * within a commit) and by the prefill effect below, which re-derives it once `data`
+ * has actually loaded so locked fields sourced only from `data` (legalName, role —
+ * GET /users/profile doesn't return either) don't stay stuck blank forever.
+ */
+function buildFormDefaults(data: OnboardingData): CompleteProfileForm {
+  return {
+    firstName: (data.firstName as string) ?? "",
+    lastName: (data.lastName as string) ?? "",
+    bio: (data.bio as string) ?? "",
+    country: (data.country as string) ?? "",
+    continent: (data.continent as string) ?? "",
+    primarySectors: (data.primarySectors as string[]) ?? [],
+    legalName: (data.legalName as string) ?? "",
+    email: (data.email as string) ?? "",
+    contact: (data.contact as string) ?? "",
+    role: (data.role as string) ?? "",
+    gstNumber: (data.gstNumber as string) ?? "",
+    cinNumber: (data.cinNumber as string) ?? "",
+    photo: "",
+    startup: { ...defaultStartupValues, ...((data.startup as Partial<StartupValues>) ?? {}) },
+    investor: { ...defaultInvestorValues, ...((data.investor as Partial<InvestorValues>) ?? {}) },
+    b2b: {
+      ...defaultB2BValues,
+      // Business Name comes from GST verification later; pre-fill from the
+      // company name captured at registration for now.
+      businessName: (data.legalName as string) ?? "",
+      ...((data.b2b as Partial<B2BValues>) ?? {}),
+    },
+  };
+}
+
 export default function CompleteProfilePage() {
-  const { data, setData, goNext } = useOnboarding();
+  const { data, setData, goNext, isDataLoaded } = useOnboarding();
   // Local object URL for the preview circle; the form value holds the uploaded s3Key.
   const [photo, setPhoto] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
@@ -309,31 +379,9 @@ export default function CompleteProfilePage() {
     reset,
     formState: { errors, isSubmitting },
   } = useForm<CompleteProfileForm>({
-    defaultValues: {
-      firstName: (data.firstName as string) ?? "",
-      lastName: (data.lastName as string) ?? "",
-      bio: (data.bio as string) ?? "",
-      country: (data.country as string) ?? "",
-      continent: (data.continent as string) ?? "",
-      primarySectors: (data.primarySectors as string[]) ?? [],
-      // Locked account fields captured at registration.
-      legalName: (data.legalName as string) ?? "",
-      email: (data.email as string) ?? "",
-      contact: (data.contact as string) ?? "",
-      role: (data.role as string) ?? "",
-      gstNumber: (data.gstNumber as string) ?? "",
-      cinNumber: (data.cinNumber as string) ?? "",
-      photo: "",
-      startup: { ...defaultStartupValues, ...((data.startup as Partial<StartupValues>) ?? {}) },
-      investor: { ...defaultInvestorValues, ...((data.investor as Partial<InvestorValues>) ?? {}) },
-      b2b: {
-        ...defaultB2BValues,
-        // Business Name comes from GST verification later; pre-fill from the
-        // company name captured at registration for now.
-        businessName: (data.legalName as string) ?? "",
-        ...((data.b2b as Partial<B2BValues>) ?? {}),
-      },
-    },
+    // Captured once at mount — see buildFormDefaults' doc comment for why the prefill
+    // effect below re-derives this instead of trusting it stays in sync with `data`.
+    defaultValues: buildFormDefaults(data),
   });
 
   const bio = useWatch({ control, name: "bio" });
@@ -342,34 +390,54 @@ export default function CompleteProfilePage() {
   // The form above defaults from the registration-wizard's local (localStorage) state,
   // which is empty whenever this page is reached any other way (a returning user on a
   // fresh session/device/browser — see the login-MFA redirect fix). GET /users/profile
-  // is the authoritative source once that's the case, so fetch it once on mount and
-  // fill in anything the wizard state didn't already have. A first-time visit (nothing
-  // saved yet) simply returns empty/no fields, so this is a no-op then.
+  // is the authoritative source once that's the case, so fetch it once `data` has
+  // actually loaded and fill in anything the wizard state didn't already have.
+  //
+  // Gated on `isDataLoaded` rather than running unconditionally on mount: on a genuine
+  // fresh page load, OnboardingProvider and this page mount in the same commit, and
+  // React fires child effects before parent effects — so an unconditional effect here
+  // would fire (and close over `role`/`data`) before OnboardingProvider's own mount
+  // effect has read localStorage and populated `data`. `role` would be captured as ""
+  // forever for that mount, silently skipping the startup/investor/b2b patch below.
+  // Waiting for isDataLoaded means the effect (re-)runs on the render where `data` and
+  // `role` are guaranteed current, and rebuilding the base from `data` again (rather
+  // than trusting `getValues()`, which still holds the stale mount-time defaultValues
+  // at that point) is what actually fixes the locked fields GET /users/profile doesn't
+  // cover (legalName, role) — merely re-running the fetch wouldn't have helped those.
   useEffect(() => {
+    if (!isDataLoaded) return;
     let cancelled = false;
     getUserProfile()
       .then((res) => {
+        // The fetch can take long enough for the user to have already started typing.
+        // Merge onto the live snapshot (mergeKeepingFilled) rather than reset()-ing
+        // straight to the fetched patch, so any field they've already filled in any
+        // role section — startup, investor, or b2b — survives regardless of exactly
+        // when this resolves relative to their typing.
         if (cancelled) return;
         const patch = buildProfilePrefillPatch(res.data ?? [], role);
-        if (Object.keys(patch).length === 0) return;
-        const current = getValues();
-        reset({
-          ...current,
+        const base = buildFormDefaults(data);
+        const fetched: CompleteProfileForm = {
+          ...base,
           ...patch,
-          startup: { ...current.startup, ...(patch.startup ?? {}) },
-          investor: { ...current.investor, ...(patch.investor ?? {}) },
-          b2b: { ...current.b2b, ...(patch.b2b ?? {}) },
-        });
+          startup: { ...base.startup, ...(patch.startup ?? {}) },
+          investor: { ...base.investor, ...(patch.investor ?? {}) },
+          b2b: { ...base.b2b, ...(patch.b2b ?? {}) },
+        };
+        reset(mergeKeepingFilled(getValues(), fetched));
       })
       .catch(() => {
-        // No saved profile yet, or a transient failure — the form still works from
-        // whatever the registration-wizard state already had.
+        // No saved profile yet, or a transient failure — re-derive from `data` alone so
+        // the now-current onboarding state (legalName/role included) still lands even
+        // though the API had nothing to add. Same keep-what's-filled merge.
+        if (cancelled) return;
+        reset(mergeKeepingFilled(getValues(), buildFormDefaults(data)));
       });
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isDataLoaded]);
 
   const onSubmit = async (values: CompleteProfileForm) => {
     // Build the backend-shaped payload (snake_case keys matching the `user` table).
