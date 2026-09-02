@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { Loader } from "@/components/common/loader";
 import { getUserProfile, saveUserProfile, type ProfileField } from "@/services/user.service";
+import type { Founder } from "@/components/onboarding/StartupProfileFields";
 import {
   getFieldOptionConfig,
   TEXTAREA_COLUMNS,
@@ -23,7 +24,7 @@ import { CURRENCIES } from "@/lib/startup-profile-options";
 import { DIAL_CODES, continentForCountry } from "@/lib/countries";
 import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewModal";
 import { profilePhotoKey } from "@/lib/useMyProfilePhoto";
-import { scanDocument } from "@/services/file.service";
+import { scanDocument, scanImage } from "@/services/file.service";
 import { DOC_TYPE, DOC_MAX_MB, type DocType } from "@/config/docTypes";
 import type { ApiError } from "@/lib/axios";
 import { getAdminProfile, saveAdminProfile } from "@/services/admin.service";
@@ -49,6 +50,18 @@ const PHONE_NUMBER_COL = "mobile_number";
 const PHONE_CODE_COL = "country_code";
 
 /**
+ * The `user` column holding the profile-picture storage key. Rendered as a real
+ * avatar + upload control (`PhotoField`), never as the generic text input its API
+ * `type: "string"` would otherwise produce.
+ */
+const PHOTO_COL = "profile_photo";
+/** Matches the registration complete-profile photo picker. */
+const PHOTO_MIME_TYPES = ["image/png", "image/jpeg"];
+
+/** The startup `founders` jsonb column — [{ name, url }], not a list of option codes. */
+const FOUNDERS_COL = "founders";
+
+/**
  * Field grouping + order, mirroring the registration complete-profile flow so the
  * profile reads the same way. Each section lists its columns in display order;
  * only the columns the API actually returns are shown (so role-specific sections
@@ -56,6 +69,11 @@ const PHONE_CODE_COL = "country_code";
  * "Additional Information" section. Folded columns (`country_code`,
  * `funding_currency`, `funding_ask_amt_max`) are intentionally omitted — they're
  * rendered inside the phone / funding widgets at their anchor column.
+ *
+ * Every column `user_profile_field_master` configures must appear here (or be folded
+ * into a widget), otherwise it only shows up under "Additional Information". The
+ * read-only public profile (`profile/[userId]`) reuses this list, and hides
+ * `profile_photo` itself — it shows the picture as its header avatar instead.
  */
 export const PROFILE_SECTIONS: { title: string; columns: string[] }[] = [
   {
@@ -64,7 +82,7 @@ export const PROFILE_SECTIONS: { title: string; columns: string[] }[] = [
   },
   {
     title: "Personal Info",
-    columns: ["first_name", "last_name", "country", "continent"],
+    columns: ["profile_photo", "first_name", "last_name", "country", "continent"],
   },
   {
     title: "Primary Sector",
@@ -81,6 +99,7 @@ export const PROFILE_SECTIONS: { title: string; columns: string[] }[] = [
       "use_of_funds",
       "business_description",
       "startup_intent",
+      "founders",
       "incorporation_certificate",
       "pitch_deck_certificate",
     ],
@@ -90,11 +109,15 @@ export const PROFILE_SECTIONS: { title: string; columns: string[] }[] = [
     columns: [
       "investor_sector_preference",
       "prefrerred_investment_stage",
+      "stage_focus",
+      "ticket_currency",
       "ticket_size_amt_min",
       "ticket_size_amt_max",
       "geographic_investment_preference",
+      "geographic_investment_preference_continent",
       "investor_type",
       "investor_intent",
+      "investment_thesis",
       "investor_portfolio_overview",
       "number_of_investments_to_date",
     ],
@@ -109,10 +132,13 @@ export const PROFILE_SECTIONS: { title: string; columns: string[] }[] = [
       "min_order_quantity",
       "revenue_band",
       "years_in_operation",
+      "b2b_geography_country",
+      "b2b_geography_continent",
       "export_rediness",
       "b2b_intent",
       "products_ervice_Offered",
       "business_requirements",
+      "operational_capacity_description",
     ],
   },
   {
@@ -121,7 +147,7 @@ export const PROFILE_SECTIONS: { title: string; columns: string[] }[] = [
   },
   {
     title: "About",
-    columns: ["short_bio"],
+    columns: ["short_bio", "address"],
   },
 ];
 
@@ -141,8 +167,12 @@ const ADMIN_PROFILE_SECTIONS: { title: string; columns: string[] }[] = [
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 /** Coerce any stored value into a string[] (parses JSON / comma-joined strings). */
-function toArrayValue(value: string | string[]): string[] {
-  if (Array.isArray(value)) return value;
+function toArrayValue(value: string | string[] | number): string[] {
+  // `founders` is an array of {name, url} objects, not option codes. Every consumer of
+  // this helper renders entries as text/chips, and a non-string child throws — so drop
+  // anything that isn't a string. The profile page renders founders from `field.value`
+  // directly (see FoundersField), so nothing is lost here.
+  if (Array.isArray(value)) return value.filter((v): v is string => typeof v === "string");
   if (typeof value === "string" && value.trim()) {
     try {
       const parsed = JSON.parse(value);
@@ -153,9 +183,17 @@ function toArrayValue(value: string | string[]): string[] {
   return [];
 }
 
-/** Coerce any stored value into a single string (joins arrays for display). */
-function toStringValue(value: string | string[]): string {
-  return Array.isArray(value) ? value.join(", ") : value ?? "";
+/**
+ * Coerce any stored value into a single string (joins arrays for display).
+ *
+ * The `String()` is load-bearing: numeric columns come back from the API as real
+ * JSON numbers, and every control below renders `typeof value === "string" ? value : ""`
+ * — so without coercing here, Ticket Size, Number of Investments, Years in Operation,
+ * MOQ, Team Size and the funding amounts all render blank.
+ */
+function toStringValue(value: string | string[] | number): string {
+  if (value === null || value === undefined) return "";
+  return Array.isArray(value) ? value.join(", ") : String(value);
 }
 
 /**
@@ -348,6 +386,151 @@ function PhoneField({
         </div>
       </div>
       {error && <span className="px-1 text-xs font-medium text-error">{error}</span>}
+    </div>
+  );
+}
+
+/**
+ * Founders & LinkedIn — the one `array` column whose entries are objects, not option
+ * codes, so the chip renderer below would try to render `{name, url}` as a React child
+ * and throw. Read-only here: repeatable rows are added/removed in the registration
+ * complete-profile step, and this page has no repeatable-row editor.
+ */
+function FoundersField({ label, founders }: { label: string; founders: Founder[] }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <FieldLabel id={`profile-field-${FOUNDERS_COL}`} label={label} locked />
+      <div className="flex min-h-10 flex-col gap-1.5 rounded-lg border border-outline-variant/30 bg-surface-container-low px-3.5 py-2">
+        {founders.length === 0 ? (
+          <span className="text-sm text-outline-variant">—</span>
+        ) : (
+          founders.map((f, i) => (
+            <div key={`${f.name}-${i}`} className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="font-medium text-on-surface">{f.name || "—"}</span>
+              {f.url && (
+                <a
+                  href={f.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-primary transition-colors hover:underline"
+                >
+                  <Icon name="link" size={14} />
+                  LinkedIn
+                </a>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Profile-photo row. The API reports `profile_photo` as a plain string (it holds a
+ * storage key), so without this it would render as a text input showing a raw S3
+ * path. Shows the stored picture through the shared `Avatar`, plus a Change/Upload
+ * control in edit mode that runs the same scan+upload pipeline registration uses.
+ * The returned key lands in `localValues` and is saved with everything else, so a
+ * discarded edit never repoints the profile at the new file.
+ */
+function PhotoField({
+  label,
+  photoKey,
+  locked,
+  editable,
+  onUploaded,
+}: {
+  label: string;
+  photoKey: string;
+  locked: boolean;
+  /** Edit mode is on AND this field is editable — only then is upload offered. */
+  editable: boolean;
+  onUploaded: (s3Key: string) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  // Instant local preview of a just-picked file; the stored key needs a round trip.
+  const [preview, setPreview] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Clear immediately so picking the same file again still fires onChange.
+    e.target.value = "";
+    if (!file) return;
+
+    if (!PHOTO_MIME_TYPES.includes(file.type)) {
+      toast.error("Profile photo must be a PNG or JPEG image.");
+      return;
+    }
+    if (file.size > DOC_MAX_MB.PROFILE_PHOTO * 1024 * 1024) {
+      toast.error(`Profile photo must be ${DOC_MAX_MB.PROFILE_PHOTO}MB or smaller.`);
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const { s3Key } = await scanImage(file, { docType: DOC_TYPE.PROFILE_PHOTO });
+      setPreview(URL.createObjectURL(file));
+      onUploaded(s3Key);
+      toast.success("Photo uploaded. Click Save Changes to keep it.");
+    } catch (err) {
+      toast.error((err as ApiError)?.message ?? "Couldn't upload your photo. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const fallback = (
+    <div className="flex size-16 items-center justify-center rounded-full bg-primary-container text-on-primary-container">
+      <Icon name="account_circle" size={36} />
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col gap-2">
+      <FieldLabel id={`profile-field-${PHOTO_COL}`} label={label} locked={locked} />
+      <div className="flex min-h-10 items-center gap-3 rounded-lg border border-outline-variant/30 bg-surface-container-low px-3.5 py-2.5">
+        {preview ? (
+          // eslint-disable-next-line @next/next/no-img-element -- blob: object URL, not an optimizable asset
+          <img src={preview} alt={label} className="size-16 shrink-0 rounded-full object-cover" />
+        ) : (
+          <Avatar photoKey={photoKey} alt={label} className="size-16 shrink-0 rounded-full">
+            {fallback}
+          </Avatar>
+        )}
+
+        <span className="min-w-0 flex-1 truncate text-sm text-on-surface-variant">
+          {photoKey ? "Photo uploaded" : "No photo uploaded"}
+        </span>
+
+        {editable && (
+          <>
+            <input
+              ref={inputRef}
+              type="file"
+              accept={PHOTO_MIME_TYPES.join(",")}
+              onChange={handleFile}
+              className="hidden"
+              aria-hidden
+              tabIndex={-1}
+            />
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              disabled={uploading}
+              aria-label={uploading ? "Uploading photo" : "Upload photo"}
+              title={uploading ? "Uploading…" : photoKey ? "Change" : "Upload"}
+              className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-semibold text-primary transition-colors hover:bg-primary-container/40 disabled:opacity-60"
+            >
+              {uploading ? <Loader size={16} /> : <Icon name="photo_camera" size={16} />}
+              <span className="hidden sm:inline">
+                {uploading ? "Uploading…" : photoKey ? "Change" : "Upload"}
+              </span>
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -697,7 +880,12 @@ export default function ProfilePage() {
       // Admin / super-admin → dedicated self-service endpoint (no authorize() gate).
       // Regular user → existing users/profile endpoint.
       const res = isAdminUser ? await getAdminProfile() : await getUserProfile();
-      const fetched = res.data ?? [];
+      // `user_profile_field_master` configures some columns twice — once against the
+      // `company` source table and once against `user` (company_email, mobile_number,
+      // country_code) — so the API returns two entries for them. Keep the last (the
+      // `user` row, which is what edits are saved against); otherwise the field renders
+      // twice with a duplicate React key.
+      const fetched = [...new Map((res.data ?? []).map((f) => [f.columnName, f])).values()];
       setFields(fetched);
       const init: Record<string, string | string[]> = {};
       for (const f of fetched) init[f.columnName] = normalizeValue(f);
@@ -750,6 +938,35 @@ export default function ProfilePage() {
   // Render one field as the right control (combined widgets for phone / funding,
   // otherwise the generic row), wrapped with the correct column span.
   const renderField = (field: ProfileField) => {
+    // Founders → name + LinkedIn rows. Must come before the generic array branch,
+    // which assumes option codes and would try to render an object as a chip.
+    if (field.columnName === FOUNDERS_COL) {
+      const raw = field.value;
+      return (
+        <div key={field.columnName} className="sm:col-span-2">
+          <FoundersField
+            label={field.label ?? "Founders & LinkedIn"}
+            founders={Array.isArray(raw) ? (raw as unknown as Founder[]) : []}
+          />
+        </div>
+      );
+    }
+
+    // Profile picture → avatar + upload control (never a raw storage-key text input).
+    if (field.columnName === PHOTO_COL) {
+      return (
+        <div key={field.columnName} className="sm:col-span-2">
+          <PhotoField
+            label={field.label ?? "Profile Photo"}
+            photoKey={toStringValue(localValues[PHOTO_COL] ?? normalizeValue(field))}
+            locked={!field.isEditable}
+            editable={editMode && field.isEditable}
+            onUploaded={(key) => handleChange(PHOTO_COL, key)}
+          />
+        </div>
+      );
+    }
+
     // Uploaded document → presence + Preview button (opens the shared modal), plus an
     // Upload/Replace control while editing.
     const docType = DOCUMENT_COLUMNS.get(field.columnName);
@@ -886,8 +1103,9 @@ export default function ProfilePage() {
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-outline-variant/20 bg-surface-container-lowest px-4 py-4 sm:gap-4 sm:px-6 sm:py-5 md:px-8">
         <div className="flex min-w-0 items-center gap-3">
           <Avatar
-            photoKey={profilePhotoKey(fields)}
-            alt="My profile picture"
+            // Prefer the working copy so a photo swapped in edit mode shows at once.
+            photoKey={toStringValue(localValues[PHOTO_COL] ?? "") || profilePhotoKey(fields)}
+            alt="My Profile Photo"
             className="size-10 shrink-0 rounded-full sm:size-11"
           >
             <div className="flex size-10 items-center justify-center rounded-full bg-primary-container text-on-primary-container sm:size-11">
@@ -964,7 +1182,9 @@ export default function ProfilePage() {
                 );
               })}
 
-              {/* {leftoverFields.length > 0 && (
+              {/* Safety net: anything the API returns that no section claims still
+                  renders, so a new backend column is never silently invisible. */}
+              {leftoverFields.length > 0 && (
                 <section className="flex flex-col gap-4">
                   <h3 className="border-b border-outline-variant/20 pb-2 font-headline text-sm font-bold uppercase tracking-wide text-on-surface">
                     Additional Information
@@ -973,7 +1193,7 @@ export default function ProfilePage() {
                     {leftoverFields.map(renderField)}
                   </div>
                 </section>
-              )} */}
+              )}
             </div>
           </div>
         )}

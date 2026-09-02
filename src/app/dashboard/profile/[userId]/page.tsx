@@ -69,7 +69,11 @@ function ReadOnlyField({
   let body: ReactNode;
 
   if (Array.isArray(normalized)) {
-    const chips = normalized.map(labelFor).filter(Boolean);
+    // `founders` is an array of {name, url} objects, not option codes — rendering one
+    // as a React child throws, so keep only entries that resolve to a string.
+    const chips = normalized
+      .map(labelFor)
+      .filter((c): c is string => typeof c === "string" && c.length > 0);
     body = chips.length ? (
       <div className="flex flex-wrap gap-1.5">
         {chips.map((c) => (
@@ -200,7 +204,7 @@ function UserProfilePageContent() {
         </button>
         <Avatar
           photoKey={profilePhotoKey(fields ?? [])}
-          alt={name || "Profile picture"}
+          alt={name || "Profile Photo"}
           className="size-10 shrink-0 rounded-full sm:size-11"
         >
           <div className="flex size-10 items-center justify-center rounded-full bg-primary-container text-on-primary-container sm:size-11">

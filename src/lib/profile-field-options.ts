@@ -89,6 +89,8 @@ const REGISTRY: Record<string, FieldOptionConfig> = {
   prefrerred_investment_stage: { options: INVESTMENT_STAGES, multiple: true },
   investor_sector_preference: { options: INDUSTRY_SECTORS, multiple: true },
   geographic_investment_preference: { options: COUNTRIES, multiple: true, searchable: true },
+  geographic_investment_preference_continent: { options: CONTINENTS, multiple: true },
+  ticket_currency: { options: CURRENCIES, multiple: false },
   investor_type: { options: INVESTOR_TYPES, multiple: false },
   investor_intent: { options: PRIMARY_INTENT_OPTIONS, multiple: false },
 
@@ -100,6 +102,8 @@ const REGISTRY: Record<string, FieldOptionConfig> = {
   revenue_band: { options: REVENUE_BANDS, multiple: false },
   export_rediness: { options: EXPORT_READINESS, multiple: false },
   b2b_intent: { options: BUSINESS_INTENTS, multiple: false },
+  b2b_geography_country: { options: COUNTRIES, multiple: true, searchable: true },
+  b2b_geography_continent: { options: CONTINENTS, multiple: true },
 };
 
 /**
@@ -123,6 +127,9 @@ export const TEXTAREA_COLUMNS = new Set([
   "investor_portfolio_overview",
   "products_ervice_Offered",
   "business_requirements",
+  "operational_capacity_description",
+  "investment_thesis",
+  "address",
 ]);
 
 /**
@@ -180,6 +187,7 @@ const FIELD_LABELS: Record<string, string> = {
   continent: "Continent",
   primary_sector: "Primary Sector",
   short_bio: "Short Bio",
+  profile_photo: "Profile Photo",
 
   // ── startup ──
   startup_industry_sector: "Industry Sector",
@@ -207,6 +215,12 @@ const FIELD_LABELS: Record<string, string> = {
   investor_intent: "Primary Intent",
   investor_portfolio_overview: "Portfolio Overview",
   number_of_investments_to_date: "Number of Investments to Date",
+  ticket_currency: "Currency",
+  investment_thesis: "Investment Thesis",
+  geographic_investment_preference_continent: "Geographic Investment Preference",
+  // Configured in `user_profile_field_master` but not collected by registration —
+  // named here so the profile / switch-role forms label it consistently.
+  stage_focus: "Stage Focus",
 
   // ── b2b enterprise ──
   b2b_sector: "Sector",
@@ -220,6 +234,13 @@ const FIELD_LABELS: Record<string, string> = {
   b2b_intent: "Business Intent",
   products_ervice_Offered: "Products / Services Offered",
   business_requirements: "Business Requirements",
+  operational_capacity_description: "Operational Capacity Description",
+  b2b_geography_country: "Geographies",
+  b2b_geography_continent: "Geographies",
+  // Registration says "Registered Office / Residential Address (as per government ID)"
+  // for investors and drops the parenthetical for b2b. One column, so the shorter
+  // role-neutral wording wins (same rule as the LinkedIn / Website labels below).
+  address: "Registered Office / Residential Address",
 
   // ── links ──
   // Registration says "Company LinkedIn" for startups and "LinkedIn Profile" for
