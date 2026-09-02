@@ -9,6 +9,7 @@ import { Loader } from "@/components/common/loader";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
 import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewModal";
 import { DocumentUploadCard, type ScannedDoc, type UploadSlot } from "@/components/onboarding/DocumentUploadCard";
+import { DOC_MAX_MB } from "@/config/docTypes";
 import { useFilePreview } from "@/lib/useFilePreview";
 import { getKycDocs } from "@/services/file.service";
 import { saveKycInfo } from "@/services/kyc.service";
@@ -431,7 +432,7 @@ export default function VerificationStatusPage() {
                 scanType="image"
                 docType={t}
                 slots={cfg.slots}
-                maxSizeMB={10}
+                maxSizeMB={DOC_MAX_MB[t]}
                 onChange={(docs) => setReFiles((prev) => ({ ...prev, [t]: docs }))}
               />
             );

@@ -62,9 +62,8 @@ export const INTENT_OPTIONS: Option[] = [
 /** Max words allowed in the business description. */
 export const BUSINESS_DESCRIPTION_MAX_WORDS = 500;
 
-/** Pitch deck constraints. */
+/** Accepted MIME type for the PDF document uploads (size limits: `DOC_MAX_MB`). */
 export const PITCH_DECK_ACCEPT = "application/pdf";
-export const PITCH_DECK_MAX_MB = 20;
 
 /** General URL validation (http/https). */
 export const URL_REGEX = /^https?:\/\/[^\s/$.?#].[^\s]*$/i;

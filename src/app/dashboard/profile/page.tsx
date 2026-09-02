@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Icon } from "@/components/ui/Icon";
 import { Avatar } from "@/components/ui/Avatar";
-import { Input } from "@/components/ui/input";
+import { Input, FIELD_STYLES } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
@@ -24,11 +24,12 @@ import { DIAL_CODES, continentForCountry } from "@/lib/countries";
 import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewModal";
 import { profilePhotoKey } from "@/lib/useMyProfilePhoto";
 import { scanDocument } from "@/services/file.service";
-import { DOC_TYPE, type DocType } from "@/config/docTypes";
+import { DOC_TYPE, DOC_MAX_MB, type DocType } from "@/config/docTypes";
 import type { ApiError } from "@/lib/axios";
 import { getAdminProfile, saveAdminProfile } from "@/services/admin.service";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { isStaffRole } from "@/lib/roles";
+import { PHONE_REGEX } from "@/lib/validation";
 
 /**
  * Columns that hold an uploaded document's S3 key (rendered with a Preview button, and
@@ -40,9 +41,8 @@ const DOCUMENT_COLUMNS = new Map<string, DocType>([
   ["pitch_deck_certificate", DOC_TYPE.PITCH_DECK],
 ]);
 
-/** Matches the backend's `fileUpload` multer config: PDF only, 10 MB ceiling. */
+/** Matches the backend's `fileUpload` multer config: PDF only (size limits: `DOC_MAX_MB`). */
 const DOCUMENT_ACCEPT = "application/pdf";
-const DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
 
 /** Profile columns handled by the combined phone widget (rendered together). */
 const PHONE_NUMBER_COL = "mobile_number";
@@ -220,6 +220,30 @@ function buildPayload(
   return out;
 }
 
+/**
+ * Client-side checks run before the save request. Keyed by column so the message
+ * can be handed to that field's control, following the project's `errors` state
+ * convention. The mobile number reuses the shared `PHONE_REGEX` (and its wording)
+ * from registration / Create Admin, so a profile can never be edited into a number
+ * the sign-up flow would have rejected. Locked (non-editable) columns are skipped —
+ * the user can't have caused a problem there.
+ */
+function validateFields(
+  fields: ProfileField[],
+  localValues: Record<string, string | string[]>,
+): Record<string, string> {
+  const found: Record<string, string> = {};
+
+  const phone = fields.find((f) => f.columnName === PHONE_NUMBER_COL);
+  if (phone?.isEditable) {
+    const value = toStringValue(localValues[PHONE_NUMBER_COL] ?? normalizeValue(phone)).trim();
+    if (!value) found[PHONE_NUMBER_COL] = "Contact number is required.";
+    else if (!PHONE_REGEX.test(value)) found[PHONE_NUMBER_COL] = "Enter a valid 10-digit mobile number.";
+  }
+
+  return found;
+}
+
 // ─── individual field ─────────────────────────────────────────────────────────
 
 interface FieldProps {
@@ -256,6 +280,7 @@ function PhoneField({
   numberValue,
   disabled,
   locked,
+  error,
   onCodeChange,
   onNumberChange,
 }: {
@@ -264,6 +289,8 @@ function PhoneField({
   numberValue: string;
   disabled: boolean;
   locked: boolean;
+  /** Validation message shown below the row (and red-rings it) while editing. */
+  error?: string;
   onCodeChange: (val: string) => void;
   onNumberChange: (val: string) => void;
 }) {
@@ -289,7 +316,11 @@ function PhoneField({
   return (
     <div className="flex flex-col gap-2">
       <FieldLabel id="profile-field-mobile_number" label={label} locked={locked} />
-      <div className="relative flex h-10 w-full min-w-0 items-center rounded-lg border border-outline-variant/30 bg-surface-container-low transition-all duration-200 focus-within:border-primary focus-within:bg-surface-container-lowest focus-within:ring-2 focus-within:ring-primary/10">
+      <div
+        className={`relative flex h-10 w-full min-w-0 items-center rounded-lg border bg-surface-container-low transition-all duration-200 focus-within:border-primary focus-within:bg-surface-container-lowest focus-within:ring-2 focus-within:ring-primary/10 ${
+          error ? FIELD_STYLES.filled.error : "border-outline-variant/30"
+        }`}
+      >
         <div className="w-[4.4rem] shrink-0 sm:w-[4.8rem]">
           <Select
             aria-label="Country code"
@@ -316,6 +347,7 @@ function PhoneField({
           <Icon name="smartphone" size={18} />
         </div>
       </div>
+      {error && <span className="px-1 text-xs font-medium text-error">{error}</span>}
     </div>
   );
 }
@@ -433,8 +465,9 @@ function DocumentField({
       toast.error("Only PDF files are allowed.");
       return;
     }
-    if (file.size > DOCUMENT_MAX_BYTES) {
-      toast.error("File is too large — the limit is 10 MB.");
+    const maxMB = DOC_MAX_MB[docType];
+    if (file.size > maxMB * 1024 * 1024) {
+      toast.error(`File is too large — the limit is ${maxMB} MB.`);
       return;
     }
 
@@ -653,6 +686,8 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  // Client-side validation messages, keyed by column (see `validateFields`).
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   // Document being previewed in the shared modal ({ s3Key, title }); null = closed.
   const [preview, setPreview] = useState<{ s3Key: string; title: string } | null>(null);
 
@@ -680,6 +715,8 @@ export default function ProfilePage() {
   useEffect(() => { if (isLoaded) fetchProfile(); }, [fetchProfile, isLoaded]);
 
   const handleChange = (col: string, val: string | string[]) => {
+    // Clear this column's error as soon as the user edits it; it's re-checked on save.
+    setFieldErrors((prev) => (prev[col] ? { ...prev, [col]: "" } : prev));
     setLocalValues((prev) => {
       const next = { ...prev, [col]: val };
       // Country → Continent cascade, same as the registration complete-profile
@@ -699,6 +736,7 @@ export default function ProfilePage() {
       for (const f of fields) init[f.columnName] = normalizeValue(f);
       setLocalValues(init);
     }
+    setFieldErrors({});
     setEditMode(on);
   };
 
@@ -760,6 +798,7 @@ export default function ProfilePage() {
             label={field.label ?? "Contact Number"}
             locked={!field.isEditable}
             disabled={!editMode || !field.isEditable}
+            error={fieldErrors[PHONE_NUMBER_COL]}
             codeValue={toStringValue(localValues[PHONE_CODE_COL] ?? "")}
             numberValue={toStringValue(localValues[PHONE_NUMBER_COL] ?? normalizeValue(field))}
             onCodeChange={(v) => handleChange(PHONE_CODE_COL, v)}
@@ -803,6 +842,15 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     if (saving) return;
+
+    // Block the request on invalid input; messages render under their own field.
+    const found = validateFields(fields, localValues);
+    setFieldErrors(found);
+    if (Object.keys(found).length > 0) {
+      document.getElementById(`profile-field-${Object.keys(found)[0]}`)?.focus();
+      return;
+    }
+
     setSaving(true);
     try {
       // Backend-shaped payload (snake_case `user` columns, same keys as

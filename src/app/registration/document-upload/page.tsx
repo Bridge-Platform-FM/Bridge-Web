@@ -5,7 +5,7 @@ import { useForm, Controller, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { Icon } from "@/components/ui/Icon";
 import { DocumentUploadCard, type ScannedDoc } from "@/components/onboarding/DocumentUploadCard";
-import { DOC_TYPE } from "@/config/docTypes";
+import { DOC_TYPE, DOC_MAX_MB } from "@/config/docTypes";
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 import { Button } from "@/components/ui/Button";
 import { Loader } from "@/components/common/loader";
@@ -162,7 +162,7 @@ export default function DocumentUploadPage() {
                 { key: "front", label: "Front Side", side: "front" },
                 { key: "back", label: "Back Side", side: "back" },
               ]}
-              maxSizeMB={10}
+              maxSizeMB={DOC_MAX_MB.AADHAAR}
               onChange={field.onChange}
             />
           )}
@@ -181,7 +181,7 @@ export default function DocumentUploadPage() {
               scanType="image"
               docType={DOC_TYPE.PAN}
               slots={[{ key: "pan", label: "PAN Card" }]}
-              maxSizeMB={10}
+              maxSizeMB={DOC_MAX_MB.PAN}
               onChange={field.onChange}
               hint="Ensure all details including Name, DOB and PAN Number are clearly visible. Avoid glare from lights."
             />
