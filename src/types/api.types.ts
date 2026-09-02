@@ -202,6 +202,17 @@ export interface VerifyMfaOtpResponse {
     userId?: string;
     /** The access token's `type` claim (e.g. "AUTH_ACCESS_TOKEN"), echoed back for the same reason. */
     tokenType?: string;
+    /**
+     * Raw email/mobile, only present when redirectRoute sends the user to the
+     * verify-account page — that page's resend/verify calls need the real (unmasked)
+     * values, which the login flow otherwise never captures (SignInScreen only stores
+     * masked display strings).
+     */
+    email?: string;
+    mobileNumber?: string;
+    countryCode?: string;
+    /** The registered company name — locked "Company Name" field on complete-profile. */
+    companyName?: string;
   };
 }
 
@@ -316,27 +327,38 @@ export interface UserProfilePayload {
   pitch_deck_certificate?: string;
   business_description?: string;
   startup_intent?: string;
+  /** Repeatable [{ name, url }] rows — a jsonb column, not two parallel arrays. */
+  founders?: { name: string; url: string }[];
   // investor
   ticket_size_amt_min?: number;
   ticket_size_amt_max?: number;
+  ticket_currency?: string;
   prefrerred_investment_stage?: string[];
   investor_sector_preference?: string[];
   geographic_investment_preference?: string[];
+  /** Continent half of the Geographic Investment Preference widget. */
+  geographic_investment_preference_continent?: string[];
   investor_type?: string;
   investor_portfolio_overview?: string;
+  investment_thesis?: string;
   number_of_investments_to_date?: number;
   investor_intent?: string;
   // b2b
   b2b_sector?: string;
   b2b_sub_sector?: string;
+  business_type?: string;
   industry_vertical?: string;
   revenue_band?: string;
   min_order_quantity?: number;
   export_rediness?: string;
   years_in_operation?: number;
+  b2b_geography_country?: string[];
+  b2b_geography_continent?: string[];
   products_ervice_Offered?: string;
   business_requirements?: string;
   b2b_intent?: string;
+  /** Registered office / residential address — investor + b2b. */
+  address?: string;
 }
 
 /** Response from `/users/build-profile`. */

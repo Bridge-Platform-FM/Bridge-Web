@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
 import { FileUploadField } from "@/components/onboarding/FileUploadField";
-import { DOC_TYPE } from "@/config/docTypes";
+import { DOC_TYPE, DOC_MAX_MB } from "@/config/docTypes";
 import {
   INDUSTRY_SECTORS,
   FUNDING_STAGES,
@@ -23,7 +23,6 @@ import {
   INTENT_OPTIONS,
   BUSINESS_DESCRIPTION_MAX_WORDS,
   PITCH_DECK_ACCEPT,
-  PITCH_DECK_MAX_MB,
   LINKEDIN_URL_PATTERN,
   URL_REGEX,
 } from "@/lib/startup-profile-options";
@@ -268,7 +267,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
               onClick={() => remove(i)}
               disabled={fields.length === 1}
               aria-label="Remove founder"
-              className="flex h-10 w-10 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:text-error disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex h-10 w-10 items-center justify-center justify-self-end rounded-lg text-on-surface-variant transition-colors hover:text-error disabled:cursor-not-allowed disabled:opacity-40 sm:justify-self-auto"
             >
               <Icon name="delete" size={20} />
             </button>
@@ -359,6 +358,9 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
               id="incorporationCert"
               label="Incorporation Certificate"
               required
+              hint={`PDF only (max ${DOC_MAX_MB.INCORPORATION_CERTIFICATE}MB)`}
+              accept={PITCH_DECK_ACCEPT}
+              maxSizeMB={DOC_MAX_MB.INCORPORATION_CERTIFICATE}
               scanType="document"
               docType={DOC_TYPE.INCORPORATION_CERTIFICATE}
               error={e?.incorporationCert?.message}
@@ -369,15 +371,17 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
         <Controller
           control={control}
           name="startup.pitchDeck"
-          rules={{ validate: (v) => !!v || "Upload your Pitch Deck (PDF, max 20 MB)." }}
+          rules={{
+            validate: (v) => !!v || `Upload your Pitch Deck (PDF, max ${DOC_MAX_MB.PITCH_DECK} MB).`,
+          }}
           render={({ field }) => (
             <FileUploadField
               id="pitchDeck"
-              label="Pitch Deck (PDF, max 20 MB)"
+              label={`Pitch Deck (PDF, max ${DOC_MAX_MB.PITCH_DECK} MB)`}
               required
-              hint="PDF only (max 20MB)"
+              hint={`PDF only (max ${DOC_MAX_MB.PITCH_DECK}MB)`}
               accept={PITCH_DECK_ACCEPT}
-              maxSizeMB={PITCH_DECK_MAX_MB}
+              maxSizeMB={DOC_MAX_MB.PITCH_DECK}
               scanType="document"
               docType={DOC_TYPE.PITCH_DECK}
               error={e?.pitchDeck?.message}

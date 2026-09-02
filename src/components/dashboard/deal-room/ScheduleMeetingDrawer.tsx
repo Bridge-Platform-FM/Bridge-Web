@@ -104,7 +104,7 @@ export function ScheduleMeetingDrawer({ open, onClose, onConfirm }: ScheduleMeet
           <button
             type="button"
             onClick={discard}
-            className="flex h-11 items-center rounded-xl border border-dashed border-outline-variant/60 px-5 font-bold text-on-surface-variant transition-colors hover:bg-surface-container"
+            className="flex h-11 items-center rounded-xl border border-dashed border-outline-variant/60 px-5 font-bold max-sm:px-3 max-sm:text-sm text-on-surface-variant transition-colors hover:bg-surface-container"
           >
             Discard
           </button>
@@ -112,7 +112,7 @@ export function ScheduleMeetingDrawer({ open, onClose, onConfirm }: ScheduleMeet
             type="button"
             onClick={confirm}
             disabled={!canConfirm || submitting}
-            className="flex h-11 items-center gap-2 rounded-xl bg-primary px-6 font-bold text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex h-11 items-center gap-2 rounded-xl bg-primary px-6 font-bold max-sm:px-3 max-sm:text-sm text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Icon name="event_available" size={18} />
             {submitting ? "Scheduling…" : "Confirm Meeting"}
@@ -130,8 +130,7 @@ export function ScheduleMeetingDrawer({ open, onClose, onConfirm }: ScheduleMeet
           onChange={(e) => setTitle(e.target.value)}
         />
 
-        {/* Date + Time */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input label="Date" required type="date" min={today} value={date} onChange={(e) => handleDateChange(e.target.value)} />
           <TimePicker label="Time" required value={time} onChange={setTime} minTime={minTime} />
         </div>

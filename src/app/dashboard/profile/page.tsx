@@ -4,13 +4,14 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Icon } from "@/components/ui/Icon";
 import { Avatar } from "@/components/ui/Avatar";
-import { Input } from "@/components/ui/input";
+import { Input, FIELD_STYLES } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { Loader } from "@/components/common/loader";
 import { getUserProfile, saveUserProfile, type ProfileField } from "@/services/user.service";
+import type { Founder } from "@/components/onboarding/StartupProfileFields";
 import {
   getFieldOptionConfig,
   TEXTAREA_COLUMNS,
@@ -23,12 +24,13 @@ import { CURRENCIES } from "@/lib/startup-profile-options";
 import { DIAL_CODES, continentForCountry } from "@/lib/countries";
 import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewModal";
 import { profilePhotoKey } from "@/lib/useMyProfilePhoto";
-import { scanDocument } from "@/services/file.service";
-import { DOC_TYPE, type DocType } from "@/config/docTypes";
+import { scanDocument, scanImage } from "@/services/file.service";
+import { DOC_TYPE, DOC_MAX_MB, type DocType } from "@/config/docTypes";
 import type { ApiError } from "@/lib/axios";
 import { getAdminProfile, saveAdminProfile } from "@/services/admin.service";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { isStaffRole } from "@/lib/roles";
+import { PHONE_REGEX } from "@/lib/validation";
 
 /**
  * Columns that hold an uploaded document's S3 key (rendered with a Preview button, and
@@ -40,13 +42,24 @@ const DOCUMENT_COLUMNS = new Map<string, DocType>([
   ["pitch_deck_certificate", DOC_TYPE.PITCH_DECK],
 ]);
 
-/** Matches the backend's `fileUpload` multer config: PDF only, 10 MB ceiling. */
+/** Matches the backend's `fileUpload` multer config: PDF only (size limits: `DOC_MAX_MB`). */
 const DOCUMENT_ACCEPT = "application/pdf";
-const DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
 
 /** Profile columns handled by the combined phone widget (rendered together). */
 const PHONE_NUMBER_COL = "mobile_number";
 const PHONE_CODE_COL = "country_code";
+
+/**
+ * The `user` column holding the profile-picture storage key. Rendered as a real
+ * avatar + upload control (`PhotoField`), never as the generic text input its API
+ * `type: "string"` would otherwise produce.
+ */
+const PHOTO_COL = "profile_photo";
+/** Matches the registration complete-profile photo picker. */
+const PHOTO_MIME_TYPES = ["image/png", "image/jpeg"];
+
+/** The startup `founders` jsonb column — [{ name, url }], not a list of option codes. */
+const FOUNDERS_COL = "founders";
 
 /**
  * Field grouping + order, mirroring the registration complete-profile flow so the
@@ -56,6 +69,11 @@ const PHONE_CODE_COL = "country_code";
  * "Additional Information" section. Folded columns (`country_code`,
  * `funding_currency`, `funding_ask_amt_max`) are intentionally omitted — they're
  * rendered inside the phone / funding widgets at their anchor column.
+ *
+ * Every column `user_profile_field_master` configures must appear here (or be folded
+ * into a widget), otherwise it only shows up under "Additional Information". The
+ * read-only public profile (`profile/[userId]`) reuses this list, and hides
+ * `profile_photo` itself — it shows the picture as its header avatar instead.
  */
 export const PROFILE_SECTIONS: { title: string; columns: string[] }[] = [
   {
@@ -64,7 +82,7 @@ export const PROFILE_SECTIONS: { title: string; columns: string[] }[] = [
   },
   {
     title: "Personal Info",
-    columns: ["first_name", "last_name", "country", "continent"],
+    columns: ["profile_photo", "first_name", "last_name", "country", "continent"],
   },
   {
     title: "Primary Sector",
@@ -81,6 +99,7 @@ export const PROFILE_SECTIONS: { title: string; columns: string[] }[] = [
       "use_of_funds",
       "business_description",
       "startup_intent",
+      "founders",
       "incorporation_certificate",
       "pitch_deck_certificate",
     ],
@@ -90,11 +109,15 @@ export const PROFILE_SECTIONS: { title: string; columns: string[] }[] = [
     columns: [
       "investor_sector_preference",
       "prefrerred_investment_stage",
+      "stage_focus",
+      "ticket_currency",
       "ticket_size_amt_min",
       "ticket_size_amt_max",
       "geographic_investment_preference",
+      "geographic_investment_preference_continent",
       "investor_type",
       "investor_intent",
+      "investment_thesis",
       "investor_portfolio_overview",
       "number_of_investments_to_date",
     ],
@@ -109,10 +132,13 @@ export const PROFILE_SECTIONS: { title: string; columns: string[] }[] = [
       "min_order_quantity",
       "revenue_band",
       "years_in_operation",
+      "b2b_geography_country",
+      "b2b_geography_continent",
       "export_rediness",
       "b2b_intent",
       "products_ervice_Offered",
       "business_requirements",
+      "operational_capacity_description",
     ],
   },
   {
@@ -121,7 +147,7 @@ export const PROFILE_SECTIONS: { title: string; columns: string[] }[] = [
   },
   {
     title: "About",
-    columns: ["short_bio"],
+    columns: ["short_bio", "address"],
   },
 ];
 
@@ -141,8 +167,12 @@ const ADMIN_PROFILE_SECTIONS: { title: string; columns: string[] }[] = [
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 /** Coerce any stored value into a string[] (parses JSON / comma-joined strings). */
-function toArrayValue(value: string | string[]): string[] {
-  if (Array.isArray(value)) return value;
+function toArrayValue(value: string | string[] | number): string[] {
+  // `founders` is an array of {name, url} objects, not option codes. Every consumer of
+  // this helper renders entries as text/chips, and a non-string child throws — so drop
+  // anything that isn't a string. The profile page renders founders from `field.value`
+  // directly (see FoundersField), so nothing is lost here.
+  if (Array.isArray(value)) return value.filter((v): v is string => typeof v === "string");
   if (typeof value === "string" && value.trim()) {
     try {
       const parsed = JSON.parse(value);
@@ -153,9 +183,17 @@ function toArrayValue(value: string | string[]): string[] {
   return [];
 }
 
-/** Coerce any stored value into a single string (joins arrays for display). */
-function toStringValue(value: string | string[]): string {
-  return Array.isArray(value) ? value.join(", ") : value ?? "";
+/**
+ * Coerce any stored value into a single string (joins arrays for display).
+ *
+ * The `String()` is load-bearing: numeric columns come back from the API as real
+ * JSON numbers, and every control below renders `typeof value === "string" ? value : ""`
+ * — so without coercing here, Ticket Size, Number of Investments, Years in Operation,
+ * MOQ, Team Size and the funding amounts all render blank.
+ */
+function toStringValue(value: string | string[] | number): string {
+  if (value === null || value === undefined) return "";
+  return Array.isArray(value) ? value.join(", ") : String(value);
 }
 
 /**
@@ -220,6 +258,30 @@ function buildPayload(
   return out;
 }
 
+/**
+ * Client-side checks run before the save request. Keyed by column so the message
+ * can be handed to that field's control, following the project's `errors` state
+ * convention. The mobile number reuses the shared `PHONE_REGEX` (and its wording)
+ * from registration / Create Admin, so a profile can never be edited into a number
+ * the sign-up flow would have rejected. Locked (non-editable) columns are skipped —
+ * the user can't have caused a problem there.
+ */
+function validateFields(
+  fields: ProfileField[],
+  localValues: Record<string, string | string[]>,
+): Record<string, string> {
+  const found: Record<string, string> = {};
+
+  const phone = fields.find((f) => f.columnName === PHONE_NUMBER_COL);
+  if (phone?.isEditable) {
+    const value = toStringValue(localValues[PHONE_NUMBER_COL] ?? normalizeValue(phone)).trim();
+    if (!value) found[PHONE_NUMBER_COL] = "Contact number is required.";
+    else if (!PHONE_REGEX.test(value)) found[PHONE_NUMBER_COL] = "Enter a valid 10-digit mobile number.";
+  }
+
+  return found;
+}
+
 // ─── individual field ─────────────────────────────────────────────────────────
 
 interface FieldProps {
@@ -256,6 +318,7 @@ function PhoneField({
   numberValue,
   disabled,
   locked,
+  error,
   onCodeChange,
   onNumberChange,
 }: {
@@ -264,6 +327,8 @@ function PhoneField({
   numberValue: string;
   disabled: boolean;
   locked: boolean;
+  /** Validation message shown below the row (and red-rings it) while editing. */
+  error?: string;
   onCodeChange: (val: string) => void;
   onNumberChange: (val: string) => void;
 }) {
@@ -289,8 +354,12 @@ function PhoneField({
   return (
     <div className="flex flex-col gap-2">
       <FieldLabel id="profile-field-mobile_number" label={label} locked={locked} />
-      <div className="relative flex h-10 w-full items-center rounded-lg border border-outline-variant/30 bg-surface-container-low transition-all duration-200 focus-within:border-primary focus-within:bg-surface-container-lowest focus-within:ring-2 focus-within:ring-primary/10">
-        <div className="w-[4.8rem] shrink-0">
+      <div
+        className={`relative flex h-10 w-full min-w-0 items-center rounded-lg border bg-surface-container-low transition-all duration-200 focus-within:border-primary focus-within:bg-surface-container-lowest focus-within:ring-2 focus-within:ring-primary/10 ${
+          error ? FIELD_STYLES.filled.error : "border-outline-variant/30"
+        }`}
+      >
+        <div className="w-[4.4rem] shrink-0 sm:w-[4.8rem]">
           <Select
             aria-label="Country code"
             searchable
@@ -298,8 +367,8 @@ function PhoneField({
             options={DIAL_CODES}
             value={codeValue || "+91"}
             onChange={onCodeChange}
-            className="flex h-10 w-full cursor-pointer items-center justify-between gap-1 bg-transparent px-3 text-left text-sm text-on-surface outline-none hover:opacity-85"
-            panelClassName="w-72 md:w-80"
+            className="flex h-10 w-full cursor-pointer items-center justify-between gap-1 bg-transparent px-2.5 text-left text-sm text-on-surface outline-none hover:opacity-85 sm:px-3"
+            panelClassName="w-64 max-w-[calc(100vw-2.5rem)] sm:w-80"
             displayValueOnly
           />
         </div>
@@ -310,11 +379,157 @@ function PhoneField({
           placeholder="9632585698"
           value={numberValue}
           onChange={(e) => onNumberChange(e.target.value)}
-          className="h-full flex-1 bg-transparent px-3 text-sm text-on-surface outline-none placeholder:text-outline-variant"
+          className="h-full min-w-0 flex-1 bg-transparent px-2.5 text-sm text-on-surface outline-none placeholder:text-outline-variant sm:px-3"
         />
-        <div className="flex shrink-0 items-center pr-3 text-on-surface-variant">
+        <div className="flex shrink-0 items-center pr-2.5 text-on-surface-variant sm:pr-3">
           <Icon name="smartphone" size={18} />
         </div>
+      </div>
+      {error && <span className="px-1 text-xs font-medium text-error">{error}</span>}
+    </div>
+  );
+}
+
+/**
+ * Founders & LinkedIn — the one `array` column whose entries are objects, not option
+ * codes, so the chip renderer below would try to render `{name, url}` as a React child
+ * and throw. Read-only here: repeatable rows are added/removed in the registration
+ * complete-profile step, and this page has no repeatable-row editor.
+ */
+function FoundersField({ label, founders }: { label: string; founders: Founder[] }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <FieldLabel id={`profile-field-${FOUNDERS_COL}`} label={label} locked />
+      <div className="flex min-h-10 flex-col gap-1.5 rounded-lg border border-outline-variant/30 bg-surface-container-low px-3.5 py-2">
+        {founders.length === 0 ? (
+          <span className="text-sm text-outline-variant">—</span>
+        ) : (
+          founders.map((f, i) => (
+            <div key={`${f.name}-${i}`} className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="font-medium text-on-surface">{f.name || "—"}</span>
+              {f.url && (
+                <a
+                  href={f.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-primary transition-colors hover:underline"
+                >
+                  <Icon name="link" size={14} />
+                  LinkedIn
+                </a>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Profile-photo row. The API reports `profile_photo` as a plain string (it holds a
+ * storage key), so without this it would render as a text input showing a raw S3
+ * path. Shows the stored picture through the shared `Avatar`, plus a Change/Upload
+ * control in edit mode that runs the same scan+upload pipeline registration uses.
+ * The returned key lands in `localValues` and is saved with everything else, so a
+ * discarded edit never repoints the profile at the new file.
+ */
+function PhotoField({
+  label,
+  photoKey,
+  locked,
+  editable,
+  onUploaded,
+}: {
+  label: string;
+  photoKey: string;
+  locked: boolean;
+  /** Edit mode is on AND this field is editable — only then is upload offered. */
+  editable: boolean;
+  onUploaded: (s3Key: string) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  // Instant local preview of a just-picked file; the stored key needs a round trip.
+  const [preview, setPreview] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Clear immediately so picking the same file again still fires onChange.
+    e.target.value = "";
+    if (!file) return;
+
+    if (!PHOTO_MIME_TYPES.includes(file.type)) {
+      toast.error("Profile photo must be a PNG or JPEG image.");
+      return;
+    }
+    if (file.size > DOC_MAX_MB.PROFILE_PHOTO * 1024 * 1024) {
+      toast.error(`Profile photo must be ${DOC_MAX_MB.PROFILE_PHOTO}MB or smaller.`);
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const { s3Key } = await scanImage(file, { docType: DOC_TYPE.PROFILE_PHOTO });
+      setPreview(URL.createObjectURL(file));
+      onUploaded(s3Key);
+      toast.success("Photo uploaded. Click Save Changes to keep it.");
+    } catch (err) {
+      toast.error((err as ApiError)?.message ?? "Couldn't upload your photo. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const fallback = (
+    <div className="flex size-16 items-center justify-center rounded-full bg-primary-container text-on-primary-container">
+      <Icon name="account_circle" size={36} />
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col gap-2">
+      <FieldLabel id={`profile-field-${PHOTO_COL}`} label={label} locked={locked} />
+      <div className="flex min-h-10 items-center gap-3 rounded-lg border border-outline-variant/30 bg-surface-container-low px-3.5 py-2.5">
+        {preview ? (
+          // eslint-disable-next-line @next/next/no-img-element -- blob: object URL, not an optimizable asset
+          <img src={preview} alt={label} className="size-16 shrink-0 rounded-full object-cover" />
+        ) : (
+          <Avatar photoKey={photoKey} alt={label} className="size-16 shrink-0 rounded-full">
+            {fallback}
+          </Avatar>
+        )}
+
+        <span className="min-w-0 flex-1 truncate text-sm text-on-surface-variant">
+          {photoKey ? "Photo uploaded" : "No photo uploaded"}
+        </span>
+
+        {editable && (
+          <>
+            <input
+              ref={inputRef}
+              type="file"
+              accept={PHOTO_MIME_TYPES.join(",")}
+              onChange={handleFile}
+              className="hidden"
+              aria-hidden
+              tabIndex={-1}
+            />
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              disabled={uploading}
+              aria-label={uploading ? "Uploading photo" : "Upload photo"}
+              title={uploading ? "Uploading…" : photoKey ? "Change" : "Upload"}
+              className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-semibold text-primary transition-colors hover:bg-primary-container/40 disabled:opacity-60"
+            >
+              {uploading ? <Loader size={16} /> : <Icon name="photo_camera" size={16} />}
+              <span className="hidden sm:inline">
+                {uploading ? "Uploading…" : photoKey ? "Change" : "Upload"}
+              </span>
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -433,8 +648,9 @@ function DocumentField({
       toast.error("Only PDF files are allowed.");
       return;
     }
-    if (file.size > DOCUMENT_MAX_BYTES) {
-      toast.error("File is too large — the limit is 10 MB.");
+    const maxMB = DOC_MAX_MB[docType];
+    if (file.size > maxMB * 1024 * 1024) {
+      toast.error(`File is too large — the limit is ${maxMB} MB.`);
       return;
     }
 
@@ -468,10 +684,12 @@ function DocumentField({
             <button
               type="button"
               onClick={onPreview}
-              className="flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-semibold text-primary transition-colors hover:bg-primary-container/40"
+              aria-label="Preview document"
+              title="Preview"
+              className="flex h-8 w-8 shrink-0 items-center justify-center gap-1.5 rounded-full text-sm font-semibold text-primary transition-colors hover:bg-primary-container/40 sm:h-auto sm:w-auto sm:rounded-lg sm:px-2.5 sm:py-1"
             >
               <Icon name="visibility" size={16} />
-              Preview
+              <span className="hidden sm:inline">Preview</span>
             </button>
           )}
 
@@ -490,10 +708,12 @@ function DocumentField({
                 type="button"
                 onClick={() => inputRef.current?.click()}
                 disabled={uploading}
-                className="flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-semibold text-primary transition-colors hover:bg-primary-container/40 disabled:opacity-60"
+                aria-label={uploading ? "Uploading document" : "Upload document"}
+                title={uploading ? "Uploading…" : "Upload"}
+                className="flex h-8 w-8 shrink-0 items-center justify-center gap-1.5 rounded-full text-sm font-semibold text-primary transition-colors hover:bg-primary-container/40 disabled:opacity-60 sm:h-auto sm:w-auto sm:rounded-lg sm:px-2.5 sm:py-1"
               >
                 {uploading ? <Loader size={16} /> : <Icon name="upload_file" size={16} />}
-                {uploading ? "Uploading…" : "Upload"}
+                <span className="hidden sm:inline">{uploading ? "Uploading…" : "Upload"}</span>
               </button>
             </>
           )}
@@ -649,6 +869,8 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  // Client-side validation messages, keyed by column (see `validateFields`).
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   // Document being previewed in the shared modal ({ s3Key, title }); null = closed.
   const [preview, setPreview] = useState<{ s3Key: string; title: string } | null>(null);
 
@@ -658,7 +880,12 @@ export default function ProfilePage() {
       // Admin / super-admin → dedicated self-service endpoint (no authorize() gate).
       // Regular user → existing users/profile endpoint.
       const res = isAdminUser ? await getAdminProfile() : await getUserProfile();
-      const fetched = res.data ?? [];
+      // `user_profile_field_master` configures some columns twice — once against the
+      // `company` source table and once against `user` (company_email, mobile_number,
+      // country_code) — so the API returns two entries for them. Keep the last (the
+      // `user` row, which is what edits are saved against); otherwise the field renders
+      // twice with a duplicate React key.
+      const fetched = [...new Map((res.data ?? []).map((f) => [f.columnName, f])).values()];
       setFields(fetched);
       const init: Record<string, string | string[]> = {};
       for (const f of fetched) init[f.columnName] = normalizeValue(f);
@@ -676,6 +903,8 @@ export default function ProfilePage() {
   useEffect(() => { if (isLoaded) fetchProfile(); }, [fetchProfile, isLoaded]);
 
   const handleChange = (col: string, val: string | string[]) => {
+    // Clear this column's error as soon as the user edits it; it's re-checked on save.
+    setFieldErrors((prev) => (prev[col] ? { ...prev, [col]: "" } : prev));
     setLocalValues((prev) => {
       const next = { ...prev, [col]: val };
       // Country → Continent cascade, same as the registration complete-profile
@@ -695,6 +924,7 @@ export default function ProfilePage() {
       for (const f of fields) init[f.columnName] = normalizeValue(f);
       setLocalValues(init);
     }
+    setFieldErrors({});
     setEditMode(on);
   };
 
@@ -708,6 +938,35 @@ export default function ProfilePage() {
   // Render one field as the right control (combined widgets for phone / funding,
   // otherwise the generic row), wrapped with the correct column span.
   const renderField = (field: ProfileField) => {
+    // Founders → name + LinkedIn rows. Must come before the generic array branch,
+    // which assumes option codes and would try to render an object as a chip.
+    if (field.columnName === FOUNDERS_COL) {
+      const raw = field.value;
+      return (
+        <div key={field.columnName} className="sm:col-span-2">
+          <FoundersField
+            label={field.label ?? "Founders & LinkedIn"}
+            founders={Array.isArray(raw) ? (raw as unknown as Founder[]) : []}
+          />
+        </div>
+      );
+    }
+
+    // Profile picture → avatar + upload control (never a raw storage-key text input).
+    if (field.columnName === PHOTO_COL) {
+      return (
+        <div key={field.columnName} className="sm:col-span-2">
+          <PhotoField
+            label={field.label ?? "Profile Photo"}
+            photoKey={toStringValue(localValues[PHOTO_COL] ?? normalizeValue(field))}
+            locked={!field.isEditable}
+            editable={editMode && field.isEditable}
+            onUploaded={(key) => handleChange(PHOTO_COL, key)}
+          />
+        </div>
+      );
+    }
+
     // Uploaded document → presence + Preview button (opens the shared modal), plus an
     // Upload/Replace control while editing.
     const docType = DOCUMENT_COLUMNS.get(field.columnName);
@@ -756,6 +1015,7 @@ export default function ProfilePage() {
             label={field.label ?? "Contact Number"}
             locked={!field.isEditable}
             disabled={!editMode || !field.isEditable}
+            error={fieldErrors[PHONE_NUMBER_COL]}
             codeValue={toStringValue(localValues[PHONE_CODE_COL] ?? "")}
             numberValue={toStringValue(localValues[PHONE_NUMBER_COL] ?? normalizeValue(field))}
             onCodeChange={(v) => handleChange(PHONE_CODE_COL, v)}
@@ -799,6 +1059,15 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     if (saving) return;
+
+    // Block the request on invalid input; messages render under their own field.
+    const found = validateFields(fields, localValues);
+    setFieldErrors(found);
+    if (Object.keys(found).length > 0) {
+      document.getElementById(`profile-field-${Object.keys(found)[0]}`)?.focus();
+      return;
+    }
+
     setSaving(true);
     try {
       // Backend-shaped payload (snake_case `user` columns, same keys as
@@ -831,36 +1100,43 @@ export default function ProfilePage() {
   return (
     <div className="flex h-full flex-col">
       {/* ── Page Header ── */}
-      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-outline-variant/20 bg-surface-container-lowest px-8 py-5">
-        <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-outline-variant/20 bg-surface-container-lowest px-4 py-4 sm:gap-4 sm:px-6 sm:py-5 md:px-8">
+        <div className="flex min-w-0 items-center gap-3">
           <Avatar
-            photoKey={profilePhotoKey(fields)}
-            alt="My profile picture"
-            className="size-11 shrink-0 rounded-2xl"
+            // Prefer the working copy so a photo swapped in edit mode shows at once.
+            photoKey={toStringValue(localValues[PHOTO_COL] ?? "") || profilePhotoKey(fields)}
+            alt="My Profile Photo"
+            className="size-10 shrink-0 rounded-full sm:size-11"
           >
-            <div className="flex size-11 items-center justify-center rounded-2xl bg-primary-container text-on-primary-container">
+            <div className="flex size-10 items-center justify-center rounded-full bg-primary-container text-on-primary-container sm:size-11">
               <Icon name="account_circle" size={24} />
             </div>
           </Avatar>
-          <div>
-            <h1 className="font-headline text-xl font-bold text-on-surface">{isAdminUser ? "Admin Profile" : "My Profile"}</h1>
-            <p className="text-xs text-on-surface-variant">{isAdminUser ? "View and manage your admin account details" : "View and manage your profile details"}</p>
+          <div className="min-w-0">
+            <h1 className="truncate font-headline text-lg font-bold text-on-surface sm:text-xl">
+              {isAdminUser ? "Admin Profile" : "My Profile"}
+            </h1>
+            <p className="truncate text-xs text-on-surface-variant">
+              {isAdminUser ? "View and manage your admin account details" : "View and manage your profile details"}
+            </p>
           </div>
         </div>
 
         {/* Edit toggle in top-right */}
         {!loading && fields.length > 0 && (
-          <ToggleSwitch
-            id="profile-edit-toggle"
-            checked={editMode}
-            onChange={handleToggleEdit}
-            label={editMode ? "Editing" : "Edit"}
-          />
+          <div className="shrink-0">
+            <ToggleSwitch
+              id="profile-edit-toggle"
+              checked={editMode}
+              onChange={handleToggleEdit}
+              label={editMode ? "Editing" : "Edit"}
+            />
+          </div>
         )}
       </div>
 
       {/* ── Body ── */}
-      <div className="thin-scrollbar flex-1 overflow-y-auto px-8 py-7">
+      <div className="thin-scrollbar flex-1 overflow-y-auto px-4 py-5 sm:px-6 md:px-8 md:py-7">
         {loading ? (
           <div className="flex h-64 items-center justify-center">
             <Loader size="medium" />
@@ -881,8 +1157,8 @@ export default function ProfilePage() {
           <div className="mx-auto max-w-4xl">
             {/* Edit-mode banner */}
             {editMode && (
-              <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-primary/20 bg-primary-container/30 px-4 py-3 text-sm text-on-primary-container">
-                <Icon name="edit_note" size={18} />
+              <div className="mb-6 flex items-start gap-2.5 rounded-xl border border-primary/20 bg-primary-container/30 px-3 py-3 text-xs text-on-primary-container sm:px-4 sm:text-sm">
+                <Icon name="edit_note" size={18} className="mt-0.5 shrink-0" />
                 <span>Edit mode is on — make your changes and click <strong>Save Changes</strong> below.</span>
               </div>
             )}
@@ -906,7 +1182,9 @@ export default function ProfilePage() {
                 );
               })}
 
-              {/* {leftoverFields.length > 0 && (
+              {/* Safety net: anything the API returns that no section claims still
+                  renders, so a new backend column is never silently invisible. */}
+              {leftoverFields.length > 0 && (
                 <section className="flex flex-col gap-4">
                   <h3 className="border-b border-outline-variant/20 pb-2 font-headline text-sm font-bold uppercase tracking-wide text-on-surface">
                     Additional Information
@@ -915,7 +1193,7 @@ export default function ProfilePage() {
                     {leftoverFields.map(renderField)}
                   </div>
                 </section>
-              )} */}
+              )}
             </div>
           </div>
         )}
@@ -923,11 +1201,11 @@ export default function ProfilePage() {
 
       {/* ── Footer — only in edit mode ── */}
       {editMode && (
-        <div className="flex shrink-0 items-center justify-end gap-3 border-t border-outline-variant/20 bg-surface-container-lowest px-8 py-4">
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-outline-variant/20 bg-surface-container-lowest px-4 py-3 sm:gap-3 sm:px-6 sm:py-4 md:px-8">
           <button
             type="button"
             onClick={() => handleToggleEdit(false)}
-            className="flex h-10 items-center gap-1.5 rounded-xl border border-outline-variant/30 px-5 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container"
+            className="flex h-10 items-center gap-1.5 whitespace-nowrap rounded-xl border border-outline-variant/30 px-4 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container sm:px-5"
           >
             Discard
           </button>
@@ -935,7 +1213,7 @@ export default function ProfilePage() {
             id="profile-save-btn"
             disabled={saving}
             onClick={handleSave}
-            className="h-10 px-6 text-sm"
+            className="h-10 whitespace-nowrap px-6 text-sm max-sm:px-4 max-sm:text-sm"
           >
             {saving ? (
               <Loader size="small" />

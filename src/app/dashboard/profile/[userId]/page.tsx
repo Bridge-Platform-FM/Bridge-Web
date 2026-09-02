@@ -69,7 +69,11 @@ function ReadOnlyField({
   let body: ReactNode;
 
   if (Array.isArray(normalized)) {
-    const chips = normalized.map(labelFor).filter(Boolean);
+    // `founders` is an array of {name, url} objects, not option codes — rendering one
+    // as a React child throws, so keep only entries that resolve to a string.
+    const chips = normalized
+      .map(labelFor)
+      .filter((c): c is string => typeof c === "string" && c.length > 0);
     body = chips.length ? (
       <div className="flex flex-wrap gap-1.5">
         {chips.map((c) => (
@@ -189,32 +193,32 @@ function UserProfilePageContent() {
   return (
     <div className="flex h-full flex-col">
       {/* ── Page Header — mirrors My Profile's header ── */}
-      <div className="flex shrink-0 items-center gap-3 border-b border-outline-variant/20 bg-surface-container-lowest px-8 py-5">
+      <div className="flex shrink-0 items-center gap-2.5 border-b border-outline-variant/20 bg-surface-container-lowest px-4 py-4 sm:gap-3 sm:px-6 sm:py-5 md:px-8">
         <button
           type="button"
           onClick={() => router.back()}
           aria-label="Back"
-          className="flex size-9 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
         >
           <Icon name="arrow_back" size={20} />
         </button>
         <Avatar
           photoKey={profilePhotoKey(fields ?? [])}
-          alt={name || "Profile picture"}
-          className="size-11 shrink-0 rounded-2xl"
+          alt={name || "Profile Photo"}
+          className="size-10 shrink-0 rounded-full sm:size-11"
         >
-          <div className="flex size-11 items-center justify-center rounded-2xl bg-primary-container text-on-primary-container">
+          <div className="flex size-10 items-center justify-center rounded-full bg-primary-container text-on-primary-container sm:size-11">
             <Icon name="account_circle" size={24} />
           </div>
         </Avatar>
         <div className="min-w-0">
-          <h1 className="truncate font-headline text-xl font-bold text-on-surface">{name || "Profile"}</h1>
+          <h1 className="truncate font-headline text-lg font-bold text-on-surface sm:text-xl">{name || "Profile"}</h1>
           <p className="truncate text-xs text-on-surface-variant">{company || "View-only profile"}</p>
         </div>
       </div>
 
       {/* ── Body — same section grouping as My Profile ── */}
-      <div className="thin-scrollbar flex-1 overflow-y-auto px-8 py-7">
+      <div className="thin-scrollbar flex-1 overflow-y-auto px-4 py-5 sm:px-6 md:px-8 md:py-7">
         <AsyncState
           loading={loading}
           error={error}
@@ -255,7 +259,7 @@ function UserProfilePageContent() {
 
       {/* ── Footer — Connect (in place of My Profile's Save/Discard) ── */}
       {!loading && !error && visibleFields.length > 0 && (
-        <div className="flex shrink-0 items-center justify-end gap-3 border-t border-outline-variant/20 bg-surface-container-lowest px-8 py-4">
+        <div className="flex shrink-0 items-center justify-end gap-3 border-t border-outline-variant/20 bg-surface-container-lowest px-4 py-3 sm:px-6 sm:py-4 md:px-8">
           <button
             type="button"
             onClick={() => setProposalOpen(true)}

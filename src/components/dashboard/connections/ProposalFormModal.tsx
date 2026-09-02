@@ -103,7 +103,7 @@ export function ProposalFormModal({ open, onClose, recipient, sender, onSent }: 
           <button
             type="button"
             onClick={close}
-            className="flex h-11 items-center justify-center rounded-xl px-5 font-bold text-on-surface-variant transition-colors hover:bg-surface-container"
+            className="flex h-11 items-center justify-center whitespace-nowrap rounded-xl px-4 text-sm font-bold text-on-surface-variant transition-colors hover:bg-surface-container sm:px-5 sm:text-base"
           >
             Cancel
           </button>
@@ -111,9 +111,9 @@ export function ProposalFormModal({ open, onClose, recipient, sender, onSent }: 
             type="submit"
             form={FORM_ID}
             disabled={isSubmitting || intent.length === 0}
-            className="flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-6 font-bold text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-primary px-4 text-sm font-bold text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-60 sm:px-6 sm:text-base"
           >
-            <Icon name="send" size={18} />
+            <Icon name="send" size={18} className="shrink-0" />
             {isSubmitting ? "Sending…" : "Send Request"}
           </button>
         </>
@@ -121,17 +121,17 @@ export function ProposalFormModal({ open, onClose, recipient, sender, onSent }: 
     >
       <form id={FORM_ID} onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
         {/* Recipient identity — who this request is being sent TO, read-only */}
-        <div className="flex items-center gap-3 rounded-xl border border-outline-variant/40 bg-surface-container-low p-4">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-secondary text-base font-black text-white">
+        <div className="flex items-center gap-3 rounded-xl border border-outline-variant/40 bg-surface-container-low p-3 sm:p-4">
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-secondary text-base font-black text-white sm:size-12">
             {companyInitials(recipient.name || recipient.company || "—")}
           </div>
           <div className="min-w-0">
             <h3 className="truncate font-headline text-base font-bold text-on-surface">
               {recipient.name || "—"}
             </h3>
-            <p className="flex items-center gap-1.5 text-sm font-semibold text-primary">
-              {recipientRoleMeta && <Icon name={recipientRoleMeta.icon} size={15} />}
-              {recipientRoleMeta?.label ?? "—"}
+            <p className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-primary sm:text-sm">
+              {recipientRoleMeta && <Icon name={recipientRoleMeta.icon} size={15} className="shrink-0" />}
+              <span className="shrink-0">{recipientRoleMeta?.label ?? "—"}</span>
               {recipient.company && (
                 <span className="truncate font-normal text-on-surface-variant">· {recipient.company}</span>
               )}

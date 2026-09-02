@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
 import { isUserRole } from "@/lib/roles";
@@ -22,6 +22,20 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const [checkError, setCheckError] = useState(false);
   // Bumped by the Retry button to re-run the verification effect.
   const [retryKey, setRetryKey] = useState(0);
+  // Mobile nav drawer (below lg). Owned here because the navbar's hamburger opens it
+  // and the sidebar renders it — `onClose` is stable so the sidebar's route-change
+  // and Escape effects don't re-run every render.
+  const [navOpen, setNavOpen] = useState(false);
+  const closeNav = useCallback(() => setNavOpen(false), []);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const sync = () => {
+      if (mq.matches) setNavOpen(false);
+    };
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -56,9 +70,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-full">
-      <DashboardSidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <DashboardNavbar />
+      <DashboardSidebar open={navOpen} onClose={closeNav} />
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <DashboardNavbar onMenuClick={() => setNavOpen(true)} />
         <div className="thin-scrollbar flex-1 overflow-y-auto">{children}</div>
       </div>
     </div>

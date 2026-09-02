@@ -155,7 +155,7 @@ function TermSheetDrawer({ open, onClose, current, onConfirm }: TermSheetDrawerP
           <button
             type="button"
             onClick={onClose}
-            className="flex h-11 items-center rounded-xl border border-dashed border-outline-variant/60 px-5 font-bold text-on-surface-variant transition-colors hover:bg-surface-container"
+            className="flex h-11 items-center rounded-xl border border-dashed border-outline-variant/60 px-5 font-bold max-sm:px-3 max-sm:text-sm text-on-surface-variant transition-colors hover:bg-surface-container"
           >
             Cancel
           </button>
@@ -163,7 +163,7 @@ function TermSheetDrawer({ open, onClose, current, onConfirm }: TermSheetDrawerP
             type="submit"
             form="term-sheet-form"
             disabled={isSubmitting}
-            className="flex h-11 items-center gap-2 rounded-xl bg-primary px-6 font-bold text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex h-11 items-center gap-2 rounded-xl bg-primary px-6 font-bold max-sm:px-3 max-sm:text-sm text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Icon name="save" size={18} />
             {isSubmitting ? "Saving…" : "Share Term Sheet"}

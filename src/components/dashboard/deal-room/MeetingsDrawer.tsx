@@ -53,7 +53,7 @@ export function MeetingsDrawer({
           type="button"
           disabled={closed}
           onClick={onScheduleNew}
-          className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 font-bold text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 font-bold max-sm:px-3 max-sm:text-sm text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Icon name="add" size={18} />
           Schedule Meeting

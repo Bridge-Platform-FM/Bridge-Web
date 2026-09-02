@@ -60,7 +60,7 @@ export function ConnectionDetailDrawer({ request, onClose, onAction }: Connectio
         <button
           type="button"
           onClick={onClose}
-          className="flex h-11 items-center rounded-xl px-5 font-bold text-on-surface-variant transition-colors hover:bg-surface-container"
+          className="flex h-11 items-center whitespace-nowrap rounded-xl px-4 text-sm font-bold text-on-surface-variant transition-colors hover:bg-surface-container sm:px-5 sm:text-base"
         >
           Cancel
         </button>
@@ -68,7 +68,7 @@ export function ConnectionDetailDrawer({ request, onClose, onAction }: Connectio
           type="button"
           onClick={save}
           disabled={!canSave}
-          className="flex h-11 items-center gap-2 rounded-xl bg-primary px-6 font-bold text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex h-11 items-center gap-2 whitespace-nowrap rounded-xl bg-primary px-5 text-sm font-bold text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-60 sm:px-6 sm:text-base"
         >
           {submitting ? <Loader size={16} /> : <Icon name="check" size={18} />}
           Save
@@ -85,10 +85,9 @@ export function ConnectionDetailDrawer({ request, onClose, onAction }: Connectio
     >
       {request && (
         <>
-          {/* Identity + status */}
-          <div className="flex items-center gap-4">
-            <ConnectionAvatar name={request.name} role={request.role} size={52} photoKey={request.photoKey} />
-            <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+            <ConnectionAvatar name={request.name} role={request.role} size={48} photoKey={request.photoKey} />
+            <div className="min-w-0 flex-1 basis-40">
               <p className="truncate font-headline text-base font-bold text-on-surface">{request.name}</p>
               <p className="truncate text-sm text-on-surface-variant">
                 {roleLabelFor(request.role)} · {request.company}
@@ -99,12 +98,12 @@ export function ConnectionDetailDrawer({ request, onClose, onAction }: Connectio
 
           {/* Request details (what was sent) */}
           <SectionTitle>Request Details</SectionTitle>
-          <div className="space-y-3 rounded-xl border border-outline/10 bg-surface-container-low p-4">
+          <div className="space-y-3 rounded-xl border border-outline/10 bg-surface-container-low p-3 sm:p-4">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-wide text-on-surface-variant/70">Purpose / Intent</p>
-              <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-on-surface">
-                <Icon name="bolt" size={15} className="text-primary" />
-                {request.intent}
+              <p className="mt-1 flex min-w-0 items-start gap-1.5 text-sm font-semibold text-on-surface">
+                <Icon name="bolt" size={15} className="mt-0.5 shrink-0 text-primary" />
+                <span className="min-w-0 break-words">{request.intent}</span>
               </p>
             </div>
             <div>
@@ -123,13 +122,13 @@ export function ConnectionDetailDrawer({ request, onClose, onAction }: Connectio
                 <p className="mt-1 text-sm italic text-on-surface-variant/70">No message included.</p>
               )}
             </div>
-            <div className="flex items-center gap-4 border-t border-outline/10 pt-3 text-xs text-on-surface-variant">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-outline/10 pt-3 text-xs text-on-surface-variant">
               <span className="flex items-center gap-1">
-                <Icon name={request.direction === "received" ? "call_received" : "call_made"} size={14} />
+                <Icon name={request.direction === "received" ? "call_received" : "call_made"} size={14} className="shrink-0" />
                 {request.direction === "received" ? "Received" : "Sent"}
               </span>
               <span className="flex items-center gap-1">
-                <Icon name="calendar_today" size={14} />
+                <Icon name="calendar_today" size={14} className="shrink-0" />
                 {formatDate(request.createdAt)}
               </span>
             </div>

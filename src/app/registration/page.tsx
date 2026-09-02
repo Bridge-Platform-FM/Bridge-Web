@@ -62,7 +62,7 @@ interface RegisterForm {
 }
 
 export default function RegisterPage() {
-  const { data, setData, goNext, reset } = useOnboarding();
+  const { setData, goNext, reset } = useOnboarding();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   // Landing on registration starts a fresh signup: wipe the onboarding blob, the
@@ -73,6 +73,10 @@ export default function RegisterPage() {
   }, [reset]);
   const [termsOpen, setTermsOpen] = useState(false);
 
+  // Defaults are hardcoded empty, not sourced from `data`: this page always starts a
+  // fresh signup (see the reset() effect above), and by the time that reset actually
+  // clears `data`, react-hook-form would have already locked in whatever stale values
+  // were there at mount — reading from `data` here would just race that reset.
   const {
     register: field,
     handleSubmit,
@@ -84,15 +88,15 @@ export default function RegisterPage() {
     formState: { errors, isSubmitting },
   } = useForm<RegisterForm>({
     defaultValues: {
-      legalName: (data.legalName as string) ?? "",
-      email: (data.email as string) ?? "",
+      legalName: "",
+      email: "",
       password: "",
       confirmPassword: "",
-      countryCode: (data.countryCode as string) ?? "+91",
-      contact: (data.contact as string) ?? "",
-      role: (data.role as string) ?? "",
-      gstNumber: (data.gstNumber as string) ?? "",
-      cinNumber: (data.cinNumber as string) ?? "",
+      countryCode: "+91",
+      contact: "",
+      role: "",
+      gstNumber: "",
+      cinNumber: "",
       termsAccepted: false,
     },
   });
@@ -346,9 +350,12 @@ export default function RegisterPage() {
               <label className={LABEL}>
                 Contact Number<span className="align-middle text-base leading-none text-error"> *</span>
               </label>
-              <div className={`relative flex h-10 w-full items-center rounded-lg border bg-surface-container-low transition-all duration-200 focus-within:border-primary focus-within:bg-surface-container-lowest focus-within:ring-2 focus-within:ring-primary/10 ${errors.contact?.message ? "border-error/80 ring-2 ring-error/10" : "border-outline-variant/30"
+              {/* An <input> has an intrinsic default width, so the `min-w-0` on the tel field
+                  below is load-bearing: without it the flex item refuses to shrink, widening
+                  this row past the card and pushing the trailing icon off-screen on a phone. */}
+              <div className={`relative flex h-10 w-full min-w-0 items-center rounded-lg border bg-surface-container-low transition-all duration-200 focus-within:border-primary focus-within:bg-surface-container-lowest focus-within:ring-2 focus-within:ring-primary/10 ${errors.contact?.message ? "border-error/80 ring-2 ring-error/10" : "border-outline-variant/30"
                 }`}>
-                <div className="w-[4.8rem] shrink-0">
+                <div className="w-[4.4rem] shrink-0 sm:w-[4.8rem]">
                   <Controller
                     control={control}
                     name="countryCode"
@@ -360,8 +367,8 @@ export default function RegisterPage() {
                         options={DIAL_CODES}
                         value={cc.value}
                         onChange={cc.onChange}
-                        className="flex h-10 w-full items-center justify-between gap-1 bg-transparent px-3 text-left text-sm text-on-surface outline-none cursor-pointer hover:opacity-85"
-                        panelClassName="w-72 md:w-80"
+                        className="flex h-10 w-full items-center justify-between gap-1 bg-transparent px-2.5 text-left text-sm text-on-surface outline-none cursor-pointer hover:opacity-85 sm:px-3"   
+                        panelClassName="w-64 max-w-[calc(100vw-2.5rem)] sm:w-80"
                         displayValueOnly
                       />
                     )}
@@ -372,13 +379,13 @@ export default function RegisterPage() {
                   id="contact"
                   type="tel"
                   placeholder="9632585698"
-                  className="h-full flex-1 bg-transparent px-3 text-sm text-on-surface outline-none placeholder:text-outline-variant"
+                  className="h-full min-w-0 flex-1 bg-transparent px-2.5 text-sm text-on-surface outline-none placeholder:text-outline-variant sm:px-3"
                   {...field("contact", {
                     required: "Contact number is required.",
                     pattern: { value: PHONE_REGEX, message: "Enter a valid 10-digit mobile number." },
                   })}
                 />
-                <div className="pr-3 text-on-surface-variant flex items-center shrink-0">
+                <div className="flex shrink-0 items-center pr-2.5 text-on-surface-variant sm:pr-3">
                   <Icon name="smartphone" size={18} />
                 </div>
               </div>

@@ -17,9 +17,15 @@ export async function buildProfile(payload: UserProfilePayload): Promise<BuildPr
 
 /** One field returned by GET /api/v1/users/profile. */
 export interface ProfileField {
-  label: string;    
+  label: string;
   columnName: string;
-  value: string | string[];
+  /**
+   * The stored column value, straight off the row — so a numeric column
+   * (`ticket_size_amt_min`, `number_of_investments_to_date`, `years_in_operation`, …)
+   * arrives as a real JSON **number**, not a string. Normalize with the profile page's
+   * `normalizeValue` before rendering; a raw number handed to an input renders blank.
+   */
+  value: string | string[] | number;
   isEditable: boolean;
   /** Input type: "string" | "number" | "url" | "email" | "textarea" | "array" | ... */
   type: string;

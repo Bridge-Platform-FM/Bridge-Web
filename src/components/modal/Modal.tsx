@@ -64,8 +64,8 @@ export function Modal({ open, onClose, title, children, footer, maxWidthClass = 
         className={`flex max-h-[85vh] w-full ${maxWidthClass} flex-col rounded-2xl border border-white/40 bg-surface-container-lowest ambient-shadow`}
       >
         {/* Header */}
-        <div className="flex shrink-0 items-center justify-between gap-4 border-b border-outline/10 p-5">
-          <h2 className="min-w-0 flex-1 truncate font-headline text-xl font-bold text-on-surface">{title}</h2>
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-outline/10 p-4 sm:gap-4 sm:p-5">
+          <h2 className="min-w-0 flex-1 truncate font-headline text-lg font-bold text-on-surface sm:text-xl">{title}</h2>
           {headerExtra}
           <button
             type="button"
@@ -79,7 +79,7 @@ export function Modal({ open, onClose, title, children, footer, maxWidthClass = 
         </div>
 
         {/* Scrollable body */}
-        <div className={bodyClassName ?? "thin-scrollbar flex-1 overflow-y-auto overscroll-contain p-6"} onScroll={onBodyScroll}>{children}</div>
+        <div className={bodyClassName ?? "thin-scrollbar flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6"} onScroll={onBodyScroll}>{children}</div>
 
         {/* Footer — pass footer={null} to hide it entirely (e.g. when the action
             lives inside the scrollable body). */}

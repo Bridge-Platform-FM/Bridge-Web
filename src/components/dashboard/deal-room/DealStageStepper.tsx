@@ -32,7 +32,7 @@ export function DealStageStepper({ stage }: DealStageStepperProps) {
   const last = DEAL_STAGES.length - 1;
 
   return (
-    <div className="rounded-2xl bg-surface-container-low px-5 py-5 sm:px-7">
+    <div className="rounded-2xl bg-surface-container-low px-2 py-4 sm:px-7 sm:py-5">
       <div className="flex">
         {DEAL_STAGES.map((label, i) => {
           const done = i < stage;
@@ -43,7 +43,7 @@ export function DealStageStepper({ stage }: DealStageStepperProps) {
           const fillWidth = i < stage ? "100%" : "0%";
 
           return (
-            <div key={label} className="group relative flex flex-1 flex-col items-center">
+            <div key={label} className="group relative flex min-w-0 flex-1 flex-col items-center">
               {/* Connector: from this circle's centre to the next circle's centre. Only
                   fully-completed segments fill (the current stage's own segment stays
                   empty — the colour stops right at its circle, not partway to the next). */}
@@ -96,7 +96,7 @@ export function DealStageStepper({ stage }: DealStageStepperProps) {
 
               {/* Label */}
               <span
-                className={`mt-2.5 text-center text-[10px] tracking-[0.08em] uppercase sm:text-[11px] ${current ? "font-extrabold" : "font-bold"}`}
+                className={`mt-2.5 px-0.5 text-center text-[9px] leading-tight tracking-[0.06em] uppercase sm:text-[11px] sm:tracking-[0.08em] ${current ? "font-extrabold" : "font-bold"}`}
                 style={{ color: done ? GREEN : current ? BLUE : MUTED }}
               >
                 {label}
