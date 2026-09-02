@@ -67,11 +67,13 @@ function hasValue(v: React.ReactNode): boolean {
 
 function Field({ label, value, full }: Row) {
   return (
-    <div className={`flex flex-col gap-0.5 ${full ? "sm:col-span-2" : ""}`}>
+    <div className={`flex min-w-0 flex-col gap-0.5 ${full ? "sm:col-span-2" : ""}`}>
       <span className="font-label text-[11px] font-medium uppercase tracking-wide text-on-surface-variant">
         {label}
       </span>
-      <span className="whitespace-pre-wrap break-words text-base font-medium text-on-surface">{value}</span>
+      <span className="whitespace-pre-wrap break-words text-sm font-medium text-on-surface sm:text-base">
+        {value}
+      </span>
     </div>
   );
 }
@@ -212,21 +214,21 @@ export function ProfilePreview({ values, photoUrl, role }: ProfilePreviewProps) 
   return (
     <div className="flex flex-col gap-6">
       {/* Profile picture */}
-      <div className="flex items-center gap-4">
-        <div className="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-surface-container-highest bg-surface-container-high">
+      <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-surface-container-highest bg-surface-container-high sm:size-24">
           {photoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={photoUrl} alt="Profile" className="size-full object-cover" />
           ) : (
-            <Icon name="person" size={40} className="text-surface-dim" />
+            <Icon name="person" size={36} className="text-surface-dim" />
           )}
         </div>
-        <div className="flex flex-col">
-          <span className="font-headline text-lg font-bold text-on-surface">
+        <div className="flex min-w-0 flex-col">
+          <span className="truncate font-headline text-base font-bold text-on-surface sm:text-lg">
             {[values.firstName, values.lastName].filter(Boolean).join(" ") || "—"}
           </span>
           {values.photo && (
-            <span className="text-sm text-on-surface-variant">
+            <span className="truncate text-sm text-on-surface-variant">
               <FileValue name={values.photo} />
             </span>
           )}
@@ -238,7 +240,7 @@ export function ProfilePreview({ values, photoUrl, role }: ProfilePreviewProps) 
         if (rows.length === 0) return null;
         return (
           <div key={section.title} className="flex flex-col gap-3 border-t border-outline/10 pt-4">
-            <h3 className="font-headline text-base font-bold text-on-surface">{section.title}</h3>
+            <h3 className="font-headline text-sm font-bold text-on-surface sm:text-base">{section.title}</h3>
             <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
               {rows.map((r) => (
                 <Field key={r.label} label={r.label} value={r.value} full={r.full} />

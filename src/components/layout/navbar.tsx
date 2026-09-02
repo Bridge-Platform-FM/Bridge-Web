@@ -232,14 +232,23 @@ function NavbarProfile() {
  * brand lockup (the sidebar already shows it) and carries the notifications control
  * followed by the signed-in identity.
  */
-export function DashboardNavbar() {
+export function DashboardNavbar({ onMenuClick }: { onMenuClick?: () => void }) {
     return (
-        <header className="grid h-16 shrink-0 grid-cols-[1fr_3fr_1fr] items-center gap-2 border-b border-outline-variant/30 bg-surface-container-lowest px-6">
-            <div />
-            <div className="w-full justify-self-center">
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b border-outline-variant/30 bg-surface-container-lowest px-3 sm:px-4 lg:grid lg:grid-cols-[1fr_3fr_1fr] lg:px-6">
+            <div className="flex shrink-0 items-center">
+                <button
+                    type="button"
+                    onClick={onMenuClick}
+                    aria-label="Open navigation menu"
+                    className="flex size-10 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container-highest hover:text-on-surface lg:hidden"
+                >
+                    <Icon name="menu" size={24} />
+                </button>
+            </div>
+            <div className="min-w-0 flex-1 lg:w-full lg:justify-self-center">
                 <NavbarSearch />
             </div>
-            <div className="flex min-w-0 items-center gap-2 justify-self-end">
+            <div className="flex min-w-0 shrink-0 items-center gap-1 justify-self-end sm:gap-2">
                 <button
                     type="button"
                     aria-label="Notifications"

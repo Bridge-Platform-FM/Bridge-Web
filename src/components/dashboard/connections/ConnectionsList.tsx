@@ -73,7 +73,7 @@ export function ConnectionsList({ requests, status, onSelect, loading, error, on
               <button
                 type="button"
                 onClick={() => onSelect(r)}
-                className="flex w-full items-center gap-3 px-5 py-3.5 text-left transition-colors hover:bg-surface-container-low"
+                className="flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-surface-container-low sm:px-5 sm:py-3.5"
               >
                 <ConnectionAvatar name={r.name} role={r.role} size={40} photoKey={r.photoKey} />
                 <div className="min-w-0 flex-1">
@@ -81,15 +81,21 @@ export function ConnectionsList({ requests, status, onSelect, loading, error, on
                   <p className="truncate text-xs text-on-surface-variant">
                     {roleLabelFor(r.role)} · {r.company}
                   </p>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2 md:hidden">
+                    <StatusPill {...CONNECTION_STATUS_META[r.status]} />
+                    <span className="text-xs text-on-surface-variant">{timeAgo(r.updatedAt)}</span>
+                  </div>
                 </div>
                 <div className="hidden min-w-0 flex-1 md:block">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-surface-container px-2.5 py-1 text-xs font-medium text-on-surface-variant">
-                    <Icon name="bolt" size={13} />
-                    {r.intent}
+                  <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-surface-container px-2.5 py-1 text-xs font-medium text-on-surface-variant">
+                    <Icon name="bolt" size={13} className="shrink-0" />
+                    <span className="truncate">{r.intent}</span>
                   </span>
                 </div>
-                <span className="hidden shrink-0 text-xs text-on-surface-variant sm:block">{timeAgo(r.updatedAt)}</span>
-                <StatusPill {...CONNECTION_STATUS_META[r.status]} />
+                <span className="hidden shrink-0 text-xs text-on-surface-variant md:block">{timeAgo(r.updatedAt)}</span>
+                <div className="hidden md:block">
+                  <StatusPill {...CONNECTION_STATUS_META[r.status]} />
+                </div>
                 <Icon name="chevron_right" size={20} className="shrink-0 text-on-surface-variant" />
               </button>
             </li>

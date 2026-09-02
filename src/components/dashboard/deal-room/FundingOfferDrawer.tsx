@@ -93,7 +93,7 @@ export function FundingOfferDrawer({ open, onClose, mode, counterpartyName, sour
           <button
             type="button"
             onClick={close}
-            className="flex h-11 items-center rounded-xl border border-dashed border-outline-variant/60 px-5 font-bold text-on-surface-variant transition-colors hover:bg-surface-container"
+            className="flex h-11 items-center rounded-xl border border-dashed border-outline-variant/60 px-5 font-bold max-sm:px-3 max-sm:text-sm text-on-surface-variant transition-colors hover:bg-surface-container"
           >
             Cancel
           </button>
@@ -101,7 +101,7 @@ export function FundingOfferDrawer({ open, onClose, mode, counterpartyName, sour
             type="submit"
             form="funding-offer-form"
             disabled={isSubmitting}
-            className="flex h-11 items-center gap-2 rounded-xl bg-primary px-6 font-bold text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex h-11 items-center gap-2 rounded-xl bg-primary px-6 font-bold max-sm:px-3 max-sm:text-sm text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Icon name="send" size={18} />
             {isSubmitting ? "Sending…" : "Send Offer"}

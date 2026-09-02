@@ -471,7 +471,7 @@ export default function CompleteProfilePage() {
 
   return (
     <main className="mx-auto flex min-h-[calc(100vh-80px)] max-w-[960px] items-center justify-center px-4 py-8">
-      <div className="w-full rounded-2xl bg-surface-container-lowest ambient-shadow border border-white/40 flex flex-col gap-5 !p-6 sm:!p-8">
+      <div className="flex w-full flex-col gap-5 rounded-2xl border border-white/40 bg-surface-container-lowest p-4 ambient-shadow sm:p-6 lg:p-8">
         <FocusedHeader backLabel="Back to Overview" backHref="/registration/verify-account" />
 
         <div className="flex flex-col gap-1">
@@ -489,7 +489,7 @@ export default function CompleteProfilePage() {
             <span className="px-1 text-xs font-bold tracking-wide text-on-surface-variant">
               Profile Picture
             </span>
-            <div className="flex items-center gap-6">
+            <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-6">
               <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-outline-variant/30 bg-surface-container-low">
                 {photo ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -502,9 +502,9 @@ export default function CompleteProfilePage() {
                 control={control}
                 name="photo"
                 render={({ field }) => (
-                  <div className="flex flex-col gap-2">
-                    <div className="flex gap-3">
-                      <label className="cursor-pointer rounded-lg border border-outline-variant/30 bg-surface-container-low px-4 py-2 text-sm font-semibold text-on-surface transition-colors hover:bg-surface-container hover:border-outline-variant/60">
+                  <div className="flex min-w-0 flex-col items-center gap-2 sm:items-start">
+                    <div className="flex flex-wrap justify-center gap-2 sm:justify-start sm:gap-3">
+                      <label className="cursor-pointer whitespace-nowrap rounded-lg border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-semibold text-on-surface transition-colors hover:border-outline-variant/60 hover:bg-surface-container sm:px-4">
                         {photoUploading ? "Uploading…" : "Upload photo"}
                         <input
                           type="file"
@@ -543,13 +543,15 @@ export default function CompleteProfilePage() {
                         <button
                           type="button"
                           onClick={() => { setPhoto(null); field.onChange(""); }}
-                          className="rounded-lg px-4 py-2 text-sm font-semibold text-on-surface-variant transition-colors hover:text-error"
+                          className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-on-surface-variant transition-colors hover:text-error sm:px-4"
                         >
                           Remove
                         </button>
                       )}
                     </div>
-                    <p className="px-1 text-xs text-on-surface-variant">JPG, GIF or PNG. Max size of 5MB</p>
+                    <p className="px-1 text-center text-xs text-on-surface-variant sm:text-left">
+                      JPG, GIF or PNG. Max size of 5MB
+                    </p>
                   </div>
                 )}
               />
@@ -744,27 +746,26 @@ export default function CompleteProfilePage() {
             </span>
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center gap-3 border-t border-outline/10 pt-4">
+          <div className="flex items-center gap-2 border-t border-outline/10 pt-4 sm:gap-3">
             <button
               type="button"
               onClick={() => setPreviewData(getValues())}
-              className="flex h-12 items-center justify-center gap-2 rounded-xl border border-outline-variant/40 bg-surface-container px-6 text-base font-bold text-on-surface transition-colors hover:bg-surface-container-high"
+              className="flex h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-outline-variant/40 bg-surface-container px-3 text-xs font-bold text-on-surface transition-colors hover:bg-surface-container-high sm:h-12 sm:flex-none sm:gap-2 sm:px-6 sm:text-base"
             >
-              <Icon name="visibility" size={18} />
+              <Icon name="visibility" size={16} />
               Preview
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="cta-gradient flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-primary text-base font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:transform-none"
+              className="cta-gradient flex h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-primary px-3 text-xs font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform hover:scale-[1.01] active:scale-[0.98] disabled:transform-none disabled:cursor-not-allowed disabled:opacity-60 sm:h-12 sm:gap-2 sm:px-5 sm:text-base"
             >
               {isSubmitting ? (
                 <Loader size={18} />
               ) : (
                 <>
-                  Save & Continue
-                  <Icon name="chevron_right" size={18} />
+                  Save &amp; Continue
+                  <Icon name="chevron_right" size={16} />
                 </>
               )}
             </button>

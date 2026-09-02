@@ -69,29 +69,29 @@ export function ConnectionsScreen({
   };
 
   return (
-    <div className="mx-auto max-w-6xl p-6 md:p-8">
+    <div className="mx-auto max-w-6xl p-4 sm:p-6 md:p-8">
       {/* Header */}
       <div className="mb-5">
-        <h1 className="font-headline text-2xl font-extrabold tracking-[-0.02em] text-on-surface md:text-3xl">
+        <h1 className="font-headline text-xl font-extrabold tracking-[-0.02em] text-on-surface sm:text-2xl md:text-3xl">
           Connections
         </h1>
       </div>
 
       {/* Incoming / Sent toggle + status dropdown (same row) */}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex gap-1 rounded-xl bg-surface-container-high p-1">
+        <div className="inline-flex shrink-0 gap-1 rounded-xl bg-surface-container-high p-1">
           {DIRECTIONS.map((d) => (
             <button
               key={d.key}
               type="button"
               onClick={() => onDirectionChange(d.key)}
-              className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+              className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold transition-colors sm:px-4 ${
                 direction === d.key
                   ? "bg-surface-container-lowest text-on-surface shadow-sm"
                   : "text-on-surface-variant hover:text-on-surface"
               }`}
             >
-              <Icon name={d.icon} size={17} />
+              <Icon name={d.icon} size={17} className="shrink-0" />
               {d.label}
             </button>
           ))}

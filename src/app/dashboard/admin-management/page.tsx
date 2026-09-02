@@ -230,7 +230,7 @@ export default function AdminManagementPage() {
   if (!isLoaded || !isSuperAdmin(role)) return null;
 
   return (
-    <div className="mx-auto max-w-6xl p-6 md:p-8">
+    <div className="mx-auto max-w-6xl p-4 sm:p-6 md:p-8">
       {/* Header */}
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>

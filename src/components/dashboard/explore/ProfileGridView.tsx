@@ -33,7 +33,7 @@ export function ProfileGridView({ matches, loading, error, onReload }: ProfileGr
   const { sender } = useSenderIdentity(proposalRecipient != null);
 
   return (
-    <div className="thin-scrollbar h-full overflow-y-auto bg-surface px-6 pb-6 pt-16">
+    <div className="thin-scrollbar h-full overflow-y-auto bg-surface px-3 pb-4 pt-16 sm:px-6 sm:pb-6">
       <AsyncState
         loading={loading}
         error={error}
@@ -42,7 +42,7 @@ export function ProfileGridView({ matches, loading, error, onReload }: ProfileGr
         emptyIcon="group_off"
         emptyText="No matches to explore right now."
       >
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-4 sm:gap-5">
           {matches.map((match) => (
             <ProfileGridCard
               key={match.profileId}

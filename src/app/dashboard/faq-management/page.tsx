@@ -134,7 +134,7 @@ export default function FaqManagementPage() {
   if (!isLoaded || !isStaffRole(role)) return null;
 
   return (
-    <div className="mx-auto max-w-5xl p-6 md:p-8">
+    <div className="mx-auto max-w-5xl p-4 sm:p-6 md:p-8">
       {/* Header */}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>

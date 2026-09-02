@@ -117,7 +117,7 @@ export function FileUploadField({
         {optional && <span className="font-medium normal-case text-primary"> (Optional)</span>}
       </span>
 
-      <div className="relative flex items-center gap-3">
+      <div className="relative flex min-w-0 items-center gap-3">
         {required && (
           // Focusable, visually-hidden mirror so native form validation enforces a
           // *scanned* file (keyed off the s3Key, not just a local selection).
@@ -135,7 +135,7 @@ export function FileUploadField({
           id={id}
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="flex shrink-0 items-center gap-1.5 rounded-lg bg-surface-container-highest px-4 py-2 text-sm font-semibold text-on-surface transition-colors hover:bg-surface-variant disabled:opacity-60"
+          className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-surface-container-highest px-3 py-2 text-sm font-semibold text-on-surface transition-colors hover:bg-surface-variant disabled:opacity-60 sm:px-4"
         >
           <Icon name="upload_file" size={18} />
           Upload
@@ -161,7 +161,7 @@ export function FileUploadField({
             </button>
           </span>
         ) : (
-          <span className="truncate text-sm text-on-surface-variant">{hint}</span>
+          <span className="min-w-0 truncate text-sm text-on-surface-variant">{hint}</span>
         )}
 
         <input

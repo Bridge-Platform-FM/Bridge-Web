@@ -9,6 +9,7 @@ import { Loader } from "@/components/common/loader";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
 import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewModal";
 import { DocumentUploadCard, type ScannedDoc, type UploadSlot } from "@/components/onboarding/DocumentUploadCard";
+import { DOC_MAX_MB } from "@/config/docTypes";
 import { useFilePreview } from "@/lib/useFilePreview";
 import { getKycDocs } from "@/services/file.service";
 import { saveKycInfo } from "@/services/kyc.service";
@@ -72,11 +73,11 @@ const NEXT_STEPS = [
 
 function TimeBox({ value, unit }: { value: string; unit: string }) {
   return (
-    <div className="flex flex-col items-center gap-2">
-      <div className="flex size-16 items-center justify-center rounded-lg bg-surface-container font-headline text-2xl font-bold text-on-surface">
+    <div className="flex flex-col items-center gap-1.5 sm:gap-2">
+      <div className="flex size-12 items-center justify-center rounded-lg bg-surface-container font-headline text-xl font-bold text-on-surface sm:size-16 sm:text-2xl">
         {value}
       </div>
-      <span className="text-xs uppercase text-on-surface-variant">{unit}</span>
+      <span className="text-[11px] uppercase text-on-surface-variant sm:text-xs">{unit}</span>
     </div>
   );
 }
@@ -274,7 +275,7 @@ export default function VerificationStatusPage() {
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)] w-full items-center justify-center px-4 py-4">
-    <div className="mx-auto w-full max-w-[760px] rounded-2xl bg-surface-container-lowest ambient-shadow border border-white/40 flex flex-col gap-3 !p-5 sm:!p-6 lg:gap-4 lg:!p-6">
+    <div className="mx-auto flex w-full max-w-[760px] flex-col gap-3 rounded-2xl border border-white/40 bg-surface-container-lowest p-4 ambient-shadow sm:p-6 lg:gap-4">
       <FocusedHeader backLabel="Back to Overview" backHref="/registration/document-upload" />
 
       {/* <div className="mb-8 mt-4 rounded-xl bg-surface-container-low p-6">
@@ -282,18 +283,18 @@ export default function VerificationStatusPage() {
       </div> */}
 
       {/* Status hero */}
-      <div className="flex flex-col items-center px-4 text-center">
+      <div className="flex flex-col items-center text-center sm:px-4">
         <div
-          className={`mb-3 flex size-12 items-center justify-center rounded-full shadow-sm ${
+          className={`mb-3 flex size-11 items-center justify-center rounded-full shadow-sm sm:size-12 ${
             isRejected ? "bg-error-container text-error" : "bg-primary-container text-primary"
           }`}
         >
           <Icon name={isRejected ? "gpp_bad" : "pending_actions"} size={24} />
         </div>
-        <h1 className="mb-2 font-headline text-2xl font-extrabold tracking-tight text-on-surface md:text-3xl">
+        <h1 className="mb-2 font-headline text-xl font-extrabold tracking-tight text-on-surface sm:text-2xl md:text-3xl">
           {isRejected ? "Verification Unsuccessful" : "Verification in Progress"}
         </h1>
-        <p className="max-w-[600px] text-base leading-relaxed text-on-surface-variant">
+        <p className="max-w-[600px] text-sm leading-relaxed text-on-surface-variant sm:text-base">
           {isRejected
             ? "Our compliance team couldn't verify your documents. Please review the reason below, then re-upload the corrected documents."
             : "We've received your documents. Our compliance team is currently performing a secure audit to ensure your account's safety."}
@@ -305,9 +306,9 @@ export default function VerificationStatusPage() {
         <div className="flex w-full flex-col gap-2">
           <label
             htmlFor="rejectionReason"
-            className="flex items-center gap-2 px-1 font-headline text-base font-extrabold tracking-tight text-error"
+            className="flex items-center gap-2 px-1 font-headline text-sm font-extrabold tracking-tight text-error sm:text-base"
           >
-            <Icon name="error" size={20} />
+            <Icon name="error" size={20} className="shrink-0" />
             Reason for rejection
           </label>
           <Textarea
@@ -324,24 +325,26 @@ export default function VerificationStatusPage() {
           the submission has been rejected. */}
       {!isRejected && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="flex flex-col items-center justify-center rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-5 shadow-sm">
-            <span className="mb-4 font-label text-sm uppercase tracking-wider text-on-surface-variant">Estimated Time Remaining</span>
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col items-center justify-center rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-4 shadow-sm sm:p-5">
+            <span className="mb-3 text-center font-label text-xs uppercase tracking-wider text-on-surface-variant sm:mb-4 sm:text-sm">
+              Estimated Time Remaining
+            </span>
+            <div className="flex items-center gap-2 sm:gap-4">
               <TimeBox value={loading || expiryMs == null ? "--" : pad(hours)} unit="Hours" />
-              <span className="mb-6 text-2xl font-bold text-surface-dim">:</span>
+              <span className="mb-5 text-xl font-bold text-surface-dim sm:mb-6 sm:text-2xl">:</span>
               <TimeBox value={loading || expiryMs == null ? "--" : pad(mins)} unit="Mins" />
-              <span className="mb-6 text-2xl font-bold text-surface-dim">:</span>
+              <span className="mb-5 text-xl font-bold text-surface-dim sm:mb-6 sm:text-2xl">:</span>
               <TimeBox value={loading || expiryMs == null ? "--" : pad(secs)} unit="Secs" />
             </div>
           </div>
 
-          <div className="rounded-xl border border-outline-variant/10 bg-surface-container-high p-5">
-            <h3 className="mb-3 font-headline font-bold text-on-surface">What happens next?</h3>
+          <div className="rounded-xl border border-outline-variant/10 bg-surface-container-high p-4 sm:p-5">
+            <h3 className="mb-3 font-headline text-sm font-bold text-on-surface sm:text-base">What happens next?</h3>
             <ul className="space-y-3">
               {NEXT_STEPS.map((s) => (
-                <li key={s.text} className="flex items-start gap-3">
-                  <Icon name={s.icon} size={20} className="text-primary" />
-                  <p className="text-sm text-on-surface-variant">{s.text}</p>
+                <li key={s.text} className="flex items-start gap-2.5 sm:gap-3">
+                  <Icon name={s.icon} size={20} className="mt-0.5 shrink-0 text-primary" />
+                  <p className="text-xs text-on-surface-variant sm:text-sm">{s.text}</p>
                 </li>
               ))}
             </ul>
@@ -351,7 +354,7 @@ export default function VerificationStatusPage() {
 
       {/* Submitted documents */}
       <div>
-        <h3 className="mb-3 font-headline text-lg font-bold text-on-surface">Submitted Documents</h3>
+        <h3 className="mb-3 font-headline text-base font-bold text-on-surface sm:text-lg">Submitted Documents</h3>
         {loading ? (
           <p className="flex items-center justify-center gap-2 rounded-lg border border-outline-variant/20 bg-surface-container-highest px-4 py-6 text-center text-sm text-on-surface-variant">
             <Icon name="progress_activity" size={18} className="animate-spin text-primary" /> Loading your documents…
@@ -361,7 +364,7 @@ export default function VerificationStatusPage() {
             <Icon name="error" size={18} className="text-error" /> {loadError}
           </p>
         ) : submitted.length > 0 ? (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
             {submitted.map((d) => (
               <SubmittedDocTile key={d.label} doc={d} onPreview={() => setPreviewKey(d.s3Key)} />
             ))}
@@ -376,7 +379,7 @@ export default function VerificationStatusPage() {
       {/* Replace the rejected documents — only the ones the reviewer flagged. */}
       {rejectedTypes.length > 0 && (
         <div className="flex flex-col gap-3">
-          <h3 className="font-headline text-lg font-bold text-on-surface">
+          <h3 className="font-headline text-base font-bold text-on-surface sm:text-lg">
             Re-upload rejected document{rejectedTypes.length > 1 ? "s" : ""}
           </h3>
 
@@ -429,7 +432,7 @@ export default function VerificationStatusPage() {
                 scanType="image"
                 docType={t}
                 slots={cfg.slots}
-                maxSizeMB={10}
+                maxSizeMB={DOC_MAX_MB[t]}
                 onChange={(docs) => setReFiles((prev) => ({ ...prev, [t]: docs }))}
               />
             );
@@ -440,7 +443,7 @@ export default function VerificationStatusPage() {
             variant="primary"
             disabled={!canResubmit || resubmitting}
             onClick={handleResubmit}
-            className="h-12 rounded-xl text-base"
+            className="h-12 rounded-xl max-sm:px-4 max-sm:text-sm"
           >
             {resubmitting ? <Loader size={18} /> : "Resubmit for Verification"}
           </Button>

@@ -87,7 +87,7 @@ export function DocumentPreviewModal({
           <iframe src={pdfSrc ?? undefined} title="Document preview" className="h-[70vh] w-full rounded-lg" />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={url} alt="Document preview" className="mx-auto max-h-[70vh] w-auto rounded-lg" />
+          <img src={url} alt="Document preview" className="mx-auto max-h-[70vh] w-auto max-w-full rounded-lg" />
         )
       ) : url ? (
         <div className="flex h-64 flex-col items-center justify-center gap-2 px-6 text-center">

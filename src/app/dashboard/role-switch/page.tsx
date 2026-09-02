@@ -195,7 +195,7 @@ export default function RoleSwitchReviewPage() {
   if (!isLoaded || !isStaffRole(role)) return null;
 
   return (
-    <div className="mx-auto max-w-6xl p-6 md:p-8">
+    <div className="mx-auto max-w-6xl p-4 sm:p-6 md:p-8">
       {/* Header */}
       <div className="mb-5">
         <h1 className="font-headline text-2xl font-extrabold tracking-[-0.02em] text-on-surface md:text-3xl">
