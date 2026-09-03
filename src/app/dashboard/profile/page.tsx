@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { Loader } from "@/components/common/loader";
 import { getUserProfile, saveUserProfile, type ProfileField } from "@/services/user.service";
-import type { Founder } from "@/components/onboarding/StartupProfileFields";
+import { FoundersList, parseFounders, type Founder } from "@/components/onboarding/StartupProfileFields";
 import {
   getFieldOptionConfig,
   TEXTAREA_COLUMNS,
@@ -401,26 +401,7 @@ function FoundersField({ label, founders }: { label: string; founders: Founder[]
     <div className="flex flex-col gap-2">
       <FieldLabel id={`profile-field-${FOUNDERS_COL}`} label={label} locked />
       <div className="flex min-h-10 flex-col gap-1.5 rounded-lg border border-outline-variant/30 bg-surface-container-low px-3.5 py-2">
-        {founders.length === 0 ? (
-          <span className="text-sm text-outline-variant">—</span>
-        ) : (
-          founders.map((f, i) => (
-            <div key={`${f.name}-${i}`} className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="font-medium text-on-surface">{f.name || "—"}</span>
-              {f.url && (
-                <a
-                  href={f.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-primary transition-colors hover:underline"
-                >
-                  <Icon name="link" size={14} />
-                  LinkedIn
-                </a>
-              )}
-            </div>
-          ))
-        )}
+        <FoundersList founders={founders} />
       </div>
     </div>
   );
@@ -941,12 +922,11 @@ export default function ProfilePage() {
     // Founders → name + LinkedIn rows. Must come before the generic array branch,
     // which assumes option codes and would try to render an object as a chip.
     if (field.columnName === FOUNDERS_COL) {
-      const raw = field.value;
       return (
         <div key={field.columnName} className="sm:col-span-2">
           <FoundersField
             label={field.label ?? "Founders & LinkedIn"}
-            founders={Array.isArray(raw) ? (raw as unknown as Founder[]) : []}
+            founders={parseFounders(field.value)}
           />
         </div>
       );

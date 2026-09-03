@@ -12,11 +12,13 @@ import { Modal } from "@/components/modal/Modal";
 import { ProfilePreview } from "@/components/onboarding/ProfilePreview";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
 import { useOnboarding, type OnboardingData } from "@/components/onboarding/OnboardingProvider";
-import { COUNTRIES, CONTINENTS, continentForCountry } from "@/lib/countries";
+import { COUNTRIES, CONTINENTS, continentForCountry, DIAL_CODES } from "@/lib/countries";
+import { PHONE_REGEX } from "@/lib/validation";
 import { PRIMARY_SECTORS } from "@/lib/b2b-profile-options";
 import {
   StartupProfileFields,
   defaultStartupValues,
+  parseFounders,
   type StartupValues,
   type Founder,
   type CompleteProfileForm,
@@ -70,6 +72,17 @@ const parseTeamSize = (v: string): { min?: number; max?: number } => {
   return { min: toInt(min ?? ""), max: toInt(max ?? "") };
 };
 
+/** Repeatable Founders & LinkedIn rows → `{ name, url }[]` for the jsonb column. */
+function normalizeFounders(rows: Founder[] | undefined): { name: string; url: string }[] {
+  if (!Array.isArray(rows)) return [];
+  return rows
+    .map((row) => {
+      const rec = row && typeof row === "object" ? (row as { name?: unknown; url?: unknown }) : {};
+      return { name: String(rec.name ?? "").trim(), url: String(rec.url ?? "").trim() };
+    })
+    .filter((f) => f.name.length > 0 && f.url.length > 0);
+}
+
 /**
  * Drop only `undefined` / `null`, so the payload carries EVERY field the role's form
  * shows — an untouched optional field is sent as `""` / `[]` rather than vanishing.
@@ -110,11 +123,25 @@ function firstError(
   return null;
 }
 
-/** True for a value we'd treat as "not filled in yet": "", undefined, null, or []. */
+/**
+ * True for a value we'd treat as "not filled in yet": "", undefined, null, [],
+ * or the empty founder placeholder `[{ name: "", url: "" }]`.
+ *
+ * That placeholder is the form default for Founders & LinkedIn. Without treating
+ * it as blank, mergeKeepingFilled keeps it over GET /users/profile and the saved
+ * name + URL never appear when the page is reopened.
+ */
 function isBlank(value: unknown): boolean {
   if (value === undefined || value === null) return true;
   if (typeof value === "string") return value.trim() === "";
-  if (Array.isArray(value)) return value.length === 0;
+  if (Array.isArray(value)) {
+    if (value.length === 0) return true;
+    return value.every((row) => {
+      if (!row || typeof row !== "object" || Array.isArray(row)) return false;
+      const rec = row as { name?: unknown; url?: unknown };
+      return String(rec.name ?? "").trim() === "" && String(rec.url ?? "").trim() === "";
+    });
+  }
   return false;
 }
 
@@ -154,6 +181,7 @@ function toUserProfilePayload(values: CompleteProfileForm, role: string): UserPr
     country: values.country,
     continent: values.continent,
     mobile_number: values.contact,
+    country_code: values.countryCode,
     company_email: values.email,
     primary_sector: values.primarySectors,
   };
@@ -178,8 +206,8 @@ function toUserProfilePayload(values: CompleteProfileForm, role: string): UserPr
       pitch_deck_certificate: s.pitchDeck,
       business_description: s.businessDescription,
       startup_intent: s.intent,
-      // Drop half-filled rows; `prune` then drops the key entirely if none survive.
-      founders: (s.founders ?? []).filter((f) => f.name.trim() && f.url.trim()),
+      // Always send the key so User.update writes the jsonb column (even as []).
+      founders: normalizeFounders(s.founders),
     });
   }
 
@@ -306,6 +334,7 @@ function buildProfilePrefillPatch(fields: ProfileField[], role: string): Profile
   // the real values instead of a blank locked field.
   if (has("company_email")) patch.email = str("company_email");
   if (has("mobile_number")) patch.contact = str("mobile_number");
+  if (has("country_code")) patch.countryCode = str("country_code");
   if (has("gst_number")) patch.gstNumber = str("gst_number");
   if (has("cin_number")) patch.cinNumber = str("cin_number");
 
@@ -328,11 +357,9 @@ function buildProfilePrefillPatch(fields: ProfileField[], role: string): Profile
     if (has("pitch_deck_certificate")) startup.pitchDeck = str("pitch_deck_certificate");
     if (has("business_description")) startup.businessDescription = str("business_description");
     if (has("startup_intent")) startup.intent = str("startup_intent");
-    // jsonb column — comes back as a real array of objects, not a CSV/JSON string.
-    const founders = byColumn.get("founders");
-    if (Array.isArray(founders) && founders.length > 0) {
-      startup.founders = founders as unknown as Founder[];
-    }
+    // jsonb column — array of {name, url}, sometimes a JSON string.
+    const founders = parseFounders(byColumn.get("founders"));
+    if (founders.length > 0) startup.founders = founders;
     if (linkedinUrl) startup.linkedinUrl = linkedinUrl;
     if (websiteUrl) startup.websiteUrl = websiteUrl;
     if (Object.keys(startup).length > 0) patch.startup = startup;
@@ -404,6 +431,7 @@ function buildFormDefaults(data: OnboardingData): CompleteProfileForm {
     primarySectors: (data.primarySectors as string[]) ?? [],
     legalName: (data.legalName as string) ?? "",
     email: (data.email as string) ?? "",
+    countryCode: (data.countryCode as string) || "+91",
     contact: (data.contact as string) ?? "",
     role: (data.role as string) ?? "",
     gstNumber: (data.gstNumber as string) ?? "",
@@ -493,14 +521,26 @@ export default function CompleteProfilePage() {
         // `keepDirtyValues` is the belt to mergeKeepingFilled's braces: RHF itself
         // refuses to overwrite any field the user has already edited, so a slow
         // profile GET can never wipe input typed while it was in flight.
-        reset(mergeKeepingFilled(getValues(), fetched), { keepDirtyValues: true });
+        const merged = mergeKeepingFilled(getValues(), fetched);
+        reset(merged, { keepDirtyValues: true });
+        // useFieldArray + keepDirtyValues can leave the empty placeholder row in
+        // place even after reset. Force the saved rows onto the field array.
+        const founders = parseFounders(merged.startup?.founders);
+        if (founders.length > 0) {
+          setValue("startup.founders", founders, { shouldDirty: false });
+        }
       })
       .catch(() => {
         // No saved profile yet, or a transient failure — re-derive from `data` alone so
         // the now-current onboarding state (legalName/role included) still lands even
         // though the API had nothing to add. Same keep-what's-filled merge.
         if (cancelled) return;
-        reset(mergeKeepingFilled(getValues(), buildFormDefaults(data)), { keepDirtyValues: true });
+        const merged = mergeKeepingFilled(getValues(), buildFormDefaults(data));
+        reset(merged, { keepDirtyValues: true });
+        const founders = parseFounders(merged.startup?.founders);
+        if (founders.length > 0) {
+          setValue("startup.founders", founders, { shouldDirty: false });
+        }
       });
     return () => {
       cancelled = true;
@@ -524,10 +564,8 @@ export default function CompleteProfilePage() {
   };
 
   const onSubmit = async (values: CompleteProfileForm) => {
-    // Build the backend-shaped payload (snake_case keys matching the `user` table).
-    const profilePayload = toUserProfilePayload(values, role);
-
     try {
+      const profilePayload = toUserProfilePayload(values, role);
       const res = await buildProfile(profilePayload);
       toast.success(res.message ?? "Profile saved.");
       // Persist UI-shaped fields so prefill keeps working on back-navigation.
@@ -539,6 +577,8 @@ export default function CompleteProfilePage() {
         continent: values.continent,
         primarySectors: values.primarySectors,
         photo: values.photo,
+        countryCode: values.countryCode,
+        contact: values.contact,
         ...(role === "startup" ? { startup: values.startup } : {}),
         ...(role === "investor" ? { investor: values.investor } : {}),
         ...(role === "b2b_enterprise" ? { b2b: values.b2b } : {}),
@@ -686,16 +726,58 @@ export default function CompleteProfilePage() {
                 className="cursor-not-allowed !bg-surface-container border-dashed text-on-surface-variant"
                 {...register("email")}
               />
-              <Input
-                label="Phone"
-                required
-                type="tel"
-                readOnly
-                adornment={<Icon name="lock" size={18} />}
-                adornmentClassName="text-outline-variant"
-                className="cursor-not-allowed !bg-surface-container border-dashed text-on-surface-variant"
-                {...register("contact")}
-              />
+              <div className="flex flex-col gap-2">
+                <span className="px-1 font-label text-xs font-bold tracking-wide text-on-surface-variant">
+                  Phone<span className="align-middle text-base leading-none text-error"> *</span>
+                </span>
+                <div
+                  className={`relative flex h-10 w-full min-w-0 items-center rounded-lg border bg-surface-container-low transition-all duration-200 focus-within:border-primary focus-within:bg-surface-container-lowest focus-within:ring-2 focus-within:ring-primary/10 ${
+                    errors.contact?.message || errors.countryCode?.message
+                      ? "border-error/80 ring-2 ring-error/10"
+                      : "border-outline-variant/30"
+                  }`}
+                >
+                  <div className="w-[4.4rem] shrink-0 sm:w-[4.8rem]">
+                    <Controller
+                      control={control}
+                      name="countryCode"
+                      rules={{ required: "Country code is required." }}
+                      render={({ field: cc }) => (
+                        <Select
+                          aria-label="Country code"
+                          searchable
+                          placeholder="Code"
+                          options={DIAL_CODES}
+                          value={cc.value}
+                          onChange={cc.onChange}
+                          className="flex h-10 w-full cursor-pointer items-center justify-between gap-1 bg-transparent px-2.5 text-left text-sm text-on-surface outline-none hover:opacity-85 sm:px-3"
+                          panelClassName="w-64 max-w-[calc(100vw-2.5rem)] sm:w-80"
+                          displayValueOnly
+                        />
+                      )}
+                    />
+                  </div>
+                  <div className="h-5 w-px shrink-0 bg-outline-variant/30" />
+                  <input
+                    id="contact"
+                    type="tel"
+                    placeholder="9632585698"
+                    className="h-full min-w-0 flex-1 bg-transparent px-2.5 text-sm text-on-surface outline-none placeholder:text-outline-variant sm:px-3"
+                    {...register("contact", {
+                      required: "Contact number is required.",
+                      pattern: { value: PHONE_REGEX, message: "Enter a valid 10-digit mobile number." },
+                    })}
+                  />
+                  <div className="flex shrink-0 items-center pr-2.5 text-on-surface-variant sm:pr-3">
+                    <Icon name="smartphone" size={18} />
+                  </div>
+                </div>
+                {(errors.countryCode?.message || errors.contact?.message) && (
+                  <span className="px-1 text-xs font-medium text-error">
+                    {errors.contact?.message ?? errors.countryCode?.message}
+                  </span>
+                )}
+              </div>
               {role === "b2b_enterprise" && (
                 <>
                   <Input
