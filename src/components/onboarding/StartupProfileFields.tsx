@@ -34,6 +34,56 @@ export interface Founder {
   url: string;
 }
 
+/**
+ * Coerce GET /users/profile's `founders` value into `{ name, url }[]`.
+ * The column is jsonb, so the API usually returns a real array of objects — but a
+ * JSON string, `null`, or leftover empty placeholder rows must not blank the UI.
+ */
+export function parseFounders(value: unknown): Founder[] {
+  let raw: unknown = value;
+  if (typeof raw === "string" && raw.trim()) {
+    try {
+      raw = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((row) => {
+      const rec = row && typeof row === "object" ? (row as { name?: unknown; url?: unknown }) : {};
+      return { name: String(rec.name ?? "").trim(), url: String(rec.url ?? "").trim() };
+    })
+    .filter((f) => f.name.length > 0 || f.url.length > 0);
+}
+
+/** Read-only name + LinkedIn URL list used on My Profile and the public profile. */
+export function FoundersList({ founders }: { founders: Founder[] }) {
+  if (founders.length === 0) {
+    return <span className="text-sm text-outline-variant">—</span>;
+  }
+  return (
+    <div className="flex flex-col gap-1.5">
+      {founders.map((f, i) => (
+        <div key={`${f.name || "founder"}-${i}`} className="flex flex-col gap-0.5 text-sm">
+          <span className="font-medium text-on-surface">{f.name || "—"}</span>
+          {f.url ? (
+            <a
+              href={f.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-start gap-1 break-all text-primary hover:underline"
+            >
+              <Icon name="link" size={14} className="mt-0.5 shrink-0" />
+              {f.url}
+            </a>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** All startup profile field values (everything here is JSON-serializable). */
 export interface StartupValues {
   industrySectors: string[];
@@ -62,9 +112,11 @@ export interface CompleteProfileForm {
   continent: string;
   /** Primary Sector — base field shown for every role (multi-select). */
   primarySectors: string[];
-  /** Account fields captured at registration — shown locked/read-only here. */
+  /** Account fields captured at registration — company/role/email stay locked. */
   legalName: string;
   email: string;
+  /** Dial code, e.g. "+91" — same widget as company registration; sent as `country_code`. */
+  countryCode: string;
   contact: string;
   role: string;
   gstNumber: string;
@@ -248,19 +300,48 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
         </span>
         {fields.map((row, i) => (
           <div key={row.id} className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-            <Input
-              placeholder="Founder name"
-              error={e?.founders?.[i]?.name?.message}
-              {...register(`startup.founders.${i}.name`, { required: "Required." })}
+            {/* Controlled inputs — register() + useFieldArray was dropping name/url on submit. */}
+            <Controller
+              control={control}
+              name={`startup.founders.${i}.name`}
+              rules={{ required: "Required." }}
+              render={({ field, fieldState }) => (
+                <Input
+                  id={`founder-name-${i}`}
+                  label="Founder name"
+                  required
+                  placeholder="Founder name"
+                  error={fieldState.error?.message}
+                  name={field.name}
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  ref={field.ref}
+                />
+              )}
             />
-            <Input
-              type="url"
-              placeholder="https://linkedin.com/in/…"
-              error={e?.founders?.[i]?.url?.message}
-              {...register(`startup.founders.${i}.url`, {
+            <Controller
+              control={control}
+              name={`startup.founders.${i}.url`}
+              rules={{
                 required: "Required.",
                 pattern: { value: new RegExp(LINKEDIN_URL_PATTERN, "i"), message: "Enter a valid LinkedIn URL." },
-              })}
+              }}
+              render={({ field, fieldState }) => (
+                <Input
+                  id={`founder-url-${i}`}
+                  label="LinkedIn URL"
+                  required
+                  type="url"
+                  placeholder="https://linkedin.com/in/…"
+                  error={fieldState.error?.message}
+                  name={field.name}
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  ref={field.ref}
+                />
+              )}
             />
             <button
               type="button"
@@ -363,6 +444,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
               maxSizeMB={DOC_MAX_MB.INCORPORATION_CERTIFICATE}
               scanType="document"
               docType={DOC_TYPE.INCORPORATION_CERTIFICATE}
+              value={field.value}
               error={e?.incorporationCert?.message}
               onChange={(res) => field.onChange(res?.s3Key ?? "")}
             />
@@ -384,6 +466,7 @@ export function StartupProfileFields({ control, register, errors }: StartupProfi
               maxSizeMB={DOC_MAX_MB.PITCH_DECK}
               scanType="document"
               docType={DOC_TYPE.PITCH_DECK}
+              value={field.value}
               error={e?.pitchDeck?.message}
               onChange={(res) => field.onChange(res?.s3Key ?? "")}
             />

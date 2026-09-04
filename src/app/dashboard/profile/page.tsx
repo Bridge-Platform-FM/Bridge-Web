@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { Loader } from "@/components/common/loader";
 import { getUserProfile, saveUserProfile, type ProfileField } from "@/services/user.service";
-import type { Founder } from "@/components/onboarding/StartupProfileFields";
+import { FoundersList, parseFounders, type Founder } from "@/components/onboarding/StartupProfileFields";
 import {
   getFieldOptionConfig,
   TEXTAREA_COLUMNS,
@@ -30,7 +30,7 @@ import type { ApiError } from "@/lib/axios";
 import { getAdminProfile, saveAdminProfile } from "@/services/admin.service";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { isStaffRole } from "@/lib/roles";
-import { PHONE_REGEX } from "@/lib/validation";
+import { phoneErrorForDialCode, nationalDigits } from "@/lib/validation";
 
 /**
  * Columns that hold an uploaded document's S3 key (rendered with a Preview button, and
@@ -250,6 +250,8 @@ function buildPayload(
       const n = typeof current === "string" ? toNumber(current) : undefined;
       if (n === undefined) continue; // changed to blank/invalid → can't send as a number
       out[col] = n;
+    } else if (col === PHONE_NUMBER_COL && typeof current === "string") {
+      out[col] = nationalDigits(current);
     } else {
       // Strings/arrays sent as-is — including an intentional clear ("" / []).
       out[col] = current;
@@ -261,10 +263,10 @@ function buildPayload(
 /**
  * Client-side checks run before the save request. Keyed by column so the message
  * can be handed to that field's control, following the project's `errors` state
- * convention. The mobile number reuses the shared `PHONE_REGEX` (and its wording)
- * from registration / Create Admin, so a profile can never be edited into a number
- * the sign-up flow would have rejected. Locked (non-editable) columns are skipped —
- * the user can't have caused a problem there.
+ * convention. The mobile number is checked against the selected dial code (same
+ * rules as registration / complete-profile), so a profile can never be edited into
+ * a number that sign-up would have rejected. Locked (non-editable) columns are
+ * skipped — the user can't have caused a problem there.
  */
 function validateFields(
   fields: ProfileField[],
@@ -275,8 +277,9 @@ function validateFields(
   const phone = fields.find((f) => f.columnName === PHONE_NUMBER_COL);
   if (phone?.isEditable) {
     const value = toStringValue(localValues[PHONE_NUMBER_COL] ?? normalizeValue(phone)).trim();
-    if (!value) found[PHONE_NUMBER_COL] = "Contact number is required.";
-    else if (!PHONE_REGEX.test(value)) found[PHONE_NUMBER_COL] = "Enter a valid 10-digit mobile number.";
+    const code = toStringValue(localValues[PHONE_CODE_COL] ?? "").trim() || "+91";
+    const err = phoneErrorForDialCode(code, value);
+    if (err) found[PHONE_NUMBER_COL] = err;
   }
 
   return found;
@@ -401,26 +404,7 @@ function FoundersField({ label, founders }: { label: string; founders: Founder[]
     <div className="flex flex-col gap-2">
       <FieldLabel id={`profile-field-${FOUNDERS_COL}`} label={label} locked />
       <div className="flex min-h-10 flex-col gap-1.5 rounded-lg border border-outline-variant/30 bg-surface-container-low px-3.5 py-2">
-        {founders.length === 0 ? (
-          <span className="text-sm text-outline-variant">—</span>
-        ) : (
-          founders.map((f, i) => (
-            <div key={`${f.name}-${i}`} className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="font-medium text-on-surface">{f.name || "—"}</span>
-              {f.url && (
-                <a
-                  href={f.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-primary transition-colors hover:underline"
-                >
-                  <Icon name="link" size={14} />
-                  LinkedIn
-                </a>
-              )}
-            </div>
-          ))
-        )}
+        <FoundersList founders={founders} />
       </div>
     </div>
   );
@@ -904,7 +888,14 @@ export default function ProfilePage() {
 
   const handleChange = (col: string, val: string | string[]) => {
     // Clear this column's error as soon as the user edits it; it's re-checked on save.
-    setFieldErrors((prev) => (prev[col] ? { ...prev, [col]: "" } : prev));
+    // Dial-code changes re-check the number against a different country rule, so drop
+    // the stale mobile_number message too.
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      if (prev[col]) next[col] = "";
+      if (col === PHONE_CODE_COL && prev[PHONE_NUMBER_COL]) next[PHONE_NUMBER_COL] = "";
+      return next;
+    });
     setLocalValues((prev) => {
       const next = { ...prev, [col]: val };
       // Country → Continent cascade, same as the registration complete-profile
@@ -941,12 +932,11 @@ export default function ProfilePage() {
     // Founders → name + LinkedIn rows. Must come before the generic array branch,
     // which assumes option codes and would try to render an object as a chip.
     if (field.columnName === FOUNDERS_COL) {
-      const raw = field.value;
       return (
         <div key={field.columnName} className="sm:col-span-2">
           <FoundersField
             label={field.label ?? "Founders & LinkedIn"}
-            founders={Array.isArray(raw) ? (raw as unknown as Founder[]) : []}
+            founders={parseFounders(field.value)}
           />
         </div>
       );

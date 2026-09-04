@@ -10,7 +10,7 @@ import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { Field } from "@/components/dashboard/UserDetailDrawer";
 import { StatusPill } from "@/components/dashboard/kyc-status";
 import { initials, formatDate, timeAgo } from "@/lib/admin-format";
-import { EMAIL_REGEX, PASSWORD_REGEX, PHONE_REGEX } from "@/lib/validation";
+import { EMAIL_REGEX, PASSWORD_REGEX, phoneErrorForDialCode, nationalDigits } from "@/lib/validation";
 import { createAdmin, fetchAdminDetail, updateAdmin } from "@/services/admin.service";
 import type {
   AdminAccount,
@@ -119,7 +119,7 @@ function PermissionGrid({ value, onChange }: { value: string[]; onChange: (next:
 
 type CreateErrors = Partial<Record<keyof CreateAdminPayload, string>>;
 
-/** Default dialling code — the form collects a 10-digit national number only. */
+/** Default dialling code — the national number is validated against this (and any later edit). */
 const DEFAULT_COUNTRY_CODE = "+91";
 
 const EMPTY_FORM: CreateAdminPayload = {
@@ -165,7 +165,8 @@ export function CreateAdminModal({ open, onClose, onCreated }: CreateAdminModalP
     const found: CreateErrors = {};
     if (!form.name.trim()) found.name = "Full name is required.";
     if (!EMAIL_REGEX.test(form.email.trim())) found.email = "Enter a valid email address.";
-    if (!PHONE_REGEX.test(form.mobileNumber.trim())) found.mobileNumber = "Enter a valid 10-digit mobile number.";
+    const phoneErr = phoneErrorForDialCode(form.countryCode, form.mobileNumber);
+    if (phoneErr) found.mobileNumber = phoneErr;
     if (!PASSWORD_REGEX.test(form.password))
       found.password = "Min 8 characters with upper, lower, number and symbol.";
     if (!form.permissions.some((p) => p.isAllowed)) found.permissions = "Grant at least one module.";
@@ -179,7 +180,12 @@ export function CreateAdminModal({ open, onClose, onCreated }: CreateAdminModalP
 
     setSaving(true);
     try {
-      await createAdmin({ ...form, name: form.name.trim(), email: form.email.trim() });
+      await createAdmin({
+        ...form,
+        name: form.name.trim(),
+        email: form.email.trim(),
+        mobileNumber: nationalDigits(form.mobileNumber),
+      });
       toast.success(`${form.name.trim()} was added as an admin.`);
       onCreated();
       onClose();
@@ -468,8 +474,10 @@ export function AdminDetailDrawer({ admin, onClose, onSaved }: AdminDetailDrawer
 
     const found: Partial<Record<keyof EditForm, string>> = {};
     if (form.name.trim().length < 2) found.name = "Name must be at least 2 characters.";
-    if (form.mobileNumber && !PHONE_REGEX.test(form.mobileNumber.trim()))
-      found.mobileNumber = "Enter a valid 10-digit mobile number.";
+    if (form.mobileNumber) {
+      const phoneErr = phoneErrorForDialCode(form.countryCode, form.mobileNumber, false);
+      if (phoneErr) found.mobileNumber = phoneErr;
+    }
     setFormErrors(found);
     if (Object.keys(found).length > 0) return;
 
@@ -478,7 +486,7 @@ export function AdminDetailDrawer({ admin, onClose, onSaved }: AdminDetailDrawer
       const saved = await updateAdmin(a.id, {
         name: form.name.trim(),
         countryCode: form.countryCode.trim(),
-        mobileNumber: form.mobileNumber.trim(),
+        mobileNumber: nationalDigits(form.mobileNumber),
         permissions: form.permissions,
       });
       // The PUT returns the account but not the permission matrix, so keep ours.

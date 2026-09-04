@@ -186,7 +186,7 @@ export function ProfilePreview({ values, photoUrl, role }: ProfilePreviewProps) 
     { label: "Company Name", value: values.legalName },
     { label: "Role", value: ROLE_LABELS[values.role] ?? values.role },
     { label: "Email", value: values.email },
-    { label: "Phone", value: values.contact },
+    { label: "Phone", value: [values.countryCode, values.contact].filter(Boolean).join(" ") },
   ];
   if (role === "b2b_enterprise") {
     accountRows.push(

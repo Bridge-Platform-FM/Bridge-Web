@@ -9,6 +9,7 @@ import { Loader } from "@/components/common/loader";
 import { normalizeRole, type Role } from "@/lib/roles";
 import { getUserRoleDetails, type ProfileField } from "@/services/user.service";
 import { normalizeValue, PROFILE_SECTIONS } from "@/app/dashboard/profile/page";
+import { parseFounders, FoundersList } from "@/components/onboarding/StartupProfileFields";
 import { getFieldOptionConfig } from "@/lib/profile-field-options";
 import { ProposalFormModal } from "@/components/dashboard/connections/ProposalFormModal";
 import { useSenderIdentity } from "@/components/dashboard/connections/sender-identity";
@@ -68,7 +69,10 @@ function ReadOnlyField({
   const dash = <span className="text-sm text-outline-variant">—</span>;
   let body: ReactNode;
 
-  if (Array.isArray(normalized)) {
+  if (field.columnName === "founders") {
+    const founders = parseFounders(field.value);
+    body = <FoundersList founders={founders} />;
+  } else if (Array.isArray(normalized)) {
     // `founders` is an array of {name, url} objects, not option codes — rendering one
     // as a React child throws, so keep only entries that resolve to a string.
     const chips = normalized
