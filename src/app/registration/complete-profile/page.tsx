@@ -13,7 +13,7 @@ import { ProfilePreview } from "@/components/onboarding/ProfilePreview";
 import { FocusedHeader } from "@/components/onboarding/FocusedHeader";
 import { useOnboarding, type OnboardingData } from "@/components/onboarding/OnboardingProvider";
 import { COUNTRIES, CONTINENTS, continentForCountry, DIAL_CODES } from "@/lib/countries";
-import { PHONE_REGEX } from "@/lib/validation";
+import { phoneErrorForDialCode, nationalDigits } from "@/lib/validation";
 import { PRIMARY_SECTORS } from "@/lib/b2b-profile-options";
 import {
   StartupProfileFields,
@@ -180,7 +180,7 @@ function toUserProfilePayload(values: CompleteProfileForm, role: string): UserPr
     short_bio: values.bio,
     country: values.country,
     continent: values.continent,
-    mobile_number: values.contact,
+    mobile_number: nationalDigits(values.contact),
     country_code: values.countryCode,
     company_email: values.email,
     primary_sector: values.primarySectors,
@@ -467,6 +467,7 @@ export default function CompleteProfilePage() {
     setValue,
     getValues,
     reset,
+    trigger,
     formState: { errors, isSubmitting },
   } = useForm<CompleteProfileForm>({
     // Captured once at mount — see buildFormDefaults' doc comment for why the prefill
@@ -578,7 +579,7 @@ export default function CompleteProfilePage() {
         primarySectors: values.primarySectors,
         photo: values.photo,
         countryCode: values.countryCode,
-        contact: values.contact,
+        contact: nationalDigits(values.contact),
         ...(role === "startup" ? { startup: values.startup } : {}),
         ...(role === "investor" ? { investor: values.investor } : {}),
         ...(role === "b2b_enterprise" ? { b2b: values.b2b } : {}),
@@ -749,7 +750,10 @@ export default function CompleteProfilePage() {
                           placeholder="Code"
                           options={DIAL_CODES}
                           value={cc.value}
-                          onChange={cc.onChange}
+                          onChange={(v) => {
+                            cc.onChange(v);
+                            void trigger("contact");
+                          }}
                           className="flex h-10 w-full cursor-pointer items-center justify-between gap-1 bg-transparent px-2.5 text-left text-sm text-on-surface outline-none hover:opacity-85 sm:px-3"
                           panelClassName="w-64 max-w-[calc(100vw-2.5rem)] sm:w-80"
                           displayValueOnly
@@ -765,7 +769,8 @@ export default function CompleteProfilePage() {
                     className="h-full min-w-0 flex-1 bg-transparent px-2.5 text-sm text-on-surface outline-none placeholder:text-outline-variant sm:px-3"
                     {...register("contact", {
                       required: "Contact number is required.",
-                      pattern: { value: PHONE_REGEX, message: "Enter a valid 10-digit mobile number." },
+                      validate: (v, values) =>
+                        !v?.trim() ? true : (phoneErrorForDialCode(values.countryCode, v, false) ?? true),
                     })}
                   />
                   <div className="flex shrink-0 items-center pr-2.5 text-on-surface-variant sm:pr-3">

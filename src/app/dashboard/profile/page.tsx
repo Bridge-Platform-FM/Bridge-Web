@@ -30,7 +30,7 @@ import type { ApiError } from "@/lib/axios";
 import { getAdminProfile, saveAdminProfile } from "@/services/admin.service";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { isStaffRole } from "@/lib/roles";
-import { PHONE_REGEX } from "@/lib/validation";
+import { phoneErrorForDialCode, nationalDigits } from "@/lib/validation";
 
 /**
  * Columns that hold an uploaded document's S3 key (rendered with a Preview button, and
@@ -250,6 +250,8 @@ function buildPayload(
       const n = typeof current === "string" ? toNumber(current) : undefined;
       if (n === undefined) continue; // changed to blank/invalid → can't send as a number
       out[col] = n;
+    } else if (col === PHONE_NUMBER_COL && typeof current === "string") {
+      out[col] = nationalDigits(current);
     } else {
       // Strings/arrays sent as-is — including an intentional clear ("" / []).
       out[col] = current;
@@ -261,10 +263,10 @@ function buildPayload(
 /**
  * Client-side checks run before the save request. Keyed by column so the message
  * can be handed to that field's control, following the project's `errors` state
- * convention. The mobile number reuses the shared `PHONE_REGEX` (and its wording)
- * from registration / Create Admin, so a profile can never be edited into a number
- * the sign-up flow would have rejected. Locked (non-editable) columns are skipped —
- * the user can't have caused a problem there.
+ * convention. The mobile number is checked against the selected dial code (same
+ * rules as registration / complete-profile), so a profile can never be edited into
+ * a number that sign-up would have rejected. Locked (non-editable) columns are
+ * skipped — the user can't have caused a problem there.
  */
 function validateFields(
   fields: ProfileField[],
@@ -275,8 +277,9 @@ function validateFields(
   const phone = fields.find((f) => f.columnName === PHONE_NUMBER_COL);
   if (phone?.isEditable) {
     const value = toStringValue(localValues[PHONE_NUMBER_COL] ?? normalizeValue(phone)).trim();
-    if (!value) found[PHONE_NUMBER_COL] = "Contact number is required.";
-    else if (!PHONE_REGEX.test(value)) found[PHONE_NUMBER_COL] = "Enter a valid 10-digit mobile number.";
+    const code = toStringValue(localValues[PHONE_CODE_COL] ?? "").trim() || "+91";
+    const err = phoneErrorForDialCode(code, value);
+    if (err) found[PHONE_NUMBER_COL] = err;
   }
 
   return found;
@@ -885,7 +888,14 @@ export default function ProfilePage() {
 
   const handleChange = (col: string, val: string | string[]) => {
     // Clear this column's error as soon as the user edits it; it's re-checked on save.
-    setFieldErrors((prev) => (prev[col] ? { ...prev, [col]: "" } : prev));
+    // Dial-code changes re-check the number against a different country rule, so drop
+    // the stale mobile_number message too.
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      if (prev[col]) next[col] = "";
+      if (col === PHONE_CODE_COL && prev[PHONE_NUMBER_COL]) next[PHONE_NUMBER_COL] = "";
+      return next;
+    });
     setLocalValues((prev) => {
       const next = { ...prev, [col]: val };
       // Country → Continent cascade, same as the registration complete-profile
