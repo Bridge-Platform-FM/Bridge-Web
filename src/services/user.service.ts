@@ -24,8 +24,10 @@ export interface ProfileField {
    * (`ticket_size_amt_min`, `number_of_investments_to_date`, `years_in_operation`, …)
    * arrives as a real JSON **number**, not a string. Normalize with the profile page's
    * `normalizeValue` before rendering; a raw number handed to an input renders blank.
+   *
+   * `founders` is the exception: jsonb `[{ name, url }, …]`, not a string list.
    */
-  value: string | string[] | number;
+  value: string | string[] | number | { name?: string; url?: string }[];
   isEditable: boolean;
   /** Input type: "string" | "number" | "url" | "email" | "textarea" | "array" | ... */
   type: string;

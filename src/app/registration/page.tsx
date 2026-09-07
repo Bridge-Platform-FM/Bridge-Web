@@ -21,7 +21,7 @@ import {
 import { toast } from "sonner";
 import { registerCompany, verifyGst, verifyCin } from "@/services/auth.service";
 import { clearSession } from "@/lib/auth-session";
-import { GST_REGEX, CIN_REGEX, PHONE_REGEX, PASSWORD_REGEX, EMAIL_REGEX } from "@/lib/validation";
+import { GST_REGEX, CIN_REGEX, PASSWORD_REGEX, EMAIL_REGEX, phoneErrorForDialCode, nationalDigits } from "@/lib/validation";
 import { SUCCESS_MESSAGES, ERROR_MESSAGES } from "@/lib/messages";
 import type { ApiError } from "@/lib/axios";
 
@@ -85,6 +85,7 @@ export default function RegisterPage() {
     setValue,
     setError,
     clearErrors,
+    trigger,
     formState: { errors, isSubmitting },
   } = useForm<RegisterForm>({
     defaultValues: {
@@ -243,7 +244,7 @@ export default function RegisterPage() {
       companyName: values.legalName,
       email: values.email,
       countryCode: values.countryCode,
-      phoneNumber: values.contact,
+      phoneNumber: nationalDigits(values.contact),
       password: values.password,
       role: ROLE_MAP[values.role],
       termsAccepted: true,
@@ -262,7 +263,7 @@ export default function RegisterPage() {
         legalName: values.legalName,
         email: values.email,
         countryCode: values.countryCode,
-        contact: values.contact,
+        contact: nationalDigits(values.contact),
         role: values.role,
         gstNumber: values.gstNumber,
         cinNumber: values.cinNumber,
@@ -366,7 +367,10 @@ export default function RegisterPage() {
                         placeholder="Code"
                         options={DIAL_CODES}
                         value={cc.value}
-                        onChange={cc.onChange}
+                        onChange={(v) => {
+                          cc.onChange(v);
+                          void trigger("contact");
+                        }}
                         className="flex h-10 w-full items-center justify-between gap-1 bg-transparent px-2.5 text-left text-sm text-on-surface outline-none cursor-pointer hover:opacity-85 sm:px-3"   
                         panelClassName="w-64 max-w-[calc(100vw-2.5rem)] sm:w-80"
                         displayValueOnly
@@ -382,7 +386,8 @@ export default function RegisterPage() {
                   className="h-full min-w-0 flex-1 bg-transparent px-2.5 text-sm text-on-surface outline-none placeholder:text-outline-variant sm:px-3"
                   {...field("contact", {
                     required: "Contact number is required.",
-                    pattern: { value: PHONE_REGEX, message: "Enter a valid 10-digit mobile number." },
+                    validate: (v, values) =>
+                      !v?.trim() ? true : (phoneErrorForDialCode(values.countryCode, v, false) ?? true),
                   })}
                 />
                 <div className="flex shrink-0 items-center pr-2.5 text-on-surface-variant sm:pr-3">

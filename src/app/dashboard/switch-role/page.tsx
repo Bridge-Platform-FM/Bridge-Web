@@ -236,6 +236,7 @@ function SwitchRoleForm() {
             error={error}
             scanType="document"
             docType={docType}
+            value={typeof values[field.columnName] === "string" ? values[field.columnName] : ""}
             onChange={(doc) => handleChange(field.columnName, doc?.s3Key ?? "")}
           />
         </div>

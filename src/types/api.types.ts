@@ -310,6 +310,8 @@ export interface UserProfilePayload {
   continent?: string;
   organization_name?: string;
   mobile_number?: string;
+  /** Dialling code, e.g. "+91". Same column as company registration. */
+  country_code?: string;
   company_email?: string;
   linkedin_profile_url?: string;
   company_website_url?: string;

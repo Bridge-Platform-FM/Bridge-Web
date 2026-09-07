@@ -72,7 +72,7 @@ export function DocumentPreviewModal({
     ) : undefined;
 
   return (
-    <Modal open={!!s3Key} onClose={onClose} title={title} footer={footer}>
+    <Modal open={!!s3Key} onClose={onClose} title={title} footer={footer} overlayZClass="z-[60]">
       {loading ? (
         <div className="flex h-64 items-center justify-center">
           <Loader size="large" className="text-primary" />

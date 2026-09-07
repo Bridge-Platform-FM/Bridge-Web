@@ -26,6 +26,8 @@ interface ModalProps {
    * it isn't (passing a no-op `onClose` would silently swallow the click instead).
    */
   closeDisabled?: boolean;
+  /** Overlay stacking class. Raise this when opening a modal over another (both default to z-50). */
+  overlayZClass?: string;
 }
 
 /**
@@ -34,7 +36,7 @@ interface ModalProps {
  * so it escapes any parent stacking/overflow context. Closes on ✕, the default
  * Close button, backdrop click and Escape; locks page scroll while open.
  */
-export function Modal({ open, onClose, title, children, footer, maxWidthClass = "max-w-2xl", onBodyScroll, bodyClassName, headerExtra, closeDisabled = false }: ModalProps) {
+export function Modal({ open, onClose, title, children, footer, maxWidthClass = "max-w-2xl", onBodyScroll, bodyClassName, headerExtra, closeDisabled = false, overlayZClass = "z-50" }: ModalProps) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -54,7 +56,7 @@ export function Modal({ open, onClose, title, children, footer, maxWidthClass = 
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xl"
+      className={`fixed inset-0 ${overlayZClass} flex items-center justify-center bg-black/60 p-4 backdrop-blur-xl`}
       onClick={closeDisabled ? undefined : onClose}
     >
       <div

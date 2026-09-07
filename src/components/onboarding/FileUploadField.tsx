@@ -1,11 +1,17 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { scanImage, scanDocument } from "@/services/file.service";
 import type { DocType } from "@/config/docTypes";
 import type { ApiError } from "@/lib/axios";
 import type { ScannedDoc } from "@/components/onboarding/DocumentUploadCard";
+import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewModal";
+
+/** Trim a stored document key; empty / whitespace-only counts as missing. */
+function storedKey(value?: string | null): string {
+  return (value ?? "").trim();
+}
 
 interface FileUploadFieldProps {
   label: string;
@@ -31,6 +37,12 @@ interface FileUploadFieldProps {
   scanType: "image" | "document";
   /** Document type sent to the scan API. */
   docType: DocType;
+  /**
+   * Already-stored S3 key (GET /users/profile, form reset). Without this the
+   * control only knows about a file picked in *this* session, so a returning
+   * user with a saved incorporation certificate / pitch deck looks empty.
+   */
+  value?: string;
 }
 
 /**
@@ -50,12 +62,21 @@ export function FileUploadField({
   id,
   scanType,
   docType,
+  value,
 }: FileUploadFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
-  const [s3Key, setS3Key] = useState<string | null>(null);
+  const [s3Key, setS3Key] = useState<string | null>(storedKey(value) || null);
   const [uploading, setUploading] = useState(false);
   const [rejectMsg, setRejectMsg] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+
+  // Prefill / reset from the parent (RHF reset after GET /users/profile) without
+  // wiping a file the user just picked in this session.
+  useEffect(() => {
+    if (file) return;
+    setS3Key(storedKey(value) || null);
+  }, [value, file]);
 
   // Mirror the latest file so the async scan callback can detect a stale result.
   const fileRef = useRef<File | null>(null);
@@ -138,7 +159,7 @@ export function FileUploadField({
           className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-surface-container-highest px-3 py-2 text-sm font-semibold text-on-surface transition-colors hover:bg-surface-variant disabled:opacity-60 sm:px-4"
         >
           <Icon name="upload_file" size={18} />
-          Upload
+          {s3Key ? "Replace" : "Upload"}
         </button>
 
         {uploading ? (
@@ -151,6 +172,29 @@ export function FileUploadField({
             <Icon name="description" size={16} className="shrink-0 text-primary" />
             <span className="truncate">{file.name}</span>
             {s3Key && <Icon name="check_circle" size={16} filled className="shrink-0 text-primary" />}
+            <button
+              type="button"
+              onClick={() => choose(null)}
+              aria-label="Remove file"
+              className="flex shrink-0 items-center text-on-surface-variant transition-colors hover:text-error"
+            >
+              <Icon name="close" size={16} />
+            </button>
+          </span>
+        ) : s3Key ? (
+          <span className="flex min-w-0 items-center gap-2 text-sm text-on-surface">
+            <Icon name="description" size={16} className="shrink-0 text-primary" />
+            <span className="truncate">Document uploaded</span>
+            <Icon name="check_circle" size={16} filled className="shrink-0 text-primary" />
+            <button
+              type="button"
+              onClick={() => setPreviewOpen(true)}
+              aria-label={`Preview ${label}`}
+              className="flex shrink-0 items-center gap-1 text-sm font-semibold text-primary transition-colors hover:opacity-80"
+            >
+              <Icon name="visibility" size={16} />
+              Preview
+            </button>
             <button
               type="button"
               onClick={() => choose(null)}
@@ -179,6 +223,12 @@ export function FileUploadField({
       {(rejectMsg ?? error) && (
         <span className="px-1 text-xs font-medium text-error">{rejectMsg ?? error}</span>
       )}
+
+      <DocumentPreviewModal
+        s3Key={previewOpen ? s3Key : null}
+        onClose={() => setPreviewOpen(false)}
+        title={label}
+      />
     </div>
   );
 }
