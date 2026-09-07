@@ -139,6 +139,13 @@ select:focus-visible {
   outline: none;
 }
 
+/* Edge injects a native password-reveal eye on input[type=password]. Hide it so
+   it does not sit next to the app's custom show/hide toggle. Other browsers ignore these. */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
+
 /* The App Router moves focus to the main scroll container (or a tabindex=-1
    wrapper) after a client-side navigation/redirect, which makes the browser draw
    its default outline around the whole page. These aren't keyboard-tabbable, so
