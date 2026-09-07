@@ -26,8 +26,17 @@ interface ModalProps {
    * it isn't (passing a no-op `onClose` would silently swallow the click instead).
    */
   closeDisabled?: boolean;
-  /** Overlay stacking class. Raise this when opening a modal over another (both default to z-50). */
+  /**
+   * Overlay stacking class. Prefer `overlayZ` for the actual z-index — this project's
+   * Tailwind setup does not reliably emit arbitrary classes like `z-[60]`, especially
+   * when the class lives on a custom prop instead of `className`.
+   */
   overlayZClass?: string;
+  /**
+   * Overlay z-index, applied as an inline style so it always wins. Default 50 (same as
+   * drawers). Pass 60+ when opening over a drawer or another modal.
+   */
+  overlayZ?: number;
 }
 
 /**
@@ -36,18 +45,22 @@ interface ModalProps {
  * so it escapes any parent stacking/overflow context. Closes on ✕, the default
  * Close button, backdrop click and Escape; locks page scroll while open.
  */
-export function Modal({ open, onClose, title, children, footer, maxWidthClass = "max-w-2xl", onBodyScroll, bodyClassName, headerExtra, closeDisabled = false, overlayZClass = "z-50" }: ModalProps) {
+export function Modal({ open, onClose, title, children, footer, maxWidthClass = "max-w-2xl", onBodyScroll, bodyClassName, headerExtra, closeDisabled = false, overlayZClass = "", overlayZ = 50 }: ModalProps) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !closeDisabled) onClose();
+      if (e.key !== "Escape") return;
+      // Capture + stop so a drawer underneath (also listening for Escape) doesn't
+      // close at the same time as this dialog.
+      e.stopImmediatePropagation();
+      if (!closeDisabled) onClose();
     };
-    document.addEventListener("keydown", onKey);
+    document.addEventListener("keydown", onKey, true);
     // Lock background scroll. The actual scroll container is app-specific
     // (here it's <main>), so we toggle a class and let globals.css lock it.
     document.body.classList.add("modal-open");
     return () => {
-      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("keydown", onKey, true);
       document.body.classList.remove("modal-open");
     };
   }, [open, onClose, closeDisabled]);
@@ -57,13 +70,15 @@ export function Modal({ open, onClose, title, children, footer, maxWidthClass = 
   return createPortal(
     <div
       className={`fixed inset-0 ${overlayZClass} flex items-center justify-center bg-black/60 p-4 backdrop-blur-xl`}
+      style={{ zIndex: overlayZ }}
       onClick={closeDisabled ? undefined : onClose}
     >
       <div
         role="dialog"
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
-        className={`flex max-h-[85vh] w-full ${maxWidthClass} flex-col rounded-2xl border border-white/40 bg-surface-container-lowest ambient-shadow`}
+        style={{ maxHeight: "85vh" }}
+        className={`flex w-full ${maxWidthClass} flex-col rounded-2xl border border-white/40 bg-surface-container-lowest ambient-shadow`}
       >
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-outline/10 p-4 sm:gap-4 sm:p-5">
