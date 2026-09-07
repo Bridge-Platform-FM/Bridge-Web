@@ -1,7 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Icon } from "@/components/ui/Icon";
+import { Avatar } from "@/components/ui/Avatar";
+import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewModal";
 import { COUNTRIES, CONTINENTS } from "@/lib/countries";
 import {
   INDUSTRY_SECTORS,
@@ -78,18 +80,27 @@ function Field({ label, value, full }: Row) {
   );
 }
 
-/** A file field shown as an icon + the stored file-name string. */
-function FileValue({ name }: { name: string }) {
+/** Opens the stored document without exposing its storage key. */
+function ViewDocButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <span className="inline-flex items-center gap-1.5">
-      <Icon name="description" size={16} className="text-primary" />
-      {name}
-    </span>
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`View ${label}`}
+      className="inline-flex items-center gap-1.5 rounded-lg px-2 py-0.5 text-sm font-semibold text-primary transition-colors hover:bg-primary-container/40"
+    >
+      <Icon name="visibility" size={16} />
+      View
+    </button>
   );
 }
 
 /** Builds the role-specific section for the active role. */
-function roleSection(values: CompleteProfileForm, role: string): Section | null {
+function roleSection(
+  values: CompleteProfileForm,
+  role: string,
+  onViewDoc: (s3Key: string, title: string) => void,
+): Section | null {
   if (role === "startup") {
     const s = values.startup;
     const founders = (s.founders ?? []).filter((f: Founder) => f.name || f.url);
@@ -117,8 +128,18 @@ function roleSection(values: CompleteProfileForm, role: string): Section | null 
         { label: "Business Description", value: s.businessDescription, full: true },
         { label: "Website", value: s.websiteUrl },
         { label: "LinkedIn", value: s.linkedinUrl },
-        { label: "Incorporation Certificate", value: s.incorporationCert ? <FileValue name={s.incorporationCert} /> : "" },
-        { label: "Pitch Deck", value: s.pitchDeck ? <FileValue name={s.pitchDeck} /> : "" },
+        {
+          label: "Incorporation Certificate",
+          value: s.incorporationCert
+            ? <ViewDocButton label="Incorporation Certificate" onClick={() => onViewDoc(s.incorporationCert, "Incorporation Certificate")} />
+            : "",
+        },
+        {
+          label: "Pitch Deck",
+          value: s.pitchDeck
+            ? <ViewDocButton label="Pitch Deck" onClick={() => onViewDoc(s.pitchDeck, "Pitch Deck")} />
+            : "",
+        },
       ],
     };
   }
@@ -182,6 +203,8 @@ interface ProfilePreviewProps {
 
 /** Read-only summary of the complete-profile form, shown inside the preview Modal. */
 export function ProfilePreview({ values, photoUrl, role }: ProfilePreviewProps) {
+  const [docPreview, setDocPreview] = useState<{ s3Key: string; title: string } | null>(null);
+
   const accountRows: Row[] = [
     { label: "Company Name", value: values.legalName },
     { label: "Role", value: ROLE_LABELS[values.role] ?? values.role },
@@ -207,12 +230,13 @@ export function ProfilePreview({ values, photoUrl, role }: ProfilePreviewProps) 
         { label: "Primary Sectors", value: optLabels(PRIMARY_SECTORS, values.primarySectors), full: true },
       ],
     },
-    roleSection(values, role),
+    roleSection(values, role, (s3Key, title) => setDocPreview({ s3Key, title })),
     { title: "Bio", rows: [{ label: "Short Bio", value: values.bio, full: true }] },
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <>
+      <div className="flex flex-col gap-6">
       {/* Profile picture */}
       <div className="flex items-center gap-3 sm:gap-4">
         <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-surface-container-highest bg-surface-container-high sm:size-24">
@@ -220,18 +244,15 @@ export function ProfilePreview({ values, photoUrl, role }: ProfilePreviewProps) 
             // eslint-disable-next-line @next/next/no-img-element
             <img src={photoUrl} alt="Profile" className="size-full object-cover" />
           ) : (
-            <Icon name="person" size={36} className="text-surface-dim" />
+            <Avatar photoKey={values.photo} alt="Profile" className="size-full">
+              <Icon name="person" size={36} className="text-surface-dim" />
+            </Avatar>
           )}
         </div>
         <div className="flex min-w-0 flex-col">
           <span className="truncate font-headline text-base font-bold text-on-surface sm:text-lg">
             {[values.firstName, values.lastName].filter(Boolean).join(" ") || "—"}
           </span>
-          {values.photo && (
-            <span className="truncate text-sm text-on-surface-variant">
-              <FileValue name={values.photo} />
-            </span>
-          )}
         </div>
       </div>
 
@@ -249,6 +270,12 @@ export function ProfilePreview({ values, photoUrl, role }: ProfilePreviewProps) 
           </div>
         );
       })}
-    </div>
+      </div>
+      <DocumentPreviewModal
+        s3Key={docPreview?.s3Key ?? null}
+        title={docPreview?.title}
+        onClose={() => setDocPreview(null)}
+      />
+    </>
   );
 }
