@@ -208,7 +208,10 @@ export function DealRoomChat({
   // Open the watermarked preview modal for a shared file. Needs a server-side s3Key —
   // just-picked / demo attachments (no upload yet) have none, so they're skipped.
   const openPreview = (file: PreviewableFile) => {
-    if (!file.s3Key) return;
+    if (!file.s3Key) {
+      toast.error("This file isn't available to preview.");
+      return;
+    }
     setPreview(file);
   };
 
