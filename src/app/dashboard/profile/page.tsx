@@ -166,17 +166,25 @@ const ADMIN_PROFILE_SECTIONS: { title: string; columns: string[] }[] = [
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
+/** API field values plus the local string/string[] working copies. */
+type CoercibleValue = ProfileField["value"] | string[] | null | undefined;
+
+/** Keep only string entries — founders is `[{ name, url }, …]`, not option codes. */
+function stringEntries(value: unknown[]): string[] {
+  return value.filter((v): v is string => typeof v === "string");
+}
+
 /** Coerce any stored value into a string[] (parses JSON / comma-joined strings). */
-function toArrayValue(value: string | string[] | number): string[] {
+function toArrayValue(value: CoercibleValue): string[] {
   // `founders` is an array of {name, url} objects, not option codes. Every consumer of
   // this helper renders entries as text/chips, and a non-string child throws — so drop
   // anything that isn't a string. The profile page renders founders from `field.value`
   // directly (see FoundersField), so nothing is lost here.
-  if (Array.isArray(value)) return value.filter((v): v is string => typeof v === "string");
+  if (Array.isArray(value)) return stringEntries(value);
   if (typeof value === "string" && value.trim()) {
     try {
       const parsed = JSON.parse(value);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) return stringEntries(parsed);
     } catch { /* noop */ }
     return value.split(",").map((s) => s.trim()).filter(Boolean);
   }
@@ -191,9 +199,9 @@ function toArrayValue(value: string | string[] | number): string[] {
  * — so without coercing here, Ticket Size, Number of Investments, Years in Operation,
  * MOQ, Team Size and the funding amounts all render blank.
  */
-function toStringValue(value: string | string[] | number): string {
+function toStringValue(value: CoercibleValue): string {
   if (value === null || value === undefined) return "";
-  return Array.isArray(value) ? value.join(", ") : String(value);
+  return Array.isArray(value) ? stringEntries(value).join(", ") : String(value);
 }
 
 /**

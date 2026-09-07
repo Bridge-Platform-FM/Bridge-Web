@@ -226,6 +226,7 @@ function SwitchRoleForm() {
     // Uploaded document → the same upload control the registration flow uses.
     const docType = DOCUMENT_COLUMNS[field.columnName];
     if (docType) {
+      const stored = values[field.columnName];
       return (
         <div key={field.columnName} className="sm:col-span-2">
           <FileUploadField
@@ -236,7 +237,7 @@ function SwitchRoleForm() {
             error={error}
             scanType="document"
             docType={docType}
-            value={typeof values[field.columnName] === "string" ? values[field.columnName] : ""}
+            value={typeof stored === "string" ? stored : ""}
             onChange={(doc) => handleChange(field.columnName, doc?.s3Key ?? "")}
           />
         </div>
