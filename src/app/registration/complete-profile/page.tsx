@@ -275,13 +275,18 @@ const TEAM_SIZE_RANGES_BY_MIN: Record<number, { value: string; max: number | und
   200: { value: "200+", max: undefined },
 };
 
+/** Keep only string entries — `founders` is `[{ name, url }, …]`, not option codes. */
+function stringEntries(value: unknown[]): string[] {
+  return value.filter((v): v is string => typeof v === "string");
+}
+
 /** GET /users/profile's array type comes back as a real array, or a JSON/CSV string. */
-function fieldToArray(value: string | string[] | number | undefined): string[] {
-  if (Array.isArray(value)) return value;
+function fieldToArray(value: ProfileField["value"] | undefined): string[] {
+  if (Array.isArray(value)) return stringEntries(value);
   if (typeof value === "string" && value.trim()) {
     try {
       const parsed = JSON.parse(value);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) return stringEntries(parsed);
     } catch { /* not JSON — fall through to CSV split */ }
     return value.split(",").map((s) => s.trim()).filter(Boolean);
   }
@@ -291,7 +296,7 @@ function fieldToArray(value: string | string[] | number | undefined): string[] {
  * Scalar field value → plain string; "" for anything missing/array-shaped. The
  * `String()` matters: numeric columns arrive from the API as real JSON numbers.
  */
-function fieldToString(value: string | string[] | number | undefined): string {
+function fieldToString(value: ProfileField["value"] | undefined): string {
   if (value === undefined || value === null || Array.isArray(value)) return "";
   return String(value);
 }
