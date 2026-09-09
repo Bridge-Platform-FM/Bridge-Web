@@ -133,14 +133,29 @@ export default function KycReviewPage() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-bold text-on-surface">{item.applicantName}</p>
                     <p className="truncate text-xs text-on-surface-variant">{item.email}</p>
+                    <p className="truncate text-xs text-on-surface-variant md:hidden">
+                      {item.documents
+                        .map((doc) => `${doc.type}: ${KYC_REVIEW_STATUS_META[doc.status].label}`)
+                        .join(" · ")}
+                    </p>
                   </div>
                   <div className="hidden min-w-0 flex-1 text-sm text-on-surface md:block">
                     <p className="truncate">{item.organizationName ?? "—"}</p>
+                    <p className="truncate text-xs text-on-surface-variant">
+                      {item.documents
+                        .map((doc) => `${doc.type}: ${KYC_REVIEW_STATUS_META[doc.status].label}`)
+                        .join(" · ")}
+                    </p>
                   </div>
                   <div className="hidden shrink-0 text-xs text-on-surface-variant sm:block">
                     {item.submittedAt ? `Submitted ${formatDate(item.submittedAt)}` : ""}
                   </div>
-                  <StatusPill {...KYC_REVIEW_STATUS_META[item.status]} />
+                  <div className="flex shrink-0 flex-col items-end gap-0.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-on-surface-variant">
+                      Account
+                    </span>
+                    <StatusPill {...KYC_REVIEW_STATUS_META[item.status]} />
+                  </div>
                   <Icon name="chevron_right" size={20} className="shrink-0 text-on-surface-variant" />
                 </button>
               </li>

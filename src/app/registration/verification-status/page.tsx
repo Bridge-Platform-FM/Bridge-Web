@@ -14,15 +14,49 @@ import { useFilePreview } from "@/lib/useFilePreview";
 import { getKycDocs } from "@/services/file.service";
 import { saveKycInfo } from "@/services/kyc.service";
 import { AADHAAR_REGEX, PAN_REGEX } from "@/lib/validation";
-import type { GetKycDocsResponse, KycDocEntry, KycDocFile, SaveKycInfoPayload } from "@/types/api.types";
+import { KYC_REVIEW_STATUS_META, StatusPill } from "@/components/dashboard/kyc-status";
+import type { GetKycDocsResponse, KycDocEntry, KycDocFile, KycReviewStatus, SaveKycInfoPayload } from "@/types/api.types";
 import { toast } from "sonner";
 import type { ApiError } from "@/lib/axios";
+
+/** Company / document review state on this page. */
+type ReviewState = KycReviewStatus;
+
+/** Map backend title-case (`Approved` / `Rejected` / `Pending`) to the review enum. */
+function toReviewState(status?: string | null): ReviewState {
+  const s = String(status ?? "").trim().toUpperCase();
+  if (s === "APPROVED" || s === "VERIFIED") return "APPROVED";
+  if (s === "REJECTED") return "REJECTED";
+  return "PENDING";
+}
+
+const ACCOUNT_COPY: Record<ReviewState, { icon: string; iconClass: string; title: string; body: string }> = {
+  PENDING: {
+    icon: "pending_actions",
+    iconClass: "bg-primary-container text-primary",
+    title: "Verification in Progress",
+    body: "We've received your documents. Our compliance team is currently performing a secure audit to ensure your account's safety.",
+  },
+  APPROVED: {
+    icon: "verified_user",
+    iconClass: "bg-primary-container text-primary",
+    title: "Verification Approved",
+    body: "Your documents have been verified. Your account is approved — you can continue to the dashboard.",
+  },
+  REJECTED: {
+    icon: "gpp_bad",
+    iconClass: "bg-error-container text-error",
+    title: "Verification Unsuccessful",
+    body: "Our compliance team couldn't verify your documents. Please review the reason below, then re-upload the corrected documents.",
+  },
+};
 
 /** A submitted document: label + the s3 key returned by the scan upload. */
 interface SubmittedDoc {
   label: string;
   icon: string;
   s3Key: string;
+  status: ReviewState;
 }
 
 /**
@@ -37,7 +71,7 @@ function SubmittedDocTile({ doc, onPreview }: { doc: SubmittedDoc; onPreview: ()
     <button
       type="button"
       onClick={onPreview}
-      className="group relative flex aspect-[16/9] flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border border-outline-variant/20 bg-surface-container-highest text-on-surface-variant transition-colors hover:border-primary/40"
+      className="group relative flex aspect-[16/9] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border border-outline-variant/20 bg-surface-container-highest text-on-surface-variant transition-colors hover:border-primary/40"
     >
       {showThumb ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -58,8 +92,19 @@ function SubmittedDocTile({ doc, onPreview }: { doc: SubmittedDoc; onPreview: ()
         </div>
       )}
 
-      <div className="absolute right-2 top-2 rounded-full bg-primary p-1 text-white">
-        <Icon name="check" size={12} />
+      <div
+        className={`absolute right-2 top-2 rounded-full p-1 ${
+          doc.status === "REJECTED"
+            ? "bg-error text-white"
+            : doc.status === "APPROVED"
+              ? "bg-primary text-white"
+              : "bg-surface-container-high text-on-surface-variant"
+        }`}
+      >
+        <Icon
+          name={doc.status === "REJECTED" ? "close" : doc.status === "APPROVED" ? "check" : "schedule"}
+          size={12}
+        />
       </div>
     </button>
   );
@@ -158,9 +203,9 @@ function mergeDocDetails(docDetails: GetKycDocsResponse["docDetails"]): DocsByTy
 /** Ordered tile list from the merged lookup. */
 function buildSubmittedDocs(byType: DocsByType): SubmittedDoc[] {
   return [
-    { label: "Aadhaar (Front)", icon: "badge", s3Key: byType.AADHAAR?.front?.s3_key },
-    { label: "Aadhaar (Back)", icon: "badge", s3Key: byType.AADHAAR?.back?.s3_key },
-    { label: "PAN Card", icon: "credit_card", s3Key: byType.PAN?.front?.s3_key },
+    { label: "Aadhaar (Front)", icon: "badge", s3Key: byType.AADHAAR?.front?.s3_key, status: toReviewState(byType.AADHAAR?.status) },
+    { label: "Aadhaar (Back)", icon: "badge", s3Key: byType.AADHAAR?.back?.s3_key, status: toReviewState(byType.AADHAAR?.status) },
+    { label: "PAN Card", icon: "credit_card", s3Key: byType.PAN?.front?.s3_key, status: toReviewState(byType.PAN?.status) },
   ].filter((d): d is SubmittedDoc => !!d.s3Key);
 }
 
@@ -224,9 +269,13 @@ export default function VerificationStatusPage() {
 
   const byType = useMemo(() => (kyc ? mergeDocDetails(kyc.docDetails) : {}), [kyc]);
   const submitted = buildSubmittedDocs(byType);
-  // The company-level status is the authoritative one — a rejected submission leaves every
-  // per-document `KycDocEntry.status` at "pending", so those can't be the driver here.
-  const isRejected = kyc?.kycStatus?.toLowerCase() === "rejected";
+  // Company-level `kycStatus` is the account decision. Pending keeps the countdown;
+  // approved / rejected swap the hero copy (rejected also shows the admin's reason).
+  const accountStatus = toReviewState(kyc?.kycStatus);
+  const isRejected = accountStatus === "REJECTED";
+  const isApproved = accountStatus === "APPROVED";
+  const isPending = accountStatus === "PENDING";
+  const copy = ACCOUNT_COPY[accountStatus];
   const hours = Math.floor(remaining / 3600);
   const mins = Math.floor((remaining % 3600) / 60);
   const secs = remaining % 60;
@@ -282,23 +331,22 @@ export default function VerificationStatusPage() {
          <StepProgress stepKey="status" showLabels={false} /> 
       </div> */}
 
-      {/* Status hero */}
+      {/* Status hero — pending / approved / rejected from company `kycStatus`. */}
       <div className="flex flex-col items-center text-center sm:px-4">
         <div
-          className={`mb-3 flex size-11 items-center justify-center rounded-full shadow-sm sm:size-12 ${
-            isRejected ? "bg-error-container text-error" : "bg-primary-container text-primary"
-          }`}
+          className={`mb-3 flex size-11 items-center justify-center rounded-full shadow-sm sm:size-12 ${copy.iconClass}`}
         >
-          <Icon name={isRejected ? "gpp_bad" : "pending_actions"} size={24} />
+          <Icon name={copy.icon} size={24} />
         </div>
         <h1 className="mb-2 font-headline text-xl font-extrabold tracking-tight text-on-surface sm:text-2xl md:text-3xl">
-          {isRejected ? "Verification Unsuccessful" : "Verification in Progress"}
+          {copy.title}
         </h1>
         <p className="max-w-[600px] text-sm leading-relaxed text-on-surface-variant sm:text-base">
-          {isRejected
-            ? "Our compliance team couldn't verify your documents. Please review the reason below, then re-upload the corrected documents."
-            : "We've received your documents. Our compliance team is currently performing a secure audit to ensure your account's safety."}
+          {copy.body}
         </p>
+        <div className="mt-3">
+          <StatusPill {...KYC_REVIEW_STATUS_META[accountStatus]} />
+        </div>
       </div>
 
       {/* Why it was rejected — the admin's note from the review, read-only */}
@@ -321,9 +369,8 @@ export default function VerificationStatusPage() {
         </div>
       )}
 
-      {/* Timer + info — both are about a review still in flight, so they're dropped once
-          the submission has been rejected. */}
-      {!isRejected && (
+      {/* Timer + info — only while the account review is still pending. */}
+      {isPending && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="flex flex-col items-center justify-center rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-4 shadow-sm sm:p-5">
             <span className="mb-3 text-center font-label text-xs uppercase tracking-wider text-on-surface-variant sm:mb-4 sm:text-sm">
@@ -366,7 +413,10 @@ export default function VerificationStatusPage() {
         ) : submitted.length > 0 ? (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
             {submitted.map((d) => (
-              <SubmittedDocTile key={d.label} doc={d} onPreview={() => setPreviewKey(d.s3Key)} />
+              <div key={d.label} className="flex flex-col items-center gap-2">
+                <SubmittedDocTile doc={d} onPreview={() => setPreviewKey(d.s3Key)} />
+                <StatusPill {...KYC_REVIEW_STATUS_META[d.status]} />
+              </div>
             ))}
           </div>
         ) : (
@@ -452,9 +502,15 @@ export default function VerificationStatusPage() {
 
       {/* Actions */}
       <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-        <Button href="/login" leadingIcon="login" className="w-full sm:w-auto">
-          Go to Login
-        </Button>
+        {isApproved ? (
+          <Button href="/dashboard" leadingIcon="dashboard" className="w-full sm:w-auto">
+            Go to Dashboard
+          </Button>
+        ) : (
+          <Button href="/login" leadingIcon="login" className="w-full sm:w-auto">
+            Go to Login
+          </Button>
+        )}
       </div>
       {/* <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
         <button className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-surface-container-high px-8 font-bold text-on-surface transition-all hover:bg-surface-container-highest sm:w-auto">
