@@ -70,6 +70,7 @@ export interface PreviewableFile {
 
 /** A single chat message inside a room. `sender` is relative to the current user. */
 export interface DealMessage {
+  /** Unique across text + media (tables have independent auto-increment ids). */
   id: string;
   /** "me" = current user, "them" = the counterparty. */
   sender: "me" | "them";
