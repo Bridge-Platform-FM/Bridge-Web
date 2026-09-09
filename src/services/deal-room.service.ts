@@ -181,6 +181,18 @@ function toDealRoom(raw: RawRoom): DealRoom {
   };
 }
 
+/**
+ * Text and media live in separate tables with independent auto-increment ids, so a
+ * TEXT row and a DOCUMENT row can both be `id: 5`. The UI (React keys + live-message
+ * de-dupe) must namespace them or a newly shared file is dropped as a "duplicate".
+ */
+function timelineMessageId(raw: RawMessage): string {
+  const isMedia = Boolean(
+    raw.attachment_file_name || (raw.message_type && raw.message_type !== "TEXT"),
+  );
+  return `${isMedia ? "media" : "text"}-${raw.id}`;
+}
+
 /** Normalize one raw message into a UI DealMessage. Exported for the socket handler. */
 export function normalizeMessage(raw: RawMessage): DealMessage {
   const me = getCurrentUserId();
@@ -200,7 +212,7 @@ export function normalizeMessage(raw: RawMessage): DealMessage {
       }
     : undefined;
   return {
-    id: String(raw.id),
+    id: timelineMessageId(raw),
     sender: mine ? "me" : "them",
     authorName: mine ? "You" : fullName(raw.sender?.first_name, raw.sender?.last_name),
     ...(raw.message ? { text: raw.message } : {}),
