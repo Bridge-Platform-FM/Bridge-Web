@@ -56,6 +56,8 @@ export const scanDocument = (file: File, meta: ScanMeta): Promise<ScanResult> =>
  */
 const filePreviewCache = new Map<string, { at: number; promise: Promise<Blob> }>();
 const FILE_PREVIEW_TTL_MS = 10 * 60_000;
+/** Bump when server-side preview HTML/CSS changes so in-session cache is not stale. */
+const FILE_PREVIEW_CACHE_VERSION = 4;
 
 /** Drop every cached preview. Called on logout so blobs don't leak across sessions. */
 export function clearFilePreviewCache(): void {
@@ -68,21 +70,50 @@ export function clearFilePreviewCache(): void {
  * caller turn it into an object URL for rendering.
  */
 export const getFilePreview = (key: string): Promise<Blob> => {
-  const hit = filePreviewCache.get(key);
+  const cacheKey = `${FILE_PREVIEW_CACHE_VERSION}:${key}`;
+  const hit = filePreviewCache.get(cacheKey);
   if (hit && Date.now() - hit.at < FILE_PREVIEW_TTL_MS) return hit.promise;
 
   const promise = api
     .get(API_ENDPOINTS.FILE_PREVIEW, { params: { key: key }, responseType: "blob" })
-    .then((res) => res.data as Blob)
+    .then((res) => {
+      const blob = res.data as Blob;
+      // Axios sometimes leaves blob.type empty even when the server sent a Content-Type
+      // (needed to distinguish PDF vs watermarked HTML for .docx). Copy it over.
+      const headerType = String(res.headers["content-type"] ?? "").split(";")[0].trim();
+      if (headerType && (!blob.type || blob.type === "application/octet-stream")) {
+        return new Blob([blob], { type: headerType });
+      }
+      return blob;
+    })
     .catch((err) => {
       // Never cache a failure — the hook's error state must stay retryable.
-      if (filePreviewCache.get(key)?.promise === promise) filePreviewCache.delete(key);
+      if (filePreviewCache.get(cacheKey)?.promise === promise) filePreviewCache.delete(cacheKey);
       throw err;
     });
 
-  filePreviewCache.set(key, { at: Date.now(), promise });
+  filePreviewCache.set(cacheKey, { at: Date.now(), promise });
   return promise;
 };
+
+/**
+ * Fetch the stored original file (not the HTML preview conversion used for Word/Excel).
+ * Used by the preview modal Download button so .docx / .xlsx / .pptx save as those formats.
+ */
+export const getOriginalFile = (key: string): Promise<Blob> =>
+  api
+    .get(API_ENDPOINTS.FILE_PREVIEW, {
+      params: { key, download: "1" },
+      responseType: "blob",
+    })
+    .then((res) => {
+      const blob = res.data as Blob;
+      const headerType = String(res.headers["content-type"] ?? "").split(";")[0].trim();
+      if (headerType && (!blob.type || blob.type === "application/octet-stream" || blob.type.startsWith("text/html"))) {
+        return new Blob([blob], { type: headerType });
+      }
+      return blob;
+    });
 
 /**
  * Fetch the submitted KYC documents for the authenticated company along with the

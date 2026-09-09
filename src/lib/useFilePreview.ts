@@ -4,11 +4,21 @@ import { useEffect, useState } from "react";
 import { getFilePreview } from "@/services/file.service";
 import type { ApiError } from "@/lib/axios";
 
+function blobKind(blob: Blob): { isPdf: boolean; isHtml: boolean } {
+  const type = (blob.type || "").toLowerCase();
+  return {
+    isPdf: type.startsWith("application/pdf"),
+    isHtml: type.startsWith("text/html"),
+  };
+}
+
 export interface FilePreviewState {
   /** Object URL for the fetched blob, or null while loading / on error. */
   url: string | null;
   /** True when the fetched file is a PDF (render in an iframe instead of <img>). */
   isPdf: boolean;
+  /** True when the server converted an office doc (Word / Excel) to watermarked HTML. */
+  isHtml: boolean;
   loading: boolean;
   error: string | null;
 }
@@ -18,6 +28,7 @@ interface Resolved {
   key: string;
   url: string | null;
   isPdf: boolean;
+  isHtml: boolean;
   error: string | null;
 }
 
@@ -43,11 +54,11 @@ export function useFilePreview(s3Key: string | null): FilePreviewState {
         // optional, so resolve to "nothing" and let the call site's fallback show
         // rather than handing an empty blob to <img>.
         if (blob.size === 0) {
-          setResolved({ key: s3Key, url: null, isPdf: false, error: null });
+          setResolved({ key: s3Key, url: null, isPdf: false, isHtml: false, error: null });
           return;
         }
         url = URL.createObjectURL(blob);
-        setResolved({ key: s3Key, url, isPdf: blob.type === "application/pdf", error: null });
+        setResolved({ key: s3Key, url, ...blobKind(blob), error: null });
       })
       .catch((err) => {
         if (cancelled) return;
@@ -55,6 +66,7 @@ export function useFilePreview(s3Key: string | null): FilePreviewState {
           key: s3Key,
           url: null,
           isPdf: false,
+          isHtml: false,
           error: (err as ApiError)?.message || "Couldn't load the preview.",
         });
       });
@@ -69,6 +81,7 @@ export function useFilePreview(s3Key: string | null): FilePreviewState {
   return {
     url: current?.url ?? null,
     isPdf: current?.isPdf ?? false,
+    isHtml: current?.isHtml ?? false,
     loading: !!s3Key && !current,
     error: current?.error ?? null,
   };
