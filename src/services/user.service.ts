@@ -136,7 +136,8 @@ export async function getUserRoleDetails(params: {
  * ticket_size_amt_min. There is no dedicated "fields for role X" endpoint — the
  * target role's field list comes back from POST /auth/switch-role itself, is
  * carried to the form by `lib/switch-role-handoff.ts`, and is saved with the
- * ordinary `saveUserProfile` above. See app/dashboard/switch-role/page.tsx.
+ * ordinary `saveUserProfile` above (user columns, plus empty company GST/CIN).
+ * See app/dashboard/switch-role/page.tsx.
  * -------------------------------------------------------------------------- */
 
 /**

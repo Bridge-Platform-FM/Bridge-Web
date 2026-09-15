@@ -79,7 +79,7 @@ export function ResendControl({
 }
 
 export default function VerifyAccountPage() {
-  const { data, goNext } = useOnboarding();
+  const { data, setData, goNext, isDataLoaded } = useOnboarding();
 
   const { control, setValue } = useForm<VerifyForm>({
     defaultValues: {
@@ -96,6 +96,97 @@ export default function VerifyAccountPage() {
   const [emailError, setEmailError] = useState<string | null>(null);
 
   const bothVerified = mobileVerified && emailVerified;
+  const maskedMobile = `${String(data.countryCode ?? "")} ${maskPhone(String(data.contact ?? ""))}`.trim();
+  const maskedEmail = maskEmail(String(data.email ?? ""));
+
+  // Login MFA may land here with one channel already verified — seed that so we
+  // don't ask for (or send) an OTP the user already completed.
+  useEffect(() => {
+    if (!isDataLoaded) return;
+    if (data.isPhoneVerified) setMobileVerified(true);
+    if (data.isEmailVerified) setEmailVerified(true);
+  }, [isDataLoaded, data.isPhoneVerified, data.isEmailVerified]);
+
+  // Same combined toast registration uses: "Email OTP - 1234 | Phone OTP - 5678".
+  // MFA stores it on onboarding data so it appears here (the OTP-entry screen),
+  // not on the login MFA page the user just left.
+  useEffect(() => {
+    if (!isDataLoaded) return;
+    const message = data.pendingOtpToast;
+    if (typeof message !== "string" || !message) return;
+    const toastKey = "bridge.pending-otp-toast";
+    try {
+      // Strict Mode remounts this effect; don't flash the same OTP toast twice.
+      if (sessionStorage.getItem(toastKey) === message) {
+        setData({ pendingOtpToast: undefined });
+        return;
+      }
+      sessionStorage.setItem(toastKey, message);
+    } catch {
+      /* sessionStorage may be unavailable; still toast. */
+    }
+    toast.success(message);
+    setData({ pendingOtpToast: undefined });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDataLoaded]);
+
+  // After login MFA the registration OTPs are not the ones from signup. Trigger a
+  // send for each still-unverified channel. 429 = cooldown / backend already sent.
+  useEffect(() => {
+    if (!isDataLoaded) return;
+    if (!data.needsChannelOtps) return;
+
+    const email = String(data.email ?? "");
+    const phone = String(data.contact ?? "");
+    const guardKey = "bridge.trigger-channel-otps";
+    try {
+      if (sessionStorage.getItem(guardKey) === email) {
+        setData({ needsChannelOtps: false });
+        return;
+      }
+      sessionStorage.setItem(guardKey, email);
+    } catch {
+      /* sessionStorage may be unavailable; still attempt the send. */
+    }
+
+    let cancelled = false;
+
+    const sendPending = async () => {
+      const parts: string[] = [];
+
+      if (!data.isEmailVerified && email) {
+        try {
+          const res = await resendOtp({ channel: "EMAIL", email });
+          if (res.message) parts.push(`Email ${res.message}`);
+        } catch (err) {
+          if (!cancelled && (err as ApiError).status !== 429) {
+            toast.error((err as ApiError).message ?? "Couldn't send email OTP. Please try again.");
+          }
+        }
+      }
+
+      if (!data.isPhoneVerified && phone) {
+        try {
+          const res = await resendOtp({ channel: "PHONE", phoneNumber: phone });
+          if (res.message) parts.push(`Phone ${res.message}`);
+        } catch (err) {
+          if (!cancelled && (err as ApiError).status !== 429) {
+            toast.error((err as ApiError).message ?? "Couldn't send mobile OTP. Please try again.");
+          }
+        }
+      }
+
+      if (!cancelled && parts.length > 0) toast.success(parts.join(" | "));
+      if (!cancelled) setData({ needsChannelOtps: false });
+    };
+
+    void sendPending();
+    return () => {
+      cancelled = true;
+    };
+    // Wait for persisted onboarding data before reading email/phone/flags.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDataLoaded]);
 
   // Both channels verified → user clicks Continue to advance to complete-profile.
   const handleContinue = () => {
@@ -186,9 +277,13 @@ export default function VerifyAccountPage() {
             Secure your account
           </h1>
           <p className="mx-auto max-w-sm text-base leading-relaxed text-on-surface-variant">
-            We&apos;ve sent a 4-digit code to your mobile phone{" "}
-            {`${String(data.countryCode ?? "")} ${maskPhone(String(data.contact ?? ""))}`.trim()}
-            {" "}and email {maskEmail(String(data.email ?? ""))}.
+            {bothVerified
+              ? "Both your mobile and email are verified."
+              : !mobileVerified && !emailVerified
+                ? <>We&apos;ve sent a 4-digit code to your mobile phone {maskedMobile} and email {maskedEmail}.</>
+                : !mobileVerified
+                  ? <>We&apos;ve sent a 4-digit code to your mobile phone {maskedMobile}.</>
+                  : <>We&apos;ve sent a 4-digit code to your email {maskedEmail}.</>}
           </p>
         </div>
 
@@ -211,16 +306,18 @@ export default function VerifyAccountPage() {
                 {!mobileVerified && <ResendControl onResend={handleResendMobileOtp} />}
               </div>
 
-              <Controller
-                control={control}
-                name="mobileOtp"
-                render={({ field }) => (
-                  <OtpInput
-                    value={field.value}
-                    onChange={(next) => handleMobileChange(next, field.onChange)}
-                  />
-                )}
-              />
+              {!mobileVerified && (
+                <Controller
+                  control={control}
+                  name="mobileOtp"
+                  render={({ field }) => (
+                    <OtpInput
+                      value={field.value}
+                      onChange={(next) => handleMobileChange(next, field.onChange)}
+                    />
+                  )}
+                />
+              )}
 
               {mobileVerified ? (
                 <span className="flex items-center gap-1 px-1 text-xs font-medium text-primary">
@@ -253,16 +350,18 @@ export default function VerifyAccountPage() {
                 {!emailVerified && <ResendControl onResend={handleResendEmailOtp} />}
               </div>
 
-              <Controller
-                control={control}
-                name="emailOtp"
-                render={({ field }) => (
-                  <OtpInput
-                    value={field.value}
-                    onChange={(next) => handleEmailChange(next, field.onChange)}
-                  />
-                )}
-              />
+              {!emailVerified && (
+                <Controller
+                  control={control}
+                  name="emailOtp"
+                  render={({ field }) => (
+                    <OtpInput
+                      value={field.value}
+                      onChange={(next) => handleEmailChange(next, field.onChange)}
+                    />
+                  )}
+                />
+              )}
 
               {emailVerified ? (
                 <span className="flex items-center gap-1 px-1 text-xs font-medium text-primary">

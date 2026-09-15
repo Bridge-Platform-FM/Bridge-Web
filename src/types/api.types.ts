@@ -105,7 +105,11 @@ export interface SwitchRolePayload {
 export interface SwitchRoleFieldMeta {
   fieldName: string;
   label: string;
-  /** Which table the column lives on. Only "user" columns are writable via PUT /users/profile. */
+  /**
+   * Which table the column lives on. `user` columns are writable via PUT /users/profile.
+   * Empty company GST/CIN are also first-fill writable on that same PUT; other
+   * company columns stay locked.
+   */
   sourceTable?: string;
   /** "string" | "number" | "url" | "email" | "textarea" | "array" | … */
   type: string;
@@ -213,6 +217,21 @@ export interface VerifyMfaOtpResponse {
     countryCode?: string;
     /** The registered company name — locked "Company Name" field on complete-profile. */
     companyName?: string;
+    /** Company channel verification flags — used when landing on verify-account after login. */
+    isEmailVerified?: boolean;
+    isPhoneVerified?: boolean;
+    /**
+     * Present when login MFA redirects to verify-account and a registration OTP was
+     * just sent for that unverified channel (testing currently echoes the code in
+     * the message because SMS/email delivery is disabled).
+     */
+    emailOtpMessage?: string;
+    phoneOtpMessage?: string;
+    /**
+     * Combined toast string matching registration: "Email OTP - 1234 | Phone OTP - 5678".
+     * Only includes channels that actually received a code.
+     */
+    channelOtpMessage?: string;
   };
 }
 

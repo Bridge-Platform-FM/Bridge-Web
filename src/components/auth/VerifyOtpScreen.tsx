@@ -74,12 +74,24 @@ export function VerifyOtpScreen({
     // what a returning user on a fresh session/device (no registration-wizard localStorage)
     // relies on instead of a blank field.
     const nextRole = normalizeRole(res.data?.role);
-    if (res.data?.email || res.data?.mobileNumber || res.data?.companyName || nextRole) {
+    const goingToVerifyAccount = destination.startsWith("/registration/verify-account");
+    if (res.data?.email || res.data?.mobileNumber || res.data?.companyName || nextRole || goingToVerifyAccount) {
       setData({
         email: res.data?.email,
         contact: res.data?.mobileNumber,
         countryCode: res.data?.countryCode,
         legalName: res.data?.companyName,
+        isEmailVerified: Boolean(res.data?.isEmailVerified),
+        isPhoneVerified: Boolean(res.data?.isPhoneVerified),
+        // Toast on verify-account (same combined "Email OTP - x | Phone OTP - y"
+        // string registration uses). Shown there so it stays visible on the OTP screen.
+        pendingOtpToast: res.data?.channelOtpMessage,
+        // Fallback send on verify-account only when MFA didn't actually deliver a
+        // registration OTP for an still-unverified channel (cooldown / send failure).
+        needsChannelOtps:
+          goingToVerifyAccount &&
+          ((!Boolean(res.data?.isEmailVerified) && !res.data?.emailOtpMessage) ||
+            (!Boolean(res.data?.isPhoneVerified) && !res.data?.phoneOtpMessage)),
         ...(nextRole ? { role: nextRole } : {}),
       });
     }
