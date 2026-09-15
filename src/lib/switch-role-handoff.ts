@@ -30,22 +30,33 @@ export interface SwitchRoleHandoff {
 }
 
 /**
+ * Company identifiers PUT /users/profile will accept once, while the company
+ * row is still empty. Field master keeps them `is_editable: false` so My Profile
+ * stays locked after they exist; the switch form unlocks them only because they
+ * arrived in `missingFields` (no value yet).
+ */
+export const FIRST_FILL_COMPANY_COLUMNS = new Set(["gst_number", "cin_number"]);
+
+/**
  * Backend field metadata → the `ProfileField` shape `ProfileFieldRow` renders
  * (`fieldName` is the API's name for what the profile endpoints call
  * `columnName`). Every field starts blank: the backend only sends the ones with
  * no value.
  */
 export function toProfileFields(fields: SwitchRoleFieldMeta[]): SwitchRoleField[] {
-  return fields.map((f) => ({
-    columnName: f.fieldName,
-    label: f.label ?? f.fieldName,
-    type: f.type ?? "string",
-    // Company-owned columns can't be written by PUT /users/profile, so they are
-    // shown locked regardless of what the metadata says.
-    isEditable: f.isEditable !== false && f.sourceTable !== "company",
-    isRequired: f.isRequired !== false,
-    value: "",
-  }));
+  return fields.map((f) => {
+    const firstFill = FIRST_FILL_COMPANY_COLUMNS.has(f.fieldName);
+    return {
+      columnName: f.fieldName,
+      label: f.label ?? f.fieldName,
+      type: f.type ?? "string",
+      // Company-owned columns can't be written by PUT /users/profile except the
+      // first-fill GST/CIN window above. Everything else stays locked.
+      isEditable: firstFill || (f.isEditable !== false && f.sourceTable !== "company"),
+      isRequired: f.isRequired !== false,
+      value: "",
+    };
+  });
 }
 
 export function setSwitchRoleHandoff(handoff: Omit<SwitchRoleHandoff, "at">): void {
