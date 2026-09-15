@@ -1,18 +1,21 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type FocusEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/input";
 import { Loader } from "@/components/common/loader";
 import { FileUploadField } from "@/components/onboarding/FileUploadField";
 import { DOC_TYPE, type DocType } from "@/config/docTypes";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { ProfileFieldRow, PROFILE_SECTIONS, normalizeValue } from "@/app/dashboard/profile/page";
 import { saveUserProfile, type SwitchRoleField } from "@/services/user.service";
+import { verifyCin, verifyGst } from "@/services/auth.service";
 import {
   clearSwitchRoleHandoff,
+  FIRST_FILL_COMPANY_COLUMNS,
   getSwitchRoleHandoff,
   toProfileFields,
   type SwitchRoleHandoff,
@@ -25,7 +28,14 @@ import {
 } from "@/lib/profile-field-options";
 import { isRole, isUserRole, ROLE_META, type Role } from "@/lib/roles";
 import { continentForCountry } from "@/lib/countries";
+import { GST_REGEX, CIN_REGEX } from "@/lib/validation";
+import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "@/lib/messages";
 import type { ApiError } from "@/lib/axios";
+
+type FieldCheckStatus = "idle" | "checking" | "verified";
+
+const GST_COLUMN = "gst_number";
+const CIN_COLUMN = "cin_number";
 
 /**
  * Switch Role — supply the fields the target role is missing.
@@ -45,6 +55,10 @@ import type { ApiError } from "@/lib/axios";
  * only flips once its required fields actually exist — and backing out (Cancel,
  * browser Back, closing the tab) leaves the user on their current role.
  *
+ * Empty company GST/CIN are the exception to the company-column lock: B2B
+ * requires them, Investor/Startup registration never collected them, and PUT
+ * /users/profile will first-fill them after the same verification as sign-up.
+ *
  * Fields render through the same `ProfileFieldRow` as My Profile, relabelled with
  * `fieldLabel()` so a question the user first saw during registration is worded
  * identically here.
@@ -55,6 +69,52 @@ const DOCUMENT_COLUMNS: Record<string, DocType> = {
   incorporation_certificate: DOC_TYPE.INCORPORATION_CERTIFICATE,
   pitch_deck_certificate: DOC_TYPE.PITCH_DECK,
 };
+
+function IdentifierField({
+  id,
+  label,
+  required,
+  value,
+  error,
+  status,
+  placeholder,
+  onChange,
+  onBlur,
+}: {
+  id: string;
+  label: string;
+  required: boolean;
+  value: string;
+  error?: string;
+  status: FieldCheckStatus;
+  placeholder: string;
+  onChange: (value: string) => void;
+  onBlur: (e: FocusEvent<HTMLInputElement>) => void;
+}) {
+  return (
+    <Input
+      id={id}
+      type="text"
+      label={label}
+      required={required}
+      placeholder={placeholder}
+      error={error}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onBlur={onBlur}
+      adornment={
+        status === "checking" ? (
+          <Loader size={16} />
+        ) : status === "verified" ? (
+          <Icon name="check_circle" size={20} />
+        ) : (
+          <Icon name="pin" size={20} />
+        )
+      }
+      adornmentClassName={status === "verified" ? "text-primary" : undefined}
+    />
+  );
+}
 
 /** A value the user hasn't supplied — "" for scalars, [] for multi-selects. */
 function isBlank(value: string | string[] | undefined): boolean {
@@ -69,6 +129,7 @@ function toPayloadValue(column: string, value: string | string[]): unknown {
     const n = parseFloat(value);
     return Number.isFinite(n) ? n : undefined;
   }
+  if (FIRST_FILL_COMPANY_COLUMNS.has(column)) return value.trim().toUpperCase();
   return value;
 }
 
@@ -85,6 +146,12 @@ function SwitchRoleForm() {
   const [values, setValues] = useState<Record<string, string | string[]>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [gstStatus, setGstStatus] = useState<FieldCheckStatus>("idle");
+  const [cinStatus, setCinStatus] = useState<FieldCheckStatus>("idle");
+  const verifiedGstRef = useRef<string | null>(null);
+  const verifiedCinRef = useRef<string | null>(null);
+  const gstRequestIdRef = useRef(0);
+  const cinRequestIdRef = useRef(0);
 
   // The switch-role response's missingFields, read once from the hand-off. A stale
   // one (different role, expired, none at all) is treated as absent so the guard
@@ -132,6 +199,71 @@ function SwitchRoleForm() {
     setErrors((prev) => (prev[col] ? { ...prev, [col]: "" } : prev));
   };
 
+  const gstVal = typeof values[GST_COLUMN] === "string" ? values[GST_COLUMN] : "";
+  const cinVal = typeof values[CIN_COLUMN] === "string" ? values[CIN_COLUMN] : "";
+
+  useEffect(() => {
+    if (verifiedGstRef.current && verifiedGstRef.current !== gstVal.toUpperCase()) {
+      setGstStatus("idle");
+    }
+  }, [gstVal]);
+
+  useEffect(() => {
+    if (verifiedCinRef.current && verifiedCinRef.current !== cinVal.toUpperCase()) {
+      setCinStatus("idle");
+    }
+  }, [cinVal]);
+
+  const handleGstBlur = async (e: FocusEvent<HTMLInputElement>) => {
+    const raw = e.target.value.trim().toUpperCase();
+    handleChange(GST_COLUMN, raw);
+    if (!raw || !GST_REGEX.test(raw)) return;
+
+    const requestId = ++gstRequestIdRef.current;
+    setGstStatus("checking");
+    try {
+      const res = await verifyGst({ gstin: raw });
+      if (requestId !== gstRequestIdRef.current) return;
+      if (!res.data?.verified) {
+        throw { message: res.message ?? ERROR_MESSAGES.GST_VERIFICATION_FAILED } as ApiError;
+      }
+      verifiedGstRef.current = raw;
+      setGstStatus("verified");
+      toast.success(res.message ?? SUCCESS_MESSAGES.GST_VERIFIED);
+    } catch (err) {
+      if (requestId !== gstRequestIdRef.current) return;
+      setGstStatus("idle");
+      const message = (err as ApiError).message ?? ERROR_MESSAGES.GST_VERIFICATION_FAILED;
+      setErrors((prev) => ({ ...prev, [GST_COLUMN]: message }));
+      toast.error(message);
+    }
+  };
+
+  const handleCinBlur = async (e: FocusEvent<HTMLInputElement>) => {
+    const raw = e.target.value.trim().toUpperCase();
+    handleChange(CIN_COLUMN, raw);
+    if (!raw || !CIN_REGEX.test(raw)) return;
+
+    const requestId = ++cinRequestIdRef.current;
+    setCinStatus("checking");
+    try {
+      const res = await verifyCin({ cin: raw });
+      if (requestId !== cinRequestIdRef.current) return;
+      if (!res.data?.verified) {
+        throw { message: res.message ?? ERROR_MESSAGES.CIN_VERIFICATION_FAILED } as ApiError;
+      }
+      verifiedCinRef.current = raw;
+      setCinStatus("verified");
+      toast.success(res.message ?? SUCCESS_MESSAGES.CIN_VERIFIED);
+    } catch (err) {
+      if (requestId !== cinRequestIdRef.current) return;
+      setCinStatus("idle");
+      const message = (err as ApiError).message ?? ERROR_MESSAGES.CIN_VERIFICATION_FAILED;
+      setErrors((prev) => ({ ...prev, [CIN_COLUMN]: message }));
+      toast.error(message);
+    }
+  };
+
   /**
    * Leave the flow. The hand-off has done its job by now — leaving it behind
    * would let a Back navigation re-open this form for a switch that's settled.
@@ -145,12 +277,25 @@ function SwitchRoleForm() {
     if (saving || !target || !handoff) return;
 
     // Required fields first — no request until the form is complete. Locked
-    // (company-owned) columns are skipped: nothing on this page can fill them.
+    // company-owned columns (name, email) are skipped: nothing on this page can
+    // fill them. GST/CIN are first-fill editable and must also be verified.
     const found: Record<string, string> = {};
     for (const f of fields) {
       if (f.isRequired && f.isEditable && isBlank(values[f.columnName])) {
         found[f.columnName] = `${fieldLabel(f.columnName, f.label)} is required.`;
       }
+    }
+    const gstField = fields.find((f) => f.columnName === GST_COLUMN);
+    if (gstField?.isEditable && !found[GST_COLUMN]) {
+      const raw = gstVal.trim().toUpperCase();
+      if (!GST_REGEX.test(raw)) found[GST_COLUMN] = "Enter a valid 15-character GSTIN.";
+      else if (gstStatus !== "verified") found[GST_COLUMN] = "Please verify your GST number before continuing.";
+    }
+    const cinField = fields.find((f) => f.columnName === CIN_COLUMN);
+    if (cinField?.isEditable && !found[CIN_COLUMN]) {
+      const raw = cinVal.trim().toUpperCase();
+      if (!CIN_REGEX.test(raw)) found[CIN_COLUMN] = "Enter a valid 21-character CIN.";
+      else if (cinStatus !== "verified") found[CIN_COLUMN] = "Please verify your CIN number before continuing.";
     }
     if (Object.keys(found).length > 0) {
       setErrors(found);
@@ -160,8 +305,8 @@ function SwitchRoleForm() {
 
     setSaving(true);
     try {
-      // PUT /users/profile writes `user` columns only, so company-owned fields
-      // (organization name, GST, …) come through as non-editable and are never sent.
+      // PUT /users/profile writes `user` columns plus empty company GST/CIN.
+      // Other company-owned fields stay locked and are never sent.
       const payload: Record<string, unknown> = {};
       for (const f of fields) {
         if (!f.isEditable) continue;
@@ -222,6 +367,27 @@ function SwitchRoleForm() {
   const renderField = (field: SwitchRoleField) => {
     const error = errors[field.columnName];
     const label = fieldLabel(field.columnName, field.label);
+
+    if (FIRST_FILL_COMPANY_COLUMNS.has(field.columnName) && field.isEditable) {
+      const storedRaw = values[field.columnName];
+      const stored = typeof storedRaw === "string" ? storedRaw : "";
+      const isGst = field.columnName === GST_COLUMN;
+      return (
+        <div key={field.columnName}>
+          <IdentifierField
+            id={`switch-${field.columnName}`}
+            label={label}
+            required={field.isRequired !== false}
+            value={stored}
+            error={error}
+            status={isGst ? gstStatus : cinStatus}
+            placeholder={isGst ? "22AAAAA0000A1Z5" : "U12345MH2024PTC123456"}
+            onChange={(val) => handleChange(field.columnName, val)}
+            onBlur={isGst ? handleGstBlur : handleCinBlur}
+          />
+        </div>
+      );
+    }
 
     // Uploaded document → the same upload control the registration flow uses.
     const docType = DOCUMENT_COLUMNS[field.columnName];

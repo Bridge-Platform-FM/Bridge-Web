@@ -105,7 +105,11 @@ export interface SwitchRolePayload {
 export interface SwitchRoleFieldMeta {
   fieldName: string;
   label: string;
-  /** Which table the column lives on. Only "user" columns are writable via PUT /users/profile. */
+  /**
+   * Which table the column lives on. `user` columns are writable via PUT /users/profile.
+   * Empty company GST/CIN are also first-fill writable on that same PUT; other
+   * company columns stay locked.
+   */
   sourceTable?: string;
   /** "string" | "number" | "url" | "email" | "textarea" | "array" | … */
   type: string;
