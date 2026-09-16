@@ -279,11 +279,7 @@ export default function VerifyAccountPage() {
           <p className="mx-auto max-w-sm text-base leading-relaxed text-on-surface-variant">
             {bothVerified
               ? "Both your mobile and email are verified."
-              : !mobileVerified && !emailVerified
-                ? <>We&apos;ve sent a 4-digit code to your mobile phone {maskedMobile} and email {maskedEmail}.</>
-                : !mobileVerified
-                  ? <>We&apos;ve sent a 4-digit code to your mobile phone {maskedMobile}.</>
-                  : <>We&apos;ve sent a 4-digit code to your email {maskedEmail}.</>}
+              : <>We&apos;ve sent a 4-digit code to your mobile phone {maskedMobile} and email {maskedEmail}.</>}
           </p>
         </div>
 
@@ -306,18 +302,17 @@ export default function VerifyAccountPage() {
                 {!mobileVerified && <ResendControl onResend={handleResendMobileOtp} />}
               </div>
 
-              {!mobileVerified && (
-                <Controller
-                  control={control}
-                  name="mobileOtp"
-                  render={({ field }) => (
-                    <OtpInput
-                      value={field.value}
-                      onChange={(next) => handleMobileChange(next, field.onChange)}
-                    />
-                  )}
-                />
-              )}
+              <Controller
+                control={control}
+                name="mobileOtp"
+                render={({ field }) => (
+                  <OtpInput
+                    value={field.value}
+                    onChange={(next) => handleMobileChange(next, field.onChange)}
+                    disabled={mobileVerified}
+                  />
+                )}
+              />
 
               {mobileVerified ? (
                 <span className="flex items-center gap-1 px-1 text-xs font-medium text-primary">
@@ -350,18 +345,17 @@ export default function VerifyAccountPage() {
                 {!emailVerified && <ResendControl onResend={handleResendEmailOtp} />}
               </div>
 
-              {!emailVerified && (
-                <Controller
-                  control={control}
-                  name="emailOtp"
-                  render={({ field }) => (
-                    <OtpInput
-                      value={field.value}
-                      onChange={(next) => handleEmailChange(next, field.onChange)}
-                    />
-                  )}
-                />
-              )}
+              <Controller
+                control={control}
+                name="emailOtp"
+                render={({ field }) => (
+                  <OtpInput
+                    value={field.value}
+                    onChange={(next) => handleEmailChange(next, field.onChange)}
+                    disabled={emailVerified}
+                  />
+                )}
+              />
 
               {emailVerified ? (
                 <span className="flex items-center gap-1 px-1 text-xs font-medium text-primary">

@@ -1,6 +1,8 @@
 import { api } from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/constant";
-import type { UserProfilePayload, BuildProfileResponse, UserSearchResult } from "@/types/api.types";
+import { getUserId } from "@/lib/auth-session";
+import { parseConnectionStatus } from "@/lib/connections";
+import type { UserProfilePayload, BuildProfileResponse, UserSearchResult, ConnectionStatus } from "@/types/api.types";
 
 /**
  * Create the user profile (complete-profile step).
@@ -39,6 +41,23 @@ export interface GetProfileResponse {
   success?: boolean;
   message?: string;
   data?: ProfileField[];
+}
+
+/** GET /api/v1/users/role-details payload: profile fields plus viewer↔target status. */
+export interface ViewedUserProfile {
+  fields: ProfileField[];
+  connectionStatus: ConnectionStatus | null;
+}
+
+interface RoleDetailsPayload {
+  fields?: ProfileField[];
+  connection_status?: string | null;
+}
+
+export interface GetRoleDetailsResponse {
+  success?: boolean;
+  message?: string;
+  data?: ProfileField[] | RoleDetailsPayload;
 }
 
 export interface SaveProfileResponse {
@@ -113,21 +132,30 @@ export async function searchUsers(query: string, signal?: AbortSignal): Promise<
     params: { q: query },
     signal,
   });
-  return data.data ?? [];
+  const currentUserId = getUserId();
+  const results = data.data ?? [];
+  return currentUserId ? results.filter((u) => u.user_id !== currentUserId) : results;
 }
 
 /**
  * Full role-scoped profile for one search result (GET /api/v1/users/role-details).
  * Returns the same `ProfileField[]` shape as `getUserProfile` (label/columnName/
- * value/isEditable/type), rendered read-only before sending a connection request.
+ * value/isEditable/type), plus the live blocking connection status with the viewer.
  */
 export async function getUserRoleDetails(params: {
   userId: string;
   companyId?: string;
   roleId: number;
-}): Promise<ProfileField[]> {
-  const { data } = await api.get<GetProfileResponse>(API_ENDPOINTS.USER_ROLE_DETAILS, { params });
-  return data.data ?? [];
+}): Promise<ViewedUserProfile> {
+  const { data } = await api.get<GetRoleDetailsResponse>(API_ENDPOINTS.USER_ROLE_DETAILS, { params });
+  const payload = data.data;
+  if (Array.isArray(payload)) {
+    return { fields: payload, connectionStatus: null };
+  }
+  return {
+    fields: payload?.fields ?? [],
+    connectionStatus: parseConnectionStatus(payload?.connection_status ?? null),
+  };
 }
 
 /* ----- Role switch ----------------------------------------------------------
