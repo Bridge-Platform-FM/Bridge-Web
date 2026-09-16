@@ -52,6 +52,8 @@ interface MeetingDetailsModalProps {
   onClose: () => void;
   /** Fired after a successful edit so the caller can update its own lists. */
   onUpdated?: (meeting: ScheduledMeeting) => void;
+  /** Closed deal rooms are view-only — hide the Edit toggle. */
+  closed?: boolean;
 }
 
 /**
@@ -62,7 +64,7 @@ interface MeetingDetailsModalProps {
  * longer called. Edits still PUT via `updateMeeting`, whose response replaces the local
  * copy and is reported back through `onUpdated`.
  */
-export function MeetingDetailsModal({ meeting: source, onClose, onUpdated }: MeetingDetailsModalProps) {
+export function MeetingDetailsModal({ meeting: source, onClose, onUpdated, closed = false }: MeetingDetailsModalProps) {
   /** Local copy so an in-modal save shows immediately, without waiting for the parent
    *  list to round-trip the new row back down as a prop. */
   const [meeting, setMeeting] = useState<ScheduledMeeting | null>(source);
@@ -92,7 +94,8 @@ export function MeetingDetailsModal({ meeting: source, onClose, onUpdated }: Mee
     setMeeting(source);
     if (source) syncFieldsFrom(source);
     else setEditing(false);
-  }, [source]);
+    if (closed) setEditing(false);
+  }, [source, closed]);
 
   const today = todayLocalDateStr();
   const minTime = date === today ? nowLocalTimeStr() : undefined;
@@ -114,12 +117,13 @@ export function MeetingDetailsModal({ meeting: source, onClose, onUpdated }: Mee
   };
 
   const handleToggleEdit = (on: boolean) => {
+    if (closed) return;
     if (!on && meeting) syncFieldsFrom(meeting);
     setEditing(on);
   };
 
   const save = async () => {
-    if (!meeting) return;
+    if (!meeting || closed) return;
 
     const nextScheduledAt = date && time ? new Date(`${date}T${time}`).toISOString() : meeting.scheduledAt;
     const payload: UpdateMeetingPayload = {};
@@ -156,7 +160,7 @@ export function MeetingDetailsModal({ meeting: source, onClose, onUpdated }: Mee
       title={meeting?.title ?? "Meeting"}
       maxWidthClass="max-w-lg"
       headerExtra={
-        meeting?.createdByMe ? (
+        meeting?.createdByMe && !closed ? (
           <ToggleSwitch checked={editing} onChange={handleToggleEdit} label={editing ? "Editing" : "Edit"} />
         ) : null
       }

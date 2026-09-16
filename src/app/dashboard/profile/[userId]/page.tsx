@@ -14,8 +14,16 @@ import { getFieldOptionConfig } from "@/lib/profile-field-options";
 import { ProposalFormModal } from "@/components/dashboard/connections/ProposalFormModal";
 import { useSenderIdentity } from "@/components/dashboard/connections/sender-identity";
 import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewModal";
+import { StatusPill } from "@/components/dashboard/kyc-status";
+import {
+  canSendConnectionRequest,
+  connectButtonIcon,
+  connectButtonLabel,
+  connectionPresenceMeta,
+} from "@/lib/connections";
 import { profilePhotoKey } from "@/lib/useMyProfilePhoto";
 import type { ApiError } from "@/lib/axios";
+import type { ConnectionStatus } from "@/types/api.types";
 
 /** Fields never rendered as a row — leaked secrets, and the profile photo, which is
  *  shown as the header avatar rather than as its raw storage key. */
@@ -126,9 +134,9 @@ function ReadOnlyField({
 
 /**
  * Read-only profile page for a navbar search result (GET /users/role-details),
- * with a Connect button that opens the existing connection-request flow. Reuses
- * the exact same section grouping + field rendering as My Profile (`PROFILE_SECTIONS`,
- * `ProfileFieldRow` disabled), just without the edit toggle/save footer.
+ * with a Connect button that opens the existing connection-request flow. The
+ * button is disabled when a blocking connection already exists (or after a
+ * request is sent). Reuses the same section grouping as My Profile.
  * `useSearchParams` requires a Suspense boundary — see UserProfilePage below.
  */
 function UserProfilePageContent() {
@@ -140,6 +148,7 @@ function UserProfilePageContent() {
   const userId = params.userId;
 
   const [fields, setFields] = useState<ProfileField[] | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [proposalOpen, setProposalOpen] = useState(false);
@@ -152,8 +161,12 @@ function UserProfilePageContent() {
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
+    setConnectionStatus(null);
     getUserRoleDetails({ userId, roleId, companyId })
-      .then(setFields)
+      .then((profile) => {
+        setFields(profile.fields);
+        setConnectionStatus(profile.connectionStatus);
+      })
       .catch((err) => setError((err as ApiError).message ?? "Couldn't load this profile. Please try again."))
       .finally(() => setLoading(false));
   }, [userId, roleId, companyId]);
@@ -181,6 +194,7 @@ function UserProfilePageContent() {
     .join(" ")
     .trim();
   const company = fieldValue(visibleFields, "organization_name") || fieldValue(visibleFields, "company_name");
+  const canConnect = canSendConnectionRequest(connectionStatus);
 
   const renderField = (field: ProfileField) => {
     const fullWidth = field.type === "textarea" || field.type === "array";
@@ -215,10 +229,13 @@ function UserProfilePageContent() {
             <Icon name="account_circle" size={24} />
           </div>
         </Avatar>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h1 className="truncate font-headline text-lg font-bold text-on-surface sm:text-xl">{name || "Profile"}</h1>
           <p className="truncate text-xs text-on-surface-variant">{company || "View-only profile"}</p>
         </div>
+        {!loading && !error && visibleFields.length > 0 && (
+          <StatusPill {...connectionPresenceMeta(connectionStatus)} />
+        )}
       </div>
 
       {/* ── Body — same section grouping as My Profile ── */}
@@ -266,11 +283,12 @@ function UserProfilePageContent() {
         <div className="flex shrink-0 items-center justify-end gap-3 border-t border-outline-variant/20 bg-surface-container-lowest px-4 py-3 sm:px-6 sm:py-4 md:px-8">
           <button
             type="button"
-            onClick={() => setProposalOpen(true)}
-            className="flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-6 font-bold text-on-primary transition-colors hover:bg-primary-dim"
+            disabled={!canConnect}
+            onClick={() => canConnect && setProposalOpen(true)}
+            className="flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-6 font-bold text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <Icon name="person_add" size={18} />
-            Connect
+            <Icon name={connectButtonIcon(connectionStatus)} size={18} />
+            {connectButtonLabel(connectionStatus)}
           </button>
         </div>
       )}
@@ -281,7 +299,10 @@ function UserProfilePageContent() {
           onClose={() => setProposalOpen(false)}
           recipient={{ id: userId, roleId, companyId, name, company, role: inferRole(visibleFields) }}
           sender={sender}
-          onSent={() => setProposalOpen(false)}
+          onSent={() => {
+            setConnectionStatus("PENDING");
+            setProposalOpen(false);
+          }}
         />
       )}
 

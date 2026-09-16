@@ -25,6 +25,50 @@ export const CONNECTION_STATUS_META: Record<ConnectionStatus, { label: string; i
   EXPIRED: { label: "Expired", icon: "hourglass_disabled", hint: "No response within 14 days." },
 };
 
+/** Statuses that occupy the role-pair — a new Connect request is not allowed. */
+export const CONNECTION_BLOCKING_STATUSES: ConnectionStatus[] = [
+  "PENDING",
+  "VIEWED",
+  "ACCEPTED",
+  "DEFERRED",
+];
+
+/** Map the backend's Title-Case status (`Pending`) onto the UI's uppercase key. */
+export function parseConnectionStatus(raw?: string | null): ConnectionStatus | null {
+  if (!raw) return null;
+  const key = raw.toUpperCase() as ConnectionStatus;
+  return key in CONNECTION_STATUS_META ? key : null;
+}
+
+/** True when the viewer can still send a Connect request to this role pair. */
+export function canSendConnectionRequest(status: ConnectionStatus | null): boolean {
+  return status == null || !CONNECTION_BLOCKING_STATUSES.includes(status);
+}
+
+/** Footer Connect button label on another user's profile. */
+export function connectButtonLabel(status: ConnectionStatus | null): string {
+  if (status === "ACCEPTED") return "Connected";
+  if (status && CONNECTION_BLOCKING_STATUSES.includes(status)) return "Request sent";
+  return "Connect";
+}
+
+/** Footer Connect button icon on another user's profile. */
+export function connectButtonIcon(status: ConnectionStatus | null): string {
+  if (status === "ACCEPTED") return "handshake";
+  if (status && CONNECTION_BLOCKING_STATUSES.includes(status)) return "schedule";
+  return "person_add";
+}
+
+/** Search/profile presence label: Connected, a live request status, or Not connected. */
+export function connectionPresenceMeta(status: ConnectionStatus | null): { icon: string; label: string } {
+  if (status === "ACCEPTED") return { icon: "handshake", label: "Connected" };
+  if (status && status in CONNECTION_STATUS_META) {
+    const meta = CONNECTION_STATUS_META[status];
+    return { icon: meta.icon, label: meta.label };
+  }
+  return { icon: "link_off", label: "Not connected" };
+}
+
 /** Statuses offered in the filter dropdown (Accepted intentionally excluded). */
 export const CONNECTION_STATUS_ORDER: ConnectionStatus[] = [
   "PENDING",

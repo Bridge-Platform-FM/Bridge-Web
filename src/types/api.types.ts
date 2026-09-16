@@ -785,8 +785,8 @@ export interface ExploreMatchesResponse {
 
 /* ------------------------------------------------------------------ *
  * Navbar search — GET /api/v1/users/search
- * (the paired GET /api/v1/users/role-details returns the same `ProfileField[]`
- * shape as GET /api/v1/users/profile — see services/user.service.ts)
+ * (the paired GET /api/v1/users/role-details returns `{ fields, connection_status }`
+ * — see services/user.service.ts)
  * ------------------------------------------------------------------ */
 /** One suggestion row returned by GET /api/v1/users/search?q=. */
 /**
@@ -836,6 +836,11 @@ export interface UserSearchResult {
   mobile_number: string;
   country: string;
   continent: string;
+  /**
+   * Live blocking connection with the viewer for this role pair
+   * (`Pending` / `Viewed` / `Accepted` / `Deferred`), or null when none exists.
+   */
+  connection_status?: string | null;
 }
 
 /** A swipe decision on a match card. */

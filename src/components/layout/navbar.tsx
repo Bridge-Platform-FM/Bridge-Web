@@ -12,6 +12,8 @@ import { searchUsers } from "@/services/user.service";
 import { useMyProfilePhoto } from "@/lib/useMyProfilePhoto";
 import { initials } from "@/lib/admin-format";
 import { ROLE_META, isUserRole } from "@/lib/roles";
+import { StatusPill } from "@/components/dashboard/kyc-status";
+import { connectionPresenceMeta, parseConnectionStatus } from "@/lib/connections";
 import type { ApiError } from "@/lib/axios";
 import type { UserSearchResult } from "@/types/api.types";
 
@@ -129,6 +131,7 @@ function NavbarSearch() {
                         ) : (
                             results.map((u) => {
                                 const name = [u.first_name, u.last_name].filter(Boolean).join(" ").trim() || u.company_name;
+                                const connectionStatus = parseConnectionStatus(u.connection_status);
                                 return (
                                     <button
                                         key={`${u.user_id}-${u.role_id}-${u.company_id}`}
@@ -141,12 +144,13 @@ function NavbarSearch() {
                                                 {initials(name)}
                                             </div>
                                         </Avatar>
-                                        <span className="flex min-w-0 flex-col">
+                                        <span className="flex min-w-0 flex-1 flex-col">
                                             <span className="truncate text-sm font-semibold text-on-surface">{name}</span>
                                             <span className="truncate text-xs text-on-surface-variant">
                                                 {u.company_name} · {u.email}
                                             </span>
                                         </span>
+                                        <StatusPill {...connectionPresenceMeta(connectionStatus)} />
                                     </button>
                                 );
                             })
