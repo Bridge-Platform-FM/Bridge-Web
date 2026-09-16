@@ -1037,6 +1037,7 @@ export function DealSidePanel({
           row is handed over, so no GET /meetings/detail round-trip for data we have. */}
       <MeetingDetailsModal
         meeting={selectedMeeting}
+        closed={closed}
         onClose={() => setSelectedMeeting(null)}
         onUpdated={(updated) => {
           const row = { ...updated, id: selectedMeeting?.id ?? updated.id };
