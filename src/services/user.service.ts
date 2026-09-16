@@ -1,5 +1,6 @@
 import { api } from "@/lib/axios";
 import { API_ENDPOINTS } from "@/config/constant";
+import { getUserId } from "@/lib/auth-session";
 import type { UserProfilePayload, BuildProfileResponse, UserSearchResult } from "@/types/api.types";
 
 /**
@@ -113,7 +114,9 @@ export async function searchUsers(query: string, signal?: AbortSignal): Promise<
     params: { q: query },
     signal,
   });
-  return data.data ?? [];
+  const currentUserId = getUserId();
+  const results = data.data ?? [];
+  return currentUserId ? results.filter((u) => u.user_id !== currentUserId) : results;
 }
 
 /**
