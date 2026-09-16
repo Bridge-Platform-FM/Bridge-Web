@@ -99,7 +99,7 @@ export default function DocumentUploadPage() {
   return (
     <main className="flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-8">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-2 rounded-2xl border border-white/40 bg-surface-container-lowest p-4 ambient-shadow sm:p-6 lg:gap-3 lg:p-8">
-      <FocusedHeader backHref="/registration/complete-profile" />
+      <FocusedHeader backHref="/registration/complete-profile" showLogout />
       <div>
         <h2 className="font-headline text-xl font-extrabold tracking-tight text-on-surface sm:text-2xl">Document Upload</h2>
         <p className="mt-1 flex items-start gap-2 text-xs text-on-surface-variant sm:text-sm">

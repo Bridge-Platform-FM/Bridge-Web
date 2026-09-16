@@ -6,13 +6,16 @@ interface OtpInputProps {
   length?: number;
   value: string[];
   onChange: (next: string[]) => void;
+  /** Locks the digits in place after a successful verify. */
+  disabled?: boolean;
 }
 
 /** Row of single-digit OTP boxes matching the Stitch "Secure your account" screen. */
-export function OtpInput({ length = 4, value, onChange }: OtpInputProps) {
+export function OtpInput({ length = 4, value, onChange, disabled = false }: OtpInputProps) {
   const refs = useRef<Array<HTMLInputElement | null>>([]);
 
   const setDigit = (i: number, digit: string) => {
+    if (disabled) return;
     const clean = digit.replace(/\D/g, "").slice(-1);
     const next = [...value];
     next[i] = clean;
@@ -21,6 +24,7 @@ export function OtpInput({ length = 4, value, onChange }: OtpInputProps) {
   };
 
   const onKeyDown = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (disabled) return;
     if (e.key === "Backspace" && !value[i] && i > 0) refs.current[i - 1]?.focus();
   };
 
@@ -37,9 +41,14 @@ export function OtpInput({ length = 4, value, onChange }: OtpInputProps) {
           maxLength={1}
           value={value[i] ?? ""}
           placeholder="•"
+          disabled={disabled}
           onChange={(e) => setDigit(i, e.target.value)}
           onKeyDown={(e) => onKeyDown(i, e)}
-          className="h-14 w-12 rounded-lg border border-outline-variant/30 bg-surface-container-low text-center text-xl font-bold text-on-surface transition-all duration-200 placeholder:text-outline-variant hover:border-outline-variant/60 focus:border-primary focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/10 md:h-16 md:w-14"
+          className={`h-14 w-12 rounded-lg border bg-surface-container-low text-center text-xl font-bold text-on-surface transition-all duration-200 placeholder:text-outline-variant md:h-16 md:w-14 ${
+            disabled
+              ? "cursor-not-allowed border-primary/30 opacity-70"
+              : "border-outline-variant/30 hover:border-outline-variant/60 focus:border-primary focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/10"
+          }`}
         />
       ))}
     </div>
