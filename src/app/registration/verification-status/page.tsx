@@ -325,7 +325,7 @@ export default function VerificationStatusPage() {
   return (
     <div className="flex min-h-[calc(100vh-4rem)] w-full items-center justify-center px-4 py-4">
     <div className="mx-auto flex w-full max-w-[760px] flex-col gap-3 rounded-2xl border border-white/40 bg-surface-container-lowest p-4 ambient-shadow sm:p-6 lg:gap-4">
-      <FocusedHeader backLabel="Back to Overview" backHref="/registration/document-upload" />
+      <FocusedHeader backLabel="Back to Overview" backHref="/registration/document-upload" showLogout />
 
       {/* <div className="mb-8 mt-4 rounded-xl bg-surface-container-low p-6">
          <StepProgress stepKey="status" showLabels={false} /> 
@@ -500,18 +500,13 @@ export default function VerificationStatusPage() {
         </div>
       )}
 
-      {/* Actions */}
-      <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-        {isApproved ? (
+      {isApproved && (
+        <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
           <Button href="/dashboard" leadingIcon="dashboard" className="w-full sm:w-auto">
             Go to Dashboard
           </Button>
-        ) : (
-          <Button href="/login" leadingIcon="login" className="w-full sm:w-auto">
-            Go to Login
-          </Button>
-        )}
-      </div>
+        </div>
+      )}
       {/* <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
         <button className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-surface-container-high px-8 font-bold text-on-surface transition-all hover:bg-surface-container-highest sm:w-auto">
           <Icon name="contact_support" size={20} /> Contact Support

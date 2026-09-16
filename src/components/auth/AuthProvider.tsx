@@ -13,14 +13,8 @@ import { switchRole as switchRoleRequest } from "@/services/auth.service";
 import { clearUserProfileCache } from "@/services/user.service";
 import { clearAdminProfileCache } from "@/services/admin.service";
 import { clearFilePreviewCache } from "@/services/file.service";
-import { API_ENDPOINTS } from "@/config/constant";
+import { logoutSession } from "@/lib/logout";
 import type { SwitchRoleOutcome } from "@/types/api.types";
-
-// ---------------------------------------------------------------------------
-// The backend base URL. Reads NEXT_PUBLIC_API_URL from .env.local if set,
-// otherwise falls back to localhost for local development.
-// ---------------------------------------------------------------------------
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
 
 interface AuthContextValue {
   role: Role | null;
@@ -112,60 +106,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(async () => {
-    /*
-     * Step 1 — best-effort backend revocation.
-     *
-     * The logout endpoint is role-aware:
-     *   - admin / superadmin → POST /api/v1/admin/sessions/logout
-     *   - user               → POST /api/v1/sessions/logout
-     *
-     * This flips is_revoked = true on the session row immediately AND clears the
-     * httpOnly auth cookies via Set-Cookie on the same response. The access token
-     * is an httpOnly cookie now — the browser attaches it automatically via
-     * credentials: "include"; there's nothing for JS to read or put in a header.
-     *
-     * Wrapped in try/catch so a network failure or already-expired session
-     * never blocks the user from logging out locally. The finally block
-     * always runs.
-     */
-    try {
-      const isAdminRole =
-        session?.role === "admin" || session?.role === "super_admin";
-      const logoutPath = isAdminRole
-        ? API_ENDPOINTS.ADMIN_SESSION_LOGOUT
-        : API_ENDPOINTS.SESSION_LOGOUT;
-
-      await fetch(`${API_BASE_URL}${logoutPath}`, {
-        method: "POST",
-        credentials: "include",
-      });
-    } catch {
-      // Ignore — local logout always completes in the finally block below.
-    } finally {
-      /*
-       * Step 2 — local cleanup.
-       *
-       * Always runs, even if the backend call threw or returned an error.
-       * The cookies themselves are cleared server-side above; here we wipe
-       * localStorage entirely (not just the known session key) so nothing —
-       * session metadata, onboarding form data, anything added later — is left
-       * behind for the next person to use this browser/device.
-       *
-       * The service-level caches live in module memory, which survives the soft
-       * router.push below — clear them explicitly or the next person to log in on
-       * this tab would see the previous user's profile and document previews.
-       */
-      try {
-        localStorage.clear();
-      } catch {
-        /* ignore storage unavailability */
-      }
-      clearUserProfileCache();
-      clearAdminProfileCache();
-      clearFilePreviewCache();
-      setSessionState(null);
-      router.push("/login");
-    }
+    await logoutSession(session?.role);
+    setSessionState(null);
+    router.push("/login");
   }, [router, session?.role]);
 
   const value = useMemo(
