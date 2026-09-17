@@ -425,7 +425,8 @@ export async function fetchRoleSwitchUserDetails(params: {
 
 /**
  * Approve or reject one added role. `rejectionReason` is required by the backend
- * when rejecting and ignored on approve.
+ * when rejecting and ignored on approve. The API refuses both actions until the
+ * user has completed the target role's profile.
  */
 export async function reviewRoleSwitch(
   companyUserRoleId: number,
