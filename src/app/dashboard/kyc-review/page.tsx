@@ -39,7 +39,7 @@ export default function KycReviewPage() {
     if (isLoaded && !isStaffRole(role)) router.replace("/dashboard");
   }, [isLoaded, role, router]);
 
-  // The backend returns every submission in one call; filter by tab + search here.
+  // The backend returns every submission in one call; tabs filter on company kyc_status.
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
