@@ -67,7 +67,7 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
  * row opens a review drawer), and it reuses that page's `StatusPill` +
  * `KYC_REVIEW_STATUS_META` because the backend writes the same Pending/Approved/Rejected
  * values for both flows. Approve/reject live in `RoleSwitchDrawer`, next to the profile
- * the decision is actually about.
+ * the decision is actually about — and stay disabled until that profile is completed.
  */
 export default function RoleSwitchReviewPage() {
   const router = useRouter();
@@ -161,6 +161,10 @@ export default function RoleSwitchReviewPage() {
 
   const review = async (action: "approve" | "reject") => {
     if (!selected) return;
+    if (!selected.isProfileCompleted) {
+      toast.error("This user hasn't completed their profile for this role yet.");
+      return;
+    }
     if (action === "reject" && !reason.trim()) {
       toast.error("Please add a reason for the rejection.");
       return;
@@ -274,7 +278,7 @@ export default function RoleSwitchReviewPage() {
                   {/* The role being added, plus whether its extra profile fields are done */}
                   <div className="hidden shrink-0 text-right sm:block">
                     <p className="text-sm font-semibold text-on-surface">{roleLabel(item.roleCode)}</p>
-                    <p className="text-xs text-on-surface-variant">
+                    <p className={`text-xs ${item.isProfileCompleted ? "text-on-surface-variant" : "font-semibold text-error"}`}>
                       {item.isProfileCompleted ? "Profile completed" : "Profile incomplete"}
                     </p>
                   </div>
@@ -310,8 +314,9 @@ export default function RoleSwitchReviewPage() {
               <button
                 type="button"
                 onClick={() => review("reject")}
-                disabled={submitting !== null}
-                className="flex h-11 items-center justify-center gap-2 rounded-xl border border-error/40 px-4 text-sm font-bold text-error transition-colors hover:bg-error/10 disabled:opacity-50"
+                disabled={submitting !== null || !selected.isProfileCompleted}
+                title={!selected.isProfileCompleted ? "Unavailable until the user completes this role's profile." : undefined}
+                className="flex h-11 items-center justify-center gap-2 rounded-xl border border-error/40 px-4 text-sm font-bold text-error transition-colors hover:bg-error/10 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {submitting === "reject" ? <Loader size={16} /> : <Icon name="cancel" size={18} />}
                 Reject
@@ -319,8 +324,9 @@ export default function RoleSwitchReviewPage() {
               <button
                 type="button"
                 onClick={() => review("approve")}
-                disabled={submitting !== null}
-                className="cta-gradient flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold text-on-primary transition-all hover:scale-[1.01] disabled:opacity-50"
+                disabled={submitting !== null || !selected.isProfileCompleted}
+                title={!selected.isProfileCompleted ? "Unavailable until the user completes this role's profile." : undefined}
+                className="cta-gradient flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold text-on-primary transition-all hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {submitting === "approve" ? <Loader size={16} /> : <Icon name="task_alt" size={18} />}
                 Approve
@@ -360,8 +366,16 @@ export default function RoleSwitchReviewPage() {
 
             <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1 text-xs text-on-surface-variant">
               {selected.switchedAt && <span>Added {formatDate(selected.switchedAt)}</span>}
-              <span>{selected.isProfileCompleted ? "Profile completed" : "Profile incomplete"}</span>
+              <span className={selected.isProfileCompleted ? undefined : "font-semibold text-error"}>
+                {selected.isProfileCompleted ? "Profile completed" : "Profile incomplete"}
+              </span>
             </div>
+
+            {selected.status === "PENDING" && !selected.isProfileCompleted && (
+              <div className="mt-4 rounded-xl border border-error/20 bg-error/5 px-4 py-3 text-sm text-on-surface">
+                Review actions unlock after this user completes their {roleLabel(selected.roleCode)} profile.
+              </div>
+            )}
 
             {/* Already-decided rows keep their reason visible. */}
             {selected.status === "REJECTED" && selected.rejectionReason && (
@@ -418,8 +432,9 @@ export default function RoleSwitchReviewPage() {
               </div>
             </AsyncState>
 
-            {/* Required by the backend on reject; ignored on approve. */}
-            {selected.status === "PENDING" && (
+            {/* Required by the backend on reject; ignored on approve. Hidden while
+                the profile is incomplete because neither action can be taken yet. */}
+            {selected.status === "PENDING" && selected.isProfileCompleted && (
               <>
                 <h3 className="mb-2 mt-6 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
                   Rejection reason
