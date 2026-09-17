@@ -298,6 +298,7 @@ function toKycSubmission(raw: Record<string, unknown>): KycSubmissionListItem {
   // List tabs filter on COMPANY KYC only (`company.kyc_status` / `is_kyc_verified`).
   // Per-document `kyc_documents[].kyc_status` is display + drawer gating, never the tab.
   const status: KycReviewStatus = raw.is_kyc_verified ? "APPROVED" : toReviewStatus(raw.kyc_status);
+  const rejectionReason = (raw.kyc_rejection_reason as string | null) ?? null;
   // Earliest upload time across the documents drives the "Submitted" label.
   const submittedAt = documents
     .map((d) => d.uploadedAt)
@@ -317,6 +318,7 @@ function toKycSubmission(raw: Record<string, unknown>): KycSubmissionListItem {
     emailVerified: Boolean(raw.is_email_verified),
     mobileVerified: Boolean(raw.is_mobile_number_verified),
     status,
+    rejectionReason,
     submittedAt,
     documents,
   };
