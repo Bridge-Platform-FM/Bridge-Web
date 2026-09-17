@@ -13,6 +13,7 @@ import { todayLocalDateStr, nowLocalTimeStr, copyToClipboard } from "@/lib/utils
 import { updateMeeting, type UpdateMeetingPayload } from "@/services/deal-room.service";
 import type { ApiError } from "@/lib/axios";
 import type { ScheduledMeeting } from "./types";
+import { isValidMeetingLink, MEETING_LINK_ERROR } from "./meeting-link";
 
 const DURATION_LABELS: Record<string, string> = {
   "15m": "15 min",
@@ -129,8 +130,10 @@ export function MeetingDetailsModal({ meeting: source, onClose, onUpdated, close
     setEditing(on);
   };
 
+  const linkError = link.trim().length > 0 && !isValidMeetingLink(link) ? MEETING_LINK_ERROR : undefined;
+
   const save = async () => {
-    if (!meeting || closed) return;
+    if (!meeting || closed || linkError) return;
 
     const nextScheduledAt = date && time ? new Date(`${date}T${time}`).toISOString() : meeting.scheduledAt;
     const payload: UpdateMeetingPayload = {};
@@ -185,7 +188,7 @@ export function MeetingDetailsModal({ meeting: source, onClose, onUpdated, close
             <button
               type="button"
               onClick={save}
-              disabled={saving || !title.trim()}
+              disabled={saving || !title.trim() || Boolean(linkError)}
               className="flex h-11 items-center gap-2 rounded-xl bg-primary px-6 font-bold max-sm:px-3 max-sm:text-sm text-on-primary transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Icon name="check" size={18} />
@@ -208,7 +211,7 @@ export function MeetingDetailsModal({ meeting: source, onClose, onUpdated, close
             <Input label="Date" required type="date" min={today} value={date} onChange={(e) => handleDateChange(e.target.value)} />
             <TimePicker label="Time" required value={time} onChange={setTime} minTime={minTime} />
           </div>
-          <Input label="Link" type="url" value={link} onChange={(e) => setLink(e.target.value)} />
+          <Input label="Link" type="text" inputMode="url" value={link} error={linkError} onChange={(e) => setLink(e.target.value)} />
           <Textarea label="Agenda" rows={4} value={agenda} onChange={(e) => setAgenda(e.target.value)} />
         </div>
       ) : (
