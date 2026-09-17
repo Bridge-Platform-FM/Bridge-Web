@@ -57,6 +57,96 @@ export function parseFounders(value: unknown): Founder[] {
     .filter((f) => f.name.length > 0 || f.url.length > 0);
 }
 
+export const EMPTY_FOUNDER: Founder = { name: "", url: "" };
+
+/** Repeatable Founders & LinkedIn rows → `{ name, url }[]` for the jsonb column. */
+export function normalizeFounders(rows: Founder[] | undefined): Founder[] {
+  if (!Array.isArray(rows)) return [];
+  return rows
+    .map((row) => {
+      const rec = row && typeof row === "object" ? (row as { name?: unknown; url?: unknown }) : {};
+      return { name: String(rec.name ?? "").trim(), url: String(rec.url ?? "").trim() };
+    })
+    .filter((f) => f.name.length > 0 && f.url.length > 0);
+}
+
+/**
+ * Controlled name + LinkedIn URL rows. Used on the switch-role form — registration
+ * keeps its own react-hook-form Controllers so complete-profile submit is unchanged.
+ */
+export function FoundersEditor({
+  label = "Founders & LinkedIn",
+  required = false,
+  value,
+  onChange,
+  error,
+  rowErrors,
+}: {
+  label?: string;
+  required?: boolean;
+  value: Founder[];
+  onChange: (next: Founder[]) => void;
+  error?: string;
+  rowErrors?: { name?: string; url?: string }[];
+}) {
+  const rows = value.length > 0 ? value : [EMPTY_FOUNDER];
+
+  const updateRow = (i: number, patch: Partial<Founder>) => {
+    onChange(rows.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <span className="px-1 font-label text-xs font-bold tracking-wide text-on-surface-variant">
+        {label}
+        {required ? (
+          <span className="align-middle text-base leading-none text-error"> *</span>
+        ) : null}
+      </span>
+      {rows.map((row, i) => (
+        <div key={i} className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+          <Input
+            id={`switch-founder-name-${i}`}
+            label="Founder name"
+            required={required}
+            placeholder="Founder name"
+            error={rowErrors?.[i]?.name}
+            value={row.name}
+            onChange={(e) => updateRow(i, { name: e.target.value })}
+          />
+          <Input
+            id={`switch-founder-url-${i}`}
+            label="LinkedIn URL"
+            required={required}
+            type="url"
+            placeholder="https://linkedin.com/in/…"
+            error={rowErrors?.[i]?.url}
+            value={row.url}
+            onChange={(e) => updateRow(i, { url: e.target.value })}
+          />
+          <button
+            type="button"
+            onClick={() => onChange(rows.filter((_, idx) => idx !== i))}
+            disabled={rows.length === 1}
+            aria-label="Remove founder"
+            className="flex h-10 w-10 items-center justify-center justify-self-end rounded-lg text-on-surface-variant transition-colors hover:text-error disabled:cursor-not-allowed disabled:opacity-40 sm:justify-self-auto"
+          >
+            <Icon name="delete" size={20} />
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() => onChange([...rows, { ...EMPTY_FOUNDER }])}
+        className="-mt-1.5 flex w-fit items-center gap-1 rounded-lg px-1 py-1 text-sm font-semibold text-primary transition-colors hover:opacity-80"
+      >
+        <Icon name="add" size={18} /> Add founder
+      </button>
+      {error ? <span className="px-1 text-xs font-medium text-error">{error}</span> : null}
+    </div>
+  );
+}
+
 /** Read-only name + LinkedIn URL list used on My Profile and the public profile. */
 export function FoundersList({ founders }: { founders: Founder[] }) {
   if (founders.length === 0) {
