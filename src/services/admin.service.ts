@@ -295,12 +295,8 @@ function toKycSubmission(raw: Record<string, unknown>): KycSubmissionListItem {
   const docsRaw = (raw.kyc_documents as Record<string, unknown>[] | null) ?? [];
   const documents = Array.isArray(docsRaw) ? docsRaw.map(toKycDocument) : [];
 
-  // Submission-level status comes from the COMPANY-level `kyc_status` (the row's own
-  // field, e.g. "Pending"/"Approved"/"Rejected"), NOT the per-document `kyc_status`
-  // inside each `kyc_documents` entry. `is_kyc_verified` is the authoritative
-  // "approved" flag; otherwise we normalize the row's kyc_status (title-case from the
-  // backend) via toReviewStatus. A rejected document never flips this — only the main
-  // review action does.
+  // List tabs filter on COMPANY KYC only (`company.kyc_status` / `is_kyc_verified`).
+  // Per-document `kyc_documents[].kyc_status` is display + drawer gating, never the tab.
   const status: KycReviewStatus = raw.is_kyc_verified ? "APPROVED" : toReviewStatus(raw.kyc_status);
   // Earliest upload time across the documents drives the "Submitted" label.
   const submittedAt = documents

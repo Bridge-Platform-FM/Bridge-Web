@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
 import { TimePicker } from "@/components/ui/TimePicker";
 import { todayLocalDateStr, nowLocalTimeStr } from "@/lib/utils";
+import { isValidMeetingLink, MEETING_LINK_ERROR } from "./meeting-link";
 
 /** The scheduled meeting form values handed back on Confirm. */
 export interface ScheduleMeetingFormValues {
@@ -51,7 +52,9 @@ export function ScheduleMeetingDrawer({ open, onClose, onConfirm }: ScheduleMeet
   const [agenda, setAgenda] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const canConfirm = title.trim().length > 0 && date.length > 0 && time.length > 0;
+  const linkValid = isValidMeetingLink(link);
+  const linkError = link.trim().length > 0 && !linkValid ? MEETING_LINK_ERROR : undefined;
+  const canConfirm = title.trim().length > 0 && date.length > 0 && time.length > 0 && linkValid;
   const today = todayLocalDateStr();
   const minTime = date === today ? nowLocalTimeStr() : undefined;
 
@@ -142,9 +145,11 @@ export function ScheduleMeetingDrawer({ open, onClose, onConfirm }: ScheduleMeet
         <Input
           label="Link"
           required
-          type="url"
+          type="text"
+          inputMode="url"
           placeholder="e.g. https://meet.google.com/abc-defg-hij"
           value={link}
+          error={linkError}
           onChange={(e) => setLink(e.target.value)}
         />
 

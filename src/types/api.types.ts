@@ -667,7 +667,7 @@ export interface KycSubmissionListItem {
   organizationName?: string;
   emailVerified: boolean;
   mobileVerified: boolean;
-  /** Submission-level status derived from the documents / `is_kyc_verified`. */
+  /** Company-level KYC (`kyc_status` / `is_kyc_verified`). Drives the list tabs. */
   status: KycReviewStatus;
   /** Earliest document upload time (ISO 8601). */
   submittedAt?: string;
