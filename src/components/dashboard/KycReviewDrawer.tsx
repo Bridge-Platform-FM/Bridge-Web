@@ -298,14 +298,26 @@ export function KycReviewDrawer({
             })}
           </div>
 
-          {/* Admin notes */}
-          <SectionTitle>Admin Notes</SectionTitle>
-          <Textarea
-            placeholder="Add a note (required to reject or request info)…"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            rows={3}
-          />
+          {/* Account reject note — company.kyc_rejection_reason, not per-document. */}
+          {submission.status === "REJECTED" && (
+            <div className="mt-4 rounded-xl border border-error/20 bg-error/5 px-4 py-3 text-sm text-on-surface">
+              <p className="mb-0.5 text-xs font-bold uppercase tracking-wide text-error">Rejection reason</p>
+              {submission.rejectionReason?.trim() || "No reason provided."}
+            </div>
+          )}
+
+          {/* Admin notes — only while the account can still be decided. */}
+          {accountPending && (
+            <>
+              <SectionTitle>Admin Notes</SectionTitle>
+              <Textarea
+                placeholder="Add a note (required to reject or request info)…"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                rows={3}
+              />
+            </>
+          )}
         </>
       )}
 
