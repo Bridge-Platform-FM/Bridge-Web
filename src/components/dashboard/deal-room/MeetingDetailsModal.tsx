@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import { toast } from "sonner";
 import { Modal } from "@/components/modal/Modal";
 import { Icon } from "@/components/ui/Icon";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/Textarea";
 import { TimePicker } from "@/components/ui/TimePicker";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
-import { todayLocalDateStr, nowLocalTimeStr } from "@/lib/utils";
+import { todayLocalDateStr, nowLocalTimeStr, copyToClipboard } from "@/lib/utils";
 import { updateMeeting, type UpdateMeetingPayload } from "@/services/deal-room.service";
 import type { ApiError } from "@/lib/axios";
 import type { ScheduledMeeting } from "./types";
@@ -105,10 +105,17 @@ export function MeetingDetailsModal({ meeting: source, onClose, onUpdated, close
     if (nextDate === today && time && time < nowLocalTimeStr()) setTime("");
   };
 
-  const copyLink = async () => {
-    if (!meeting?.link) return;
-    await navigator.clipboard.writeText(meeting.link);
-    toast.success("Link copied to clipboard.");
+  const copyLink = async (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const text = (meeting?.link ?? source?.link ?? "").trim();
+    if (!text) {
+      toast.error("No meeting link to copy.");
+      return;
+    }
+    const copied = await copyToClipboard(text);
+    if (copied) toast.success("Link copied to clipboard.");
+    else toast.error("Couldn't copy the link. Please copy it manually.");
   };
 
   const close = () => {
@@ -159,6 +166,7 @@ export function MeetingDetailsModal({ meeting: source, onClose, onUpdated, close
       onClose={close}
       title={meeting?.title ?? "Meeting"}
       maxWidthClass="max-w-lg"
+      overlayZ={60}
       headerExtra={
         meeting?.createdByMe && !closed ? (
           <ToggleSwitch checked={editing} onChange={handleToggleEdit} label={editing ? "Editing" : "Edit"} />
@@ -218,6 +226,7 @@ export function MeetingDetailsModal({ meeting: source, onClose, onUpdated, close
                     type="button"
                     onClick={copyLink}
                     aria-label="Copy link"
+                    title="Copy link"
                     className="shrink-0 rounded-lg p-1.5 text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
                   >
                     <Icon name="content_copy" size={18} />

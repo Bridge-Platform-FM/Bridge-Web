@@ -6,7 +6,8 @@ import { AsyncState } from "@/components/ui/AsyncState";
 import { Icon } from "@/components/ui/Icon";
 import { Avatar } from "@/components/ui/Avatar";
 import { Loader } from "@/components/common/loader";
-import { normalizeRole, type Role } from "@/lib/roles";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { isStaffRole, normalizeRole, type Role } from "@/lib/roles";
 import { getUserRoleDetails, type ProfileField } from "@/services/user.service";
 import { normalizeValue, PROFILE_SECTIONS } from "@/app/dashboard/profile/page";
 import { parseFounders, FoundersList } from "@/components/onboarding/StartupProfileFields";
@@ -133,19 +134,21 @@ function ReadOnlyField({
 }
 
 /**
- * Read-only profile page for a navbar search result (GET /users/role-details),
- * with a Connect button that opens the existing connection-request flow. The
- * button is disabled when a blocking connection already exists (or after a
- * request is sent). Reuses the same section grouping as My Profile.
+ * Read-only profile page for a navbar search result (GET /users/role-details).
+ * User roles get a Connect button that opens the connection-request flow
+ * (disabled when a blocking connection already exists). Staff (admin /
+ * super_admin) can view the profile but cannot send a request.
  * `useSearchParams` requires a Suspense boundary — see UserProfilePage below.
  */
 function UserProfilePageContent() {
   const router = useRouter();
+  const { role: viewerRole } = useAuth();
   const params = useParams<{ userId: string }>();
   const searchParams = useSearchParams();
   const roleId = Number(searchParams.get("roleId"));
   const companyId = searchParams.get("companyId") ?? undefined;
   const userId = params.userId;
+  const canOfferConnect = !isStaffRole(viewerRole);
 
   const [fields, setFields] = useState<ProfileField[] | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus | null>(null);
@@ -278,8 +281,8 @@ function UserProfilePageContent() {
         </AsyncState>
       </div>
 
-      {/* ── Footer — Connect (in place of My Profile's Save/Discard) ── */}
-      {!loading && !error && visibleFields.length > 0 && (
+      {/* ── Footer — Connect (user roles only; staff cannot send requests) ── */}
+      {canOfferConnect && !loading && !error && visibleFields.length > 0 && (
         <div className="flex shrink-0 items-center justify-end gap-3 border-t border-outline-variant/20 bg-surface-container-lowest px-4 py-3 sm:px-6 sm:py-4 md:px-8">
           <button
             type="button"
@@ -293,7 +296,7 @@ function UserProfilePageContent() {
         </div>
       )}
 
-      {fields && (
+      {canOfferConnect && fields && (
         <ProposalFormModal
           open={proposalOpen}
           onClose={() => setProposalOpen(false)}

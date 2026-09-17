@@ -35,6 +35,8 @@ export interface ProfileField {
   type: string;
   /** Options available when type === "array" */
   options?: { value: string; label: string }[];
+  /** Present on the switch-role form; GET /users/profile does not send this. */
+  isRequired?: boolean;
 }
 
 export interface GetProfileResponse {

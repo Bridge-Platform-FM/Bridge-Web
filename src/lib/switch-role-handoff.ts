@@ -22,7 +22,10 @@ const TTL_MS = 15 * 60_000;
 export interface SwitchRoleHandoff {
   /** The role the user is trying to move into. */
   role: Role;
-  /** The required columns that role has no value for yet. */
+  /**
+   * Unfilled registration columns for that role (required and optional) — the
+   * same set complete-profile would show, minus values already on the user row.
+   */
   fields: SwitchRoleFieldMeta[];
   /** Backend message worth echoing on the form (e.g. "Profile not completed."). */
   message?: string;
@@ -38,6 +41,13 @@ export interface SwitchRoleHandoff {
 export const FIRST_FILL_COMPANY_COLUMNS = new Set(["gst_number", "cin_number"]);
 
 /**
+ * User columns that field master also locks after the first save (no repeatable
+ * editor on My Profile). Same first-fill window as GST/CIN: the switch form
+ * unlocks them because they arrived in `missingFields`.
+ */
+export const FIRST_FILL_USER_COLUMNS = new Set(["founders"]);
+
+/**
  * Backend field metadata → the `ProfileField` shape `ProfileFieldRow` renders
  * (`fieldName` is the API's name for what the profile endpoints call
  * `columnName`). Every field starts blank: the backend only sends the ones with
@@ -45,15 +55,17 @@ export const FIRST_FILL_COMPANY_COLUMNS = new Set(["gst_number", "cin_number"]);
  */
 export function toProfileFields(fields: SwitchRoleFieldMeta[]): SwitchRoleField[] {
   return fields.map((f) => {
-    const firstFill = FIRST_FILL_COMPANY_COLUMNS.has(f.fieldName);
+    const firstFill =
+      FIRST_FILL_COMPANY_COLUMNS.has(f.fieldName) || FIRST_FILL_USER_COLUMNS.has(f.fieldName);
     return {
       columnName: f.fieldName,
       label: f.label ?? f.fieldName,
       type: f.type ?? "string",
       // Company-owned columns can't be written by PUT /users/profile except the
-      // first-fill GST/CIN window above. Everything else stays locked.
+      // first-fill GST/CIN window above. Founders is a locked user column that
+      // the switch form still has to collect. Everything else stays locked.
       isEditable: firstFill || (f.isEditable !== false && f.sourceTable !== "company"),
-      isRequired: f.isRequired !== false,
+      isRequired: f.isRequired === true,
       value: "",
     };
   });

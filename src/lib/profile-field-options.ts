@@ -158,6 +158,13 @@ export const FUNDING_MIN_COL = "funding_ask_amt_min";
 export const FUNDING_MAX_COL = "funding_ask_amt_max";
 
 /**
+ * Investor "Ticket Size" group — same currency + min + max widget as registration.
+ */
+export const TICKET_CURRENCY_COL = "ticket_currency";
+export const TICKET_MIN_COL = "ticket_size_amt_min";
+export const TICKET_MAX_COL = "ticket_size_amt_max";
+
+/**
  * Backend column → the EXACT label the registration flow shows for it, copied
  * verbatim from `onboarding/StartupProfileFields.tsx`,
  * `InvestorProfileFields.tsx`, `B2BProfileFields.tsx` and
@@ -202,6 +209,7 @@ const FIELD_LABELS: Record<string, string> = {
   use_of_funds: "Use of Funds",
   business_description: "Business Description",
   startup_intent: "Intent",
+  founders: "Founders & LinkedIn",
   incorporation_certificate: "Incorporation Certificate",
   pitch_deck_certificate: "Pitch Deck (PDF, max 20 MB)",
 

@@ -60,8 +60,8 @@ export function SwitchUserModal({ open, onClose }: SwitchUserModalProps) {
     } catch (err) {
       const e = err as ApiError;
       // HTTP 400 "profile not completed" — nothing switched, and the body lists the
-      // required columns the target role has no value for yet. Hand those to the
-      // switch-role form, which collects them and re-attempts the switch.
+      // unfilled registration columns (required + optional) for the target role.
+      // Hand those to the switch-role form, which collects them and re-attempts.
       const missing = (e.data as SwitchRoleErrorData | undefined)?.data?.missingFields;
       if (missing?.length) {
         onClose();
