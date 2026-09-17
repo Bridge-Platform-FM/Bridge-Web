@@ -669,6 +669,8 @@ export interface KycSubmissionListItem {
   mobileVerified: boolean;
   /** Company-level KYC (`kyc_status` / `is_kyc_verified`). Drives the list tabs. */
   status: KycReviewStatus;
+  /** Company-level reject note (`kyc_rejection_reason`). Set only after account reject. */
+  rejectionReason?: string | null;
   /** Earliest document upload time (ISO 8601). */
   submittedAt?: string;
   documents: KycDocument[];
