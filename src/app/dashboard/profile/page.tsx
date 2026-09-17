@@ -19,6 +19,9 @@ import {
   FUNDING_CURRENCY_COL,
   FUNDING_MIN_COL,
   FUNDING_MAX_COL,
+  TICKET_CURRENCY_COL,
+  TICKET_MIN_COL,
+  TICKET_MAX_COL,
 } from "@/lib/profile-field-options";
 import { CURRENCIES } from "@/lib/startup-profile-options";
 import { DIAL_CODES, continentForCountry } from "@/lib/countries";
@@ -67,8 +70,9 @@ const FOUNDERS_COL = "founders";
  * only the columns the API actually returns are shown (so role-specific sections
  * appear only for that role). Columns not listed anywhere fall into a trailing
  * "Additional Information" section. Folded columns (`country_code`,
- * `funding_currency`, `funding_ask_amt_max`) are intentionally omitted — they're
- * rendered inside the phone / funding widgets at their anchor column.
+ * `funding_currency`, `funding_ask_amt_max`, `ticket_currency`,
+ * `ticket_size_amt_max`) are intentionally omitted — they're rendered inside
+ * the phone / amount widgets at their anchor column.
  *
  * Every column `user_profile_field_master` configures must appear here (or be folded
  * into a widget), otherwise it only shows up under "Additional Information". The
@@ -110,9 +114,7 @@ export const PROFILE_SECTIONS: { title: string; columns: string[] }[] = [
       "investor_sector_preference",
       "prefrerred_investment_stage",
       "stage_focus",
-      "ticket_currency",
       "ticket_size_amt_min",
-      "ticket_size_amt_max",
       "geographic_investment_preference",
       "geographic_investment_preference_continent",
       "investor_type",
@@ -300,10 +302,26 @@ interface FieldProps {
   value: string | string[];
   editMode: boolean;
   onChange: (col: string, val: string | string[]) => void;
+  /** Inline validation message — red-rings the control, same as registration. */
+  error?: string;
 }
 
 /** Shared label row (with optional lock icon) for the select-style fields. */
-function FieldLabel({ id, label, locked }: { id: string; label: string; locked: boolean }) {
+function FieldLabel({
+  id,
+  label,
+  locked,
+  required,
+  optional,
+}: {
+  id: string;
+  label: string;
+  locked: boolean;
+  /** Same red `*` the registration complete-profile fields use. */
+  required?: boolean;
+  /** Same blue "(Optional)" the registration complete-profile fields use. */
+  optional?: boolean;
+}) {
   return (
     <div className="flex items-center gap-1.5">
       <label
@@ -311,6 +329,12 @@ function FieldLabel({ id, label, locked }: { id: string; label: string; locked: 
         className="px-1 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant"
       >
         {label}
+        {required ? (
+          <span className="align-middle text-base leading-none text-error"> *</span>
+        ) : null}
+        {optional ? (
+          <span className="font-medium normal-case text-primary"> (Optional)</span>
+        ) : null}
       </label>
       {locked && <Icon name="lock" size={13} className="text-outline-variant" />}
     </div>
@@ -426,11 +450,13 @@ function FoundersField({ label, founders }: { label: string; founders: Founder[]
  * The returned key lands in `localValues` and is saved with everything else, so a
  * discarded edit never repoints the profile at the new file.
  */
-function PhotoField({
+export function PhotoField({
   label,
   photoKey,
   locked,
   editable,
+  required,
+  optional,
   onUploaded,
 }: {
   label: string;
@@ -438,6 +464,8 @@ function PhotoField({
   locked: boolean;
   /** Edit mode is on AND this field is editable — only then is upload offered. */
   editable: boolean;
+  required?: boolean;
+  optional?: boolean;
   onUploaded: (s3Key: string) => void;
 }) {
   const [uploading, setUploading] = useState(false);
@@ -465,7 +493,7 @@ function PhotoField({
       const { s3Key } = await scanImage(file, { docType: DOC_TYPE.PROFILE_PHOTO });
       setPreview(URL.createObjectURL(file));
       onUploaded(s3Key);
-      toast.success("Photo uploaded. Click Save Changes to keep it.");
+      toast.success("Photo uploaded.");
     } catch (err) {
       toast.error((err as ApiError)?.message ?? "Couldn't upload your photo. Please try again.");
     } finally {
@@ -481,7 +509,7 @@ function PhotoField({
 
   return (
     <div className="flex flex-col gap-2">
-      <FieldLabel id={`profile-field-${PHOTO_COL}`} label={label} locked={locked} />
+      <FieldLabel id={`profile-field-${PHOTO_COL}`} label={label} locked={locked} required={required} optional={optional} />
       <div className="flex min-h-10 items-center gap-3 rounded-lg border border-outline-variant/30 bg-surface-container-low px-3.5 py-2.5">
         {preview ? (
           // eslint-disable-next-line @next/next/no-img-element -- blob: object URL, not an optimizable asset
@@ -528,27 +556,36 @@ function PhotoField({
 }
 
 /**
- * Startup "Funding Ask Amount" group — currency + min + max on one row, mirroring
- * the registration complete-profile widget. Folds the three columns
- * (`funding_currency`, `funding_ask_amt_min`, `funding_ask_amt_max`) into one.
+ * Currency + min + max on one row, mirroring registration (Funding Ask Amount /
+ * Ticket Size). Folds the three columns into a single control.
  */
-function FundingAmountField({
+export function AmountRangeField({
+  id,
   label,
   currencyValue,
   minValue,
   maxValue,
   disabled,
   locked,
+  required,
+  optional,
+  minError,
+  maxError,
   onCurrencyChange,
   onMinChange,
   onMaxChange,
 }: {
+  id: string;
   label: string;
   currencyValue: string;
   minValue: string;
   maxValue: string;
   disabled: boolean;
   locked: boolean;
+  required?: boolean;
+  optional?: boolean;
+  minError?: string;
+  maxError?: string;
   onCurrencyChange: (val: string) => void;
   onMinChange: (val: string) => void;
   onMaxChange: (val: string) => void;
@@ -557,7 +594,7 @@ function FundingAmountField({
 
   return (
     <div className="flex flex-col gap-2">
-      <FieldLabel id="profile-field-funding_ask" label={label} locked={locked} />
+      <FieldLabel id={id} label={label} locked={locked} required={required} optional={optional} />
       {disabled ? (
         <div className="flex min-h-10 items-center gap-2 rounded-lg border border-outline-variant/30 bg-surface-container-low px-3.5 py-2 text-sm text-on-surface">
           {minValue || maxValue ? (
@@ -584,6 +621,7 @@ function FundingAmountField({
             min={0}
             placeholder="Min"
             value={minValue}
+            error={minError}
             onChange={(e) => onMinChange(e.target.value)}
           />
           <Input
@@ -591,6 +629,7 @@ function FundingAmountField({
             min={0}
             placeholder="Max"
             value={maxValue}
+            error={maxError}
             onChange={(e) => onMaxChange(e.target.value)}
           />
         </div>
@@ -716,10 +755,12 @@ function DocumentField({
 }
 
 /** Exported so read-only profile views (navbar search result page) can reuse it. */
-export function ProfileFieldRow({ field, value, editMode, onChange }: FieldProps) {
+export function ProfileFieldRow({ field, value, editMode, onChange, error }: FieldProps) {
   const id = `profile-field-${field.columnName}`;
   const locked = !field.isEditable;
   const disabled = !editMode || locked;
+  const required = field.isRequired === true;
+  const optional = field.isRequired === false;
   const label = field.label ?? field.columnName;
 
   // Full registration option list for this column (Primary Sector, Country,
@@ -735,7 +776,7 @@ export function ProfileFieldRow({ field, value, editMode, onChange }: FieldProps
 
     return (
       <div className="flex flex-col gap-2">
-        <FieldLabel id={id} label={label} locked={locked} />
+        <FieldLabel id={id} label={label} locked={locked} required={required} optional={optional} />
         {disabled ? (
           <div className="flex min-h-10 items-center rounded-lg border border-outline-variant/30 bg-surface-container-low px-3.5 py-2 text-sm text-on-surface">
             {selectedLabel || <span className="text-outline-variant">—</span>}
@@ -747,6 +788,9 @@ export function ProfileFieldRow({ field, value, editMode, onChange }: FieldProps
             value={selected}
             searchable={cfg.searchable}
             placeholder={`Select ${label.toLowerCase()}`}
+            required={required}
+            optional={optional}
+            error={error}
             onChange={(val) => onChange(field.columnName, val)}
           />
         )}
@@ -760,7 +804,7 @@ export function ProfileFieldRow({ field, value, editMode, onChange }: FieldProps
 
     return (
       <div className="flex flex-col gap-2">
-        <FieldLabel id={id} label={label} locked={locked} />
+        <FieldLabel id={id} label={label} locked={locked} required={required} optional={optional} />
 
         {disabled ? (
           /* Read-only chip display */
@@ -789,6 +833,9 @@ export function ProfileFieldRow({ field, value, editMode, onChange }: FieldProps
             value={selected}
             searchable={cfg?.searchable}
             placeholder={`Select ${label.toLowerCase()}`}
+            required={required}
+            optional={optional}
+            error={error}
             onChange={(val) => onChange(field.columnName, val)}
           />
         )}
@@ -800,19 +847,13 @@ export function ProfileFieldRow({ field, value, editMode, onChange }: FieldProps
   if (field.type === "textarea" || TEXTAREA_COLUMNS.has(field.columnName)) {
     return (
       <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-1.5">
-          <label
-            htmlFor={id}
-            className="px-1 font-label text-xs font-bold uppercase tracking-wide text-on-surface-variant"
-          >
-            {label}
-          </label>
-          {locked && <Icon name="lock" size={13} className="text-outline-variant" />}
-        </div>
+        <FieldLabel id={id} label={label} locked={locked} required={required} optional={optional} />
         <Textarea
           id={id}
           rows={3}
           disabled={disabled}
+          required={required}
+          error={error}
           value={typeof value === "string" ? value : ""}
           onChange={(e) => onChange(field.columnName, e.target.value)}
           placeholder={disabled ? "—" : `Enter ${label.toLowerCase()}`}
@@ -835,6 +876,9 @@ export function ProfileFieldRow({ field, value, editMode, onChange }: FieldProps
       label={label}
       type={htmlType}
       disabled={disabled}
+      required={required}
+      optional={optional}
+      error={error}
       value={typeof value === "string" ? value : ""}
       onChange={(e) => onChange(field.columnName, e.target.value)}
       placeholder={disabled ? "" : `Enter ${label.toLowerCase()}`}
@@ -933,6 +977,7 @@ export default function ProfilePage() {
   // Whether the funding-min column is present, so currency + max fold into the
   // single "Funding Ask Amount" widget.
   const hasFundingMin = fields.some((f) => f.columnName === FUNDING_MIN_COL);
+  const hasTicketMin = fields.some((f) => f.columnName === TICKET_MIN_COL);
 
   // Render one field as the right control (combined widgets for phone / funding,
   // otherwise the generic row), wrapped with the correct column span.
@@ -990,7 +1035,8 @@ export default function ProfilePage() {
     if (field.columnName === FUNDING_MIN_COL) {
       return (
         <div key={field.columnName} className="sm:col-span-2">
-          <FundingAmountField
+          <AmountRangeField
+            id="profile-field-funding_ask"
             label="Funding Ask Amount"
             locked={!field.isEditable}
             disabled={!editMode || !field.isEditable}
@@ -1000,6 +1046,25 @@ export default function ProfilePage() {
             onCurrencyChange={(v) => handleChange(FUNDING_CURRENCY_COL, v)}
             onMinChange={(v) => handleChange(FUNDING_MIN_COL, v)}
             onMaxChange={(v) => handleChange(FUNDING_MAX_COL, v)}
+          />
+        </div>
+      );
+    }
+
+    if (field.columnName === TICKET_MIN_COL) {
+      return (
+        <div key={field.columnName} className="sm:col-span-2">
+          <AmountRangeField
+            id="profile-field-ticket_size"
+            label="Ticket Size"
+            locked={!field.isEditable}
+            disabled={!editMode || !field.isEditable}
+            currencyValue={toStringValue(localValues[TICKET_CURRENCY_COL] ?? "")}
+            minValue={toStringValue(localValues[TICKET_MIN_COL] ?? normalizeValue(field))}
+            maxValue={toStringValue(localValues[TICKET_MAX_COL] ?? "")}
+            onCurrencyChange={(v) => handleChange(TICKET_CURRENCY_COL, v)}
+            onMinChange={(v) => handleChange(TICKET_MIN_COL, v)}
+            onMaxChange={(v) => handleChange(TICKET_MAX_COL, v)}
           />
         </div>
       );
@@ -1047,6 +1112,7 @@ export default function ProfilePage() {
   const foldedColumns = new Set<string>([
     ...(hasPhoneNumber ? [PHONE_CODE_COL] : []),
     ...(hasFundingMin ? [FUNDING_CURRENCY_COL, FUNDING_MAX_COL] : []),
+    ...(hasTicketMin ? [TICKET_CURRENCY_COL, TICKET_MAX_COL] : []),
   ]);
   const sectionColumns = new Set(activeSections.flatMap((s) => s.columns));
   // Any returned field not placed in a section (and not folded) — shown last so

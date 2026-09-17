@@ -97,10 +97,11 @@ export interface SwitchRolePayload {
 }
 
 /**
- * One profile field the target role requires but has no value for yet, as
- * described by `user_profile_field_master` (see
- * authService.validateAvailableProfileFields — it answers with these and nothing
- * else). `fieldName` is the DB column — the frontend's `ProfileField.columnName`.
+ * One profile field the target role has no value for yet, as described by
+ * `user_profile_field_master` (see authService.validateAvailableProfileFields).
+ * Includes optional registration columns so the switch-role form matches
+ * complete-profile. `fieldName` is the DB column — the frontend's
+ * `ProfileField.columnName`.
  */
 export interface SwitchRoleFieldMeta {
   fieldName: string;
@@ -129,9 +130,11 @@ export interface SwitchRoleFieldMeta {
  *  - pending   → `success: false`, data: { status: "Pending" } — the role row was created
  *                (or already existed) and is waiting on an admin decision.
  *  - rejected  → `success: false`, data: { status: "Rejected", rejectionReason }.
- *  - incomplete→ HTTP **400** (axios rejects), data: { missingFields } — the required
- *                columns the target role has no value for yet. Nothing switched; the
- *                user supplies them and the switch is retried. See `SwitchRoleErrorData`.
+ *  - incomplete→ HTTP **400** (axios rejects), data: { missingFields } — the
+ *                unfilled registration columns for the target role (required and
+ *                optional). The switch is blocked only while required ones are
+ *                empty; optional blanks are still listed so the form can show
+ *                them. See `SwitchRoleErrorData`.
  */
 export interface SwitchRoleResponse {
   success?: boolean;

@@ -140,7 +140,11 @@ export default function RoleSwitchReviewPage() {
     setDetailLoading(true);
     fetchRoleSwitchUserDetails({ userId, companyId, roleId })
       .then((data) => {
-        if (!cancelled) setFields(data);
+        if (!cancelled) {
+          // Same column can arrive twice (company + user). Keep the last row so
+          // email / mobile / country code render once, matching My Profile.
+          setFields([...new Map(data.map((f) => [f.columnName, f])).values()]);
+        }
       })
       .catch((err: ApiError) => {
         if (!cancelled) setDetailError(err.message ?? "Couldn't load this user's details.");
@@ -382,18 +386,13 @@ export default function RoleSwitchReviewPage() {
               <div className="rounded-xl border border-outline/10 px-4 py-1">
                 {fields
                   .filter((f) => f.columnName !== PHOTO_COLUMN)
-                  .map((field, i) => {
+                  .map((field) => {
                     const label = fieldLabel(field.columnName, field.label);
                     const value = displayValue(field);
-                    // `columnName` is NOT unique: `user_profile_field_master` configures
-                    // company_email / mobile_number / country_code twice per role, once
-                    // per source table ("Company Email" vs "Email"). Both are meant to
-                    // show, so the position disambiguates them rather than a dedupe.
-                    const key = `${field.columnName}-${i}`;
 
                     if (DOCUMENT_COLUMNS.has(field.columnName)) {
                       return (
-                        <DetailRow key={key} label={label}>
+                        <DetailRow key={field.columnName} label={label}>
                           {value ? (
                             <button
                               type="button"
@@ -411,7 +410,7 @@ export default function RoleSwitchReviewPage() {
                     }
 
                     return (
-                      <DetailRow key={key} label={label}>
+                      <DetailRow key={field.columnName} label={label}>
                         {value || <span className="text-outline-variant">—</span>}
                       </DetailRow>
                     );
