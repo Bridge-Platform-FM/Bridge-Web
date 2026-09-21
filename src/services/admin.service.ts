@@ -116,9 +116,10 @@ export async function saveAdminProfile(
 }
 
 /**
- * Map the backend `kyc_status` column (title-case, e.g. "Approved"/"Rejected"/
- * "Pending"/null) to the user-list enum. Driven entirely by `kyc_status`:
- * approved/verified → VERIFIED, rejected → REJECTED, everything else → PENDING.
+ * Map the backend company `kyc_status` column (title-case, e.g. "Approved"/"Rejected"/
+ * "Pending"/null) to the user-list enum. Driven entirely by company `kyc_status`,
+ * never per-document `kyc_info.status`: approved/verified → VERIFIED, rejected →
+ * REJECTED, everything else → PENDING.
  */
 function toUserKycStatus(status: unknown): KycStatus {
   const s = String(status ?? "").toUpperCase();
@@ -146,6 +147,7 @@ function toUserListItem(raw: Record<string, unknown>): AdminUserListItem {
     emailVerified: Boolean(raw.is_email_verified),
     mobileVerified: Boolean(raw.is_mobile_number_verified),
     kycStatus: toUserKycStatus(raw.kyc_status),
+    hasKycDocuments: Boolean(raw.has_kyc_documents),
     companyId: raw.company_id != null ? String(raw.company_id) : undefined,
     photoKey: (raw.profile_photo as string | null) ?? null,
     /*

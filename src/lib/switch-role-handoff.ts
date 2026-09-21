@@ -1,16 +1,12 @@
 /**
  * Hand-off between the "Switch Account Type" modal and `/dashboard/switch-role`.
  *
- * `POST /auth/switch-role` is the ONLY place the missing-field list comes from —
- * there is no separate "fields for role X" endpoint. It arrives on the HTTP 400
- * "profile not completed" rejection, so whatever that one response carried has to
- * travel with the navigation instead of being refetched: re-POSTing switch-role
- * just to redraw the form would only fail the same way again.
- *
- * It goes through sessionStorage rather than component state so a refresh of the
- * form page keeps working, and it's scoped to the tab + wiped once the switch is
- * finished. Anything older than TTL_MS is treated as absent — a stale hand-off
- * from an abandoned attempt must never silently reappear.
+ * `GET /auth/switch-role-details` is the source of the field list. The modal
+ * stores unfilled fields in sessionStorage so a refresh of the form page keeps
+ * working without a second round-trip; the form can also refetch if the
+ * hand-off is missing. It is scoped to the tab + wiped once the switch request
+ * is submitted. Anything older than TTL_MS is treated as absent — a stale
+ * hand-off from an abandoned attempt must never silently reappear.
  */
 import type { Role } from "@/lib/roles";
 import type { SwitchRoleFieldMeta } from "@/types/api.types";
@@ -27,55 +23,66 @@ export interface SwitchRoleHandoff {
    * same set complete-profile would show, minus values already on the user row.
    */
   fields: SwitchRoleFieldMeta[];
-  /** Backend message worth echoing on the form (e.g. "Profile not completed."). */
+  /** Backend message worth echoing on the form. */
   message?: string;
   at: number;
 }
 
 /**
- * Company identifiers PUT /users/profile will accept once, while the company
+ * Company identifiers the switch-role save will accept once, while the company
  * row is still empty. Field master keeps them `is_editable: false` so My Profile
  * stays locked after they exist; the switch form unlocks them only because they
- * arrived in `missingFields` (no value yet).
+ * arrived as unfilled fields (no value yet).
  */
 export const FIRST_FILL_COMPANY_COLUMNS = new Set(["gst_number", "cin_number"]);
 
 /**
  * User columns that field master also locks after the first save (no repeatable
  * editor on My Profile). Same first-fill window as GST/CIN: the switch form
- * unlocks them because they arrived in `missingFields`.
+ * unlocks them because they arrived as unfilled fields.
  */
 export const FIRST_FILL_USER_COLUMNS = new Set(["founders"]);
 
 /**
  * Backend field metadata → the `ProfileField` shape `ProfileFieldRow` renders
  * (`fieldName` is the API's name for what the profile endpoints call
- * `columnName`). Every field starts blank: the backend only sends the ones with
- * no value.
+ * `columnName`). Unfilled fields start blank; a value from the details API is
+ * kept when present.
  */
 export function toProfileFields(fields: SwitchRoleFieldMeta[]): SwitchRoleField[] {
   return fields.map((f) => {
     const firstFill =
       FIRST_FILL_COMPANY_COLUMNS.has(f.fieldName) || FIRST_FILL_USER_COLUMNS.has(f.fieldName);
+    const raw = f.value;
+    const value =
+      raw === null || raw === undefined
+        ? ""
+        : Array.isArray(raw) || typeof raw === "string" || typeof raw === "number"
+          ? raw
+          : "";
     return {
       columnName: f.fieldName,
       label: f.label ?? f.fieldName,
       type: f.type ?? "string",
-      // Company-owned columns can't be written by PUT /users/profile except the
-      // first-fill GST/CIN window above. Founders is a locked user column that
-      // the switch form still has to collect. Everything else stays locked.
+      // Company-owned columns can't be written except the first-fill GST/CIN
+      // window above. Founders is a locked user column that the switch form
+      // still has to collect. Everything else stays locked.
       isEditable: firstFill || (f.isEditable !== false && f.sourceTable !== "company"),
       isRequired: f.isRequired === true,
-      value: "",
+      value,
     };
   });
+}
+
+export function unfilledSwitchRoleFields(fields: SwitchRoleFieldMeta[] | undefined): SwitchRoleFieldMeta[] {
+  return (fields ?? []).filter((field) => field.isFilled !== true);
 }
 
 export function setSwitchRoleHandoff(handoff: Omit<SwitchRoleHandoff, "at">): void {
   try {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ ...handoff, at: Date.now() }));
   } catch {
-    /* storage unavailable — the form falls back to sending the user to /dashboard */
+    /* storage unavailable — the form falls back to refetching switch-role-details */
   }
 }
 

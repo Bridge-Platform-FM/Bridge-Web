@@ -8,9 +8,9 @@ import { Loader } from "@/components/common/loader";
 import { SelectableOptionRow } from "@/components/ui/SelectableOptionRow";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { USER_ROLES, ROLE_META, type Role } from "@/lib/roles";
-import { setSwitchRoleHandoff } from "@/lib/switch-role-handoff";
+import { setSwitchRoleHandoff, unfilledSwitchRoleFields } from "@/lib/switch-role-handoff";
+import { getSwitchRoleDetails } from "@/services/auth.service";
 import type { ApiError } from "@/lib/axios";
-import type { SwitchRoleErrorData } from "@/types/api.types";
 
 interface SwitchUserModalProps {
   open: boolean;
@@ -19,8 +19,9 @@ interface SwitchUserModalProps {
 
 /**
  * "Switch User" dialog — lists the three switchable user roles. Picking one and
- * confirming calls the backend (which re-issues a token for that role) via
- * useAuth().switchRole, then closes. Reuses the shared Modal + SelectableOptionRow.
+ * confirming fetches that role's field details (no company_user_role write). An
+ * already-approved role is switched immediately; anything else that still needs
+ * profile data goes to `/dashboard/switch-role`.
  */
 export function SwitchUserModal({ open, onClose }: SwitchUserModalProps) {
   const router = useRouter();
@@ -38,37 +39,46 @@ export function SwitchUserModal({ open, onClose }: SwitchUserModalProps) {
     }
     setSwitching(true);
     try {
-      // One call does the whole thing: POST /auth/switch-role allocates the role if the
-      // user doesn't hold it yet, and only re-issues the token once an admin has approved
-      // it. So a first-time switch answers "Pending" rather than switching.
-      const outcome = await switchRole(selected);
+      const details = await getSwitchRoleDetails({ role: selected });
+      const status = details.data?.status?.toLowerCase();
+      const label = ROLE_META[selected].label;
 
-      if (!outcome.switched) {
-        const label = ROLE_META[selected].label;
-        if (outcome.status?.toLowerCase() === "rejected") {
-          // `message` carries the admin's rejection reason for this role.
-          toast.error(outcome.message ?? `Your ${label} role was rejected.`);
-        } else {
-          toast.info(outcome.message ?? `Your ${label} role has been sent for approval.`);
+      if (status === "approved") {
+        const outcome = await switchRole(selected);
+        if (!outcome.switched) {
+          if (outcome.status?.toLowerCase() === "rejected") {
+            toast.error(outcome.message ?? `Your ${label} role was rejected.`);
+          } else {
+            toast.info(outcome.message ?? `Your ${label} role has been sent for approval.`);
+          }
+          onClose();
+          return;
         }
+        toast.success(`Switched to ${label}.`);
         onClose();
         return;
       }
 
-      toast.success(`Switched to ${ROLE_META[selected].label}.`);
+      if (status === "rejected") {
+        toast.error(
+          details.data?.rejectionReason || details.message || `Your ${label} role was rejected.`,
+        );
+        onClose();
+        return;
+      }
+
+      if (status === "pending" && details.data?.isProfileCompleted) {
+        toast.info(details.message ?? `Your ${label} role has been sent for approval.`);
+        onClose();
+        return;
+      }
+
+      const fields = unfilledSwitchRoleFields(details.data?.fields);
+      setSwitchRoleHandoff({ role: selected, fields, message: details.message });
       onClose();
+      router.push(`/dashboard/switch-role?role=${selected}`);
     } catch (err) {
       const e = err as ApiError;
-      // HTTP 400 "profile not completed" — nothing switched, and the body lists the
-      // unfilled registration columns (required + optional) for the target role.
-      // Hand those to the switch-role form, which collects them and re-attempts.
-      const missing = (e.data as SwitchRoleErrorData | undefined)?.data?.missingFields;
-      if (missing?.length) {
-        onClose();
-        setSwitchRoleHandoff({ role: selected, fields: missing, message: e.message });
-        router.push(`/dashboard/switch-role?role=${selected}`);
-        return;
-      }
       toast.error(e.message ?? "Couldn't switch account type. Please try again.");
     } finally {
       setSwitching(false);

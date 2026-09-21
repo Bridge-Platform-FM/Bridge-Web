@@ -11,13 +11,15 @@ import { FileUploadField } from "@/components/onboarding/FileUploadField";
 import { DOC_TYPE, type DocType } from "@/config/docTypes";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { ProfileFieldRow, PROFILE_SECTIONS, normalizeValue, PhotoField, AmountRangeField } from "@/app/dashboard/profile/page";
-import { saveUserProfile, type SwitchRoleField } from "@/services/user.service";
-import { verifyCin, verifyGst } from "@/services/auth.service";
+import { type SwitchRoleField } from "@/services/user.service";
+import { requestRoleSwitch, getSwitchRoleDetails, verifyCin, verifyGst } from "@/services/auth.service";
 import {
   clearSwitchRoleHandoff,
   FIRST_FILL_COMPANY_COLUMNS,
   getSwitchRoleHandoff,
+  setSwitchRoleHandoff,
   toProfileFields,
+  unfilledSwitchRoleFields,
   type SwitchRoleHandoff,
 } from "@/lib/switch-role-handoff";
 import {
@@ -65,27 +67,23 @@ const LINKEDIN_URL_RE = new RegExp(LINKEDIN_URL_PATTERN, "i");
  * Switch Role — supply the fields the target role is missing.
  *
  * Each role uses a different subset of the (single, wide) `user` row, so moving
- * from Startup to Investor leaves every investor column empty. `POST /auth/switch-role`
- * refuses that switch with HTTP 400 and a `missingFields` list — every
- * unfilled registration column for that role (required and optional, matching
- * complete-profile), and `SwitchUserModal` sends the user here with it
- * rather than dropping them on My Profile to hunt for the blanks themselves.
+ * from Startup to Investor leaves every investor column empty. `GET
+ * /auth/switch-role-details` returns that role's registration columns (filled
+ * and unfilled) without creating a company_user_role row. `SwitchUserModal`
+ * stores the unfilled list in sessionStorage and sends the user here.
  *
- * The fields are NOT refetched here — they arrive through the sessionStorage
- * hand-off (`lib/switch-role-handoff.ts`), because switch-role is the only
- * endpoint that produces them and calling it again would just fail the same way.
- * A direct hit on this URL with no hand-off goes back to the dashboard.
- *
- * Saving is `PUT /users/profile` followed by a retry of the switch, so the role
- * only flips once its required fields actually exist — and backing out (Cancel,
- * browser Back, closing the tab) leaves the user on their current role.
+ * Saving is `POST /auth/request-role-switch`, which writes the profile fields
+ * and creates the role row with is_profile_completed=true and status Pending.
+ * Save & Switch stays disabled until every required field has a value.
+ * Backing out (Cancel, browser Back, closing the tab) leaves the user on their
+ * current role and does not create a company_user_role row.
  *
  * Empty company GST/CIN are the exception to the company-column lock: B2B
- * requires them, Investor/Startup registration never collected them, and PUT
- * /users/profile will first-fill them after the same verification as sign-up.
- * Startup `founders` is the same first-fill pattern on a user column: field
- * master keeps it locked on My Profile (no repeatable-row editor), so this
- * page unlocks name + LinkedIn rows when the switch-role response lists it.
+ * requires them, Investor/Startup registration never collected them, and the
+ * request-role-switch save will first-fill them after the same verification as
+ * sign-up. Startup `founders` is the same first-fill pattern on a user column:
+ * field master keeps it locked on My Profile (no repeatable-row editor), so this
+ * page unlocks name + LinkedIn rows when the details response lists it as unfilled.
  *
  * Fields render through the same `ProfileFieldRow` as My Profile, relabelled with
  * `fieldLabel()` so a question the user first saw during registration is worded
@@ -238,7 +236,7 @@ function collectIncomplete(args: {
 function SwitchRoleForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { role: currentRole, isLoaded, switchRole } = useAuth();
+  const { role: currentRole, isLoaded } = useAuth();
 
   const roleParam = searchParams.get("role");
   const target: Role | null = roleParam && isRole(roleParam) && isUserRole(roleParam) ? roleParam : null;
@@ -257,33 +255,84 @@ function SwitchRoleForm() {
   const gstRequestIdRef = useRef(0);
   const cinRequestIdRef = useRef(0);
 
-  // The switch-role response's missingFields, read once from the hand-off. A stale
-  // one (different role, expired, none at all) is treated as absent so the guard
-  // below sends the user back rather than rendering a form for the wrong role.
-  useEffect(() => {
-    const stored = getSwitchRoleHandoff();
-    const valid = stored && stored.role === target ? stored : null;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setHandoff(valid);
-    if (valid) {
-      const seeded: Record<string, string | string[]> = {};
-      for (const f of toProfileFields(valid.fields)) {
-        if (f.columnName === FOUNDERS_COLUMN) continue;
-        seeded[f.columnName] = normalizeValue(f);
-      }
-      const names = new Set(valid.fields.map((f) => f.fieldName));
-      if (names.has(TICKET_MIN_COL) || names.has(TICKET_CURRENCY_COL)) {
-        if (!seeded[TICKET_CURRENCY_COL]) seeded[TICKET_CURRENCY_COL] = "INR";
-      }
-      if (names.has(FUNDING_MIN_COL) || names.has(FUNDING_CURRENCY_COL)) {
-        if (!seeded[FUNDING_CURRENCY_COL]) seeded[FUNDING_CURRENCY_COL] = "INR";
-      }
-      setValues(seeded);
-      setFounders([{ ...EMPTY_FOUNDER }]);
-      setAttemptedSave(false);
+  const seedForm = useCallback((stored: SwitchRoleHandoff) => {
+    setHandoff(stored);
+    const seeded: Record<string, string | string[]> = {};
+    for (const f of toProfileFields(stored.fields)) {
+      if (f.columnName === FOUNDERS_COLUMN) continue;
+      seeded[f.columnName] = normalizeValue(f);
     }
-    setReady(true);
-  }, [target]);
+    const names = new Set(stored.fields.map((f) => f.fieldName));
+    if (names.has(TICKET_MIN_COL) || names.has(TICKET_CURRENCY_COL)) {
+      if (!seeded[TICKET_CURRENCY_COL]) seeded[TICKET_CURRENCY_COL] = "INR";
+    }
+    if (names.has(FUNDING_MIN_COL) || names.has(FUNDING_CURRENCY_COL)) {
+      if (!seeded[FUNDING_CURRENCY_COL]) seeded[FUNDING_CURRENCY_COL] = "INR";
+    }
+    setValues(seeded);
+    setFounders([{ ...EMPTY_FOUNDER }]);
+    setAttemptedSave(false);
+  }, []);
+
+  // Prefer the modal's sessionStorage hand-off; if it's missing (direct URL or
+  // refresh after TTL) refetch GET /auth/switch-role-details instead of bouncing.
+  useEffect(() => {
+    if (!target) {
+      setReady(true);
+      return;
+    }
+
+    const stored = getSwitchRoleHandoff();
+    if (stored && stored.role === target) {
+      seedForm(stored);
+      setReady(true);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const details = await getSwitchRoleDetails({ role: target });
+        if (cancelled) return;
+        const status = details.data?.status?.toLowerCase();
+        if (status === "rejected") {
+          toast.error(
+            details.data?.rejectionReason || details.message || `Your ${ROLE_META[target].label} role was rejected.`,
+          );
+          router.replace("/dashboard");
+          return;
+        }
+        if (status === "approved") {
+          toast.info(`Your ${ROLE_META[target].label} role is already available. Switch from the account menu.`);
+          router.replace("/dashboard");
+          return;
+        }
+        if (status === "pending" && details.data?.isProfileCompleted) {
+          toast.info(details.message ?? `Your ${ROLE_META[target].label} role has been sent for approval.`);
+          router.replace("/dashboard");
+          return;
+        }
+        const next: SwitchRoleHandoff = {
+          role: target,
+          fields: unfilledSwitchRoleFields(details.data?.fields),
+          message: details.message,
+          at: Date.now(),
+        };
+        setSwitchRoleHandoff(next);
+        seedForm(next);
+      } catch (err) {
+        if (cancelled) return;
+        toast.error((err as ApiError).message ?? "Couldn't load the details for this role.");
+        router.replace("/dashboard");
+      } finally {
+        if (!cancelled) setReady(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [target, seedForm, router]);
 
   // Reachable only from the switch modal, and only for the three user roles. A
   // hand-typed or stale URL (bad ?role=, staff account, no hand-off) goes back to
@@ -425,8 +474,8 @@ function SwitchRoleForm() {
 
     setSaving(true);
     try {
-      // PUT /users/profile writes `user` columns plus empty company GST/CIN.
-      // Other company-owned fields stay locked and are never sent.
+      // POST /auth/request-role-switch writes `user` columns plus empty company
+      // GST/CIN, then creates the pending company_user_role with a completed profile.
       const payload: Record<string, unknown> = {};
       for (const f of fields) {
         if (!f.isEditable || f.columnName === FOUNDERS_COLUMN) continue;
@@ -440,14 +489,10 @@ function SwitchRoleForm() {
         const cleaned = normalizeFounders(founders);
         if (cleaned.length > 0) payload[FOUNDERS_COLUMN] = cleaned;
       }
-      if (Object.keys(payload).length > 0) await saveUserProfile(payload);
 
-      // The switch was refused for exactly these fields, so retry it now that they
-      // exist. It can still come back Pending/Rejected — that's an admin decision,
-      // not a form error, so it ends the flow rather than keeping the user here.
-      const outcome = await switchRole(target);
-      if (!outcome.switched) {
-        if (outcome.status?.toLowerCase() === "rejected") {
+      const outcome = await requestRoleSwitch({ role: target, ...payload });
+      if (outcome.success === false) {
+        if (outcome.data?.status?.toLowerCase() === "rejected") {
           toast.error(outcome.message ?? `Your ${ROLE_META[target].label} role was rejected.`);
         } else {
           toast.info(outcome.message ?? `Your ${ROLE_META[target].label} role has been sent for approval.`);
@@ -455,7 +500,7 @@ function SwitchRoleForm() {
         finish();
         return;
       }
-      toast.success(outcome.message ?? `Switched to ${ROLE_META[target].label}.`);
+      toast.info(outcome.message ?? `Your ${ROLE_META[target].label} role has been sent for approval.`);
       finish();
     } catch (err) {
       const e = err as ApiError;
@@ -634,7 +679,14 @@ function SwitchRoleForm() {
     );
   };
 
-  if (!isLoaded || !ready || !target || !handoff) return null;
+  if (!isLoaded || !ready) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Loader size="medium" />
+      </div>
+    );
+  }
+  if (!target || !handoff) return null;
 
   return (
     <div className="flex h-full flex-col">
@@ -668,7 +720,7 @@ function SwitchRoleForm() {
                 <Icon name="info" size={18} />
                 <span>
                   Your account stays a {currentRole ? ROLE_META[currentRole].label : "user"} until
-                  you save.
+                  an admin approves this switch.
                 </span>
               </div>
 
@@ -701,10 +753,9 @@ function SwitchRoleForm() {
       </div>
 
       {/* ── Footer ── */}
-      {fields.length > 0 && (
-        <div className="flex shrink-0 flex-col gap-3 border-t border-outline-variant/20 bg-surface-container-lowest px-8 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex shrink-0 flex-col gap-3 border-t border-outline-variant/20 bg-surface-container-lowest px-8 py-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="min-w-0 text-xs text-on-surface-variant">
-            {attemptedSave && !canSubmit && (
+            {!canSubmit && (
               <span>
                 Fill in to continue:{" "}
                 <span className="font-semibold text-error">{remainingLabels.join(", ")}</span>
@@ -722,7 +773,7 @@ function SwitchRoleForm() {
             </button>
             <Button
               id="switch-role-save-btn"
-              disabled={saving}
+              disabled={saving || !canSubmit}
               onClick={handleSave}
               className="h-10 px-6 text-sm"
             >
@@ -737,7 +788,6 @@ function SwitchRoleForm() {
             </Button>
           </div>
         </div>
-      )}
     </div>
   );
 }
