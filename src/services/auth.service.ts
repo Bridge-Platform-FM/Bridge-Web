@@ -20,6 +20,8 @@ import type {
   ResendOtpResponse,
   SwitchRolePayload,
   SwitchRoleResponse,
+  SwitchRoleDetailsResponse,
+  RequestRoleSwitchResponse,
   ResetPasswordTriggerOtpPayload,
   ResetPasswordTriggerOtpResponse,
   ResetPasswordVerifyOtpPayload,
@@ -179,15 +181,41 @@ export async function resetPassword(payload: ResetPasswordPayload): Promise<Rese
 }
 
 /**
+ * Preview the target role's registration fields (filled and unfilled) without
+ * creating a company_user_role row.
+ */
+export async function getSwitchRoleDetails(payload: SwitchRolePayload): Promise<SwitchRoleDetailsResponse> {
+  const { data } = await api.get<SwitchRoleDetailsResponse>(API_ENDPOINTS.SWITCH_ROLE_DETAILS, {
+    params: { roleCode: toRoleCode(payload.role) },
+  });
+  return data;
+}
+
+/**
+ * Save the target role's profile fields and create a pending company_user_role
+ * with is_profile_completed=true. Does not re-issue session tokens.
+ */
+export async function requestRoleSwitch(
+  payload: SwitchRolePayload & Record<string, unknown>,
+): Promise<RequestRoleSwitchResponse> {
+  const { role, ...profileFields } = payload;
+  const { data } = await api.post<RequestRoleSwitchResponse>(API_ENDPOINTS.REQUEST_ROLE_SWITCH, {
+    roleCode: toRoleCode(role),
+    ...profileFields,
+  });
+  return data;
+}
+
+/**
  * Switch the active user role.
  *
  * The backend takes `roleCode` in its own uppercase enum (STARTUP / INVESTOR / B2B) —
  * not our lowercase `Role` — so the mapping happens here rather than at every call site.
  *
- * On success the re-issued token pair is set as httpOnly cookies on the response, so
- * there is nothing for the client to store. When the role still needs admin approval, or
- * was rejected, the backend answers `success: false` at HTTP 200 — see SwitchRoleResponse;
- * the caller must check `success` because axios will not throw for those.
+ * Only an already-approved role is switched. On success the re-issued token pair is
+ * set as httpOnly cookies on the response. When the role still needs admin approval,
+ * or was rejected, the backend answers `success: false` at HTTP 200 — see
+ * SwitchRoleResponse; the caller must check `success` because axios will not throw.
  */
 export async function switchRole(payload: SwitchRolePayload): Promise<SwitchRoleResponse> {
   const { data } = await api.post<SwitchRoleResponse>(API_ENDPOINTS.SWITCH_ROLE, {

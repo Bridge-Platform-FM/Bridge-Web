@@ -39,6 +39,7 @@ const STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
   { value: "VERIFIED", label: "KYC Verified" },
   { value: "PENDING", label: "KYC Pending" },
+  { value: "REJECTED", label: "KYC Rejected" },
 ];
 
 /**
@@ -90,10 +91,15 @@ export default function UserManagementPage() {
   }, [load]);
 
   // The backend returns the whole list (no pagination), so filter + page here.
+  // KYC status tabs match KYC Review: company.kyc_status, and only users who
+  // uploaded documents (`hasKycDocuments` ≡ documents.length > 0).
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return users.filter((u) => {
-      if (statusFilter && u.kycStatus !== statusFilter) return false;
+      if (statusFilter) {
+        if (u.kycStatus !== statusFilter) return false;
+        if (!u.hasKycDocuments) return false;
+      }
       if (roleFilter && u.role !== roleFilter) return false;
       if (!q) return true;
       return (
@@ -207,7 +213,7 @@ export default function UserManagementPage() {
             <div className="shrink-0 sm:w-44">
               <Select aria-label="User role" options={ROLE_OPTIONS} value={roleFilter} onChange={onRole} placeholder="All Roles" />
             </div>
-            <div className="shrink-0 sm:w-44">
+            <div className="shrink-0 sm:w-48">
               <Select aria-label="KYC status" options={STATUS_OPTIONS} value={statusFilter} onChange={onStatus} placeholder="All Statuses" />
             </div>
           </div>

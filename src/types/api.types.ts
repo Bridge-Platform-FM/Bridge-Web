@@ -97,44 +97,72 @@ export interface SwitchRolePayload {
 }
 
 /**
- * One profile field the target role has no value for yet, as described by
- * `user_profile_field_master` (see authService.validateAvailableProfileFields).
- * Includes optional registration columns so the switch-role form matches
- * complete-profile. `fieldName` is the DB column — the frontend's
- * `ProfileField.columnName`.
+ * One registration field for the target role, as described by
+ * `user_profile_field_master` (see authService.listSwitchRoleFields).
+ * `fieldName` is the DB column — the frontend's `ProfileField.columnName`.
  */
 export interface SwitchRoleFieldMeta {
   fieldName: string;
   label: string;
   /**
-   * Which table the column lives on. `user` columns are writable via PUT /users/profile.
-   * Empty company GST/CIN are also first-fill writable on that same PUT; other
-   * company columns stay locked.
+   * Which table the column lives on. `user` columns are writable via the
+   * request-role-switch body. Empty company GST/CIN are also first-fill
+   * writable there; other company columns stay locked.
    */
   sourceTable?: string;
   /** "string" | "number" | "url" | "email" | "textarea" | "array" | … */
   type: string;
   isEditable?: boolean;
   isRequired?: boolean;
+  /** True when the user/company row already has a value for this column. */
+  isFilled?: boolean;
+  value?: unknown;
+}
+
+/** Response from `GET /auth/switch-role-details`. */
+export interface SwitchRoleDetailsResponse {
+  success?: boolean;
+  message?: string;
+  data?: {
+    roleId?: number;
+    roleCode?: string;
+    /** Existing company_user_role status, or null when no row exists yet. */
+    status?: string | null;
+    isProfileCompleted?: boolean;
+    rejectionReason?: string | null;
+    fields?: SwitchRoleFieldMeta[];
+  };
+}
+
+/**
+ * Response from `POST /auth/request-role-switch`.
+ *
+ * A first-time submit answers `success: true` with status Pending. Already-
+ * pending or rejected roles come back as `success: false` at **HTTP 200**.
+ * Incomplete required fields are HTTP **400** with `missingFields`.
+ */
+export interface RequestRoleSwitchResponse {
+  success?: boolean;
+  message?: string;
+  data?: {
+    status?: string;
+    isProfileCompleted?: boolean;
+    rejectionReason?: string | null;
+    missingFields?: SwitchRoleFieldMeta[];
+  };
 }
 
 /**
  * Response from `POST /auth/switch-role`.
  *
- * The endpoint answers four different outcomes, and — importantly — the two that
- * aren't a completed switch come back as `success: false` at **HTTP 200**, so axios
- * resolves them normally. Always branch on `success`, never on the HTTP status:
+ * The endpoint answers three outcomes. Pending/rejected come back as
+ * `success: false` at **HTTP 200**, so axios resolves them normally. Always
+ * branch on `success`, never on the HTTP status:
  *
  *  - approved  → `success: true`,  data: { roleId, role } and the re-issued token
  *                pair set as httpOnly cookies on this response.
- *  - pending   → `success: false`, data: { status: "Pending" } — the role row was created
- *                (or already existed) and is waiting on an admin decision.
+ *  - pending   → `success: false`, data: { status: "Pending" }.
  *  - rejected  → `success: false`, data: { status: "Rejected", rejectionReason }.
- *  - incomplete→ HTTP **400** (axios rejects), data: { missingFields } — the
- *                unfilled registration columns for the target role (required and
- *                optional). The switch is blocked only while required ones are
- *                empty; optional blanks are still listed so the form can show
- *                them. See `SwitchRoleErrorData`.
  */
 export interface SwitchRoleResponse {
   success?: boolean;
@@ -544,9 +572,14 @@ export interface AdminUserListItem {
   role: Role | null;
   emailVerified: boolean;
   mobileVerified: boolean;
-  /** Derived from the backend `kyc_status` column: Approved → VERIFIED, Rejected →
-   *  REJECTED, otherwise PENDING. */
+  /** Derived from the backend company `kyc_status` column: Approved → VERIFIED, Rejected →
+   *  REJECTED, otherwise PENDING. Per-document `kyc_info.status` is not used. */
   kycStatus: KycStatus;
+  /**
+   * True when the user has at least one Aadhaar/PAN row in `kyc_info` (same gate as
+   * KYC Review's `documents.length > 0`). Existence only — not document approve/reject.
+   */
+  hasKycDocuments: boolean;
   /** `company_id` — required alongside `userId` by the suspension endpoint. */
   companyId?: string;
   /** Stored profile-picture key (`user.profile_photo`); undefined = show initials. */

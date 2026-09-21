@@ -58,8 +58,12 @@ export const API_ENDPOINTS = {
   SUPERADMIN_LOGIN: `${SUPERADMIN_AUTH}/login`,
   SUPERADMIN_MFA_SELECT_CHANNEL: `${SUPERADMIN_AUTH}/mfa/trigger-otp`,
   SUPERADMIN_MFA_VERIFY_OTP: `${SUPERADMIN_AUTH}/mfa/verify-otp`,
-  // Switch the active user role — backend re-issues a new access token for the
-  // chosen role. TODO: confirm the real path/shape from the curl.
+  // Preview the target role's filled/unfilled fields (no company_user_role write).
+  SWITCH_ROLE_DETAILS: `${AUTH}/switch-role-details`,
+  // Save target-role profile fields and create a pending completed role row.
+  REQUEST_ROLE_SWITCH: `${AUTH}/request-role-switch`,
+  // Switch the active user role — backend re-issues a new access token for an
+  // already-approved role.
   SWITCH_ROLE: `${AUTH}/switch-role`,
   // TODO: replace with the real OTP verify paths from the curls.
   VERIFY_MOBILE_OTP: `${AUTH}/verify-otp`,

@@ -163,10 +163,9 @@ export async function getUserRoleDetails(params: {
 /* ----- Role switch ----------------------------------------------------------
  * Switching role changes which subset of the (single, wide) `user` row matters:
  * a Startup fills funding_stage / use_of_funds, an Investor fills investor_type /
- * ticket_size_amt_min. There is no dedicated "fields for role X" endpoint — the
- * target role's field list comes back from POST /auth/switch-role itself, is
- * carried to the form by `lib/switch-role-handoff.ts`, and is saved with the
- * ordinary `saveUserProfile` above (user columns, plus empty company GST/CIN).
+ * ticket_size_amt_min. GET /auth/switch-role-details returns the target role's
+ * field list (no company_user_role write). Unfilled fields are carried to the
+ * form by `lib/switch-role-handoff.ts` and saved with POST /auth/request-role-switch.
  * See app/dashboard/switch-role/page.tsx.
  * -------------------------------------------------------------------------- */
 
