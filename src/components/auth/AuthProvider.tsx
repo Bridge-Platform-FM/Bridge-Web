@@ -28,11 +28,13 @@ interface AuthContextValue {
    * Switch the active role. Resolves with the outcome rather than throwing when the
    * role isn't usable yet: an added role sits at Pending until an admin approves it,
    * and that arrives as success:false at HTTP 200 (see SwitchRoleResponse).
+   * First-time switches go through `/dashboard/switch-role` and
+   * `POST /auth/request-role-switch` instead of this method.
    */
   switchRole: (target: Role) => Promise<SwitchRoleOutcome>;
   /**
-   * Adopt a role the backend has already switched us into (the switch-role page
-   * commits the role as part of its own save call, so it has no token to fetch).
+   * Adopt a role the backend has already switched us into (an approved role
+   * switch re-issues the cookie; this is the client-side half).
    */
   applyRole: (role: Role) => void;
   /** Revoke the current session on the backend, then clear local state and return to login. */
@@ -59,9 +61,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * Adopt `role` as the active one locally. The backend has already re-issued the
-   * cookie by the time this runs — this is purely the client-side half, shared by
-   * the plain switch below and by the switch-role page (which commits the role as
-   * part of saving the target role's profile fields).
+   * cookie by the time this runs — this is purely the client-side half, used when
+   * switching into a role that an admin has already approved.
    */
   const applyRole = useCallback(
     (role: Role) => {
