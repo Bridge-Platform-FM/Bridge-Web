@@ -863,6 +863,10 @@ export interface UserSearchResult {
   /** UUID of the matched user. */
   user_id: string;
   role_id: number;
+  /** Backend role code (`STARTUP` / `INVESTOR` / `B2B`). */
+  role?: string;
+  /** Display name from `company_role_master`. */
+  role_name?: string;
   /** UUID of the matched company. */
   company_id: string;
   first_name: string;
