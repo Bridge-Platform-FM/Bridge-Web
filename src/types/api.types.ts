@@ -355,6 +355,7 @@ export interface UserProfilePayload {
   first_name?: string;
   last_name?: string;
   profile_photo?: string;
+  intro_video?: string;
   short_bio?: string;
   country?: string;
   continent?: string;

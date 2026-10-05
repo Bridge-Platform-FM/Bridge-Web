@@ -26,6 +26,7 @@ import {
 import { CURRENCIES } from "@/lib/startup-profile-options";
 import { DIAL_CODES, continentForCountry } from "@/lib/countries";
 import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewModal";
+import { VideoUploadField } from "@/components/onboarding/VideoUploadField";
 import { profilePhotoKey } from "@/lib/useMyProfilePhoto";
 import { scanDocument, scanImage } from "@/services/file.service";
 import { DOC_TYPE, DOC_MAX_MB, type DocType } from "@/config/docTypes";
@@ -58,6 +59,7 @@ const PHONE_CODE_COL = "country_code";
  * `type: "string"` would otherwise produce.
  */
 const PHOTO_COL = "profile_photo";
+const INTRO_VIDEO_COL = "intro_video";
 /** Matches the registration complete-profile photo picker. */
 const PHOTO_MIME_TYPES = ["image/png", "image/jpeg"];
 
@@ -149,7 +151,7 @@ export const PROFILE_SECTIONS: { title: string; columns: string[] }[] = [
   },
   {
     title: "About",
-    columns: ["short_bio", "address"],
+    columns: ["short_bio", "address", "intro_video"],
   },
 ];
 
@@ -1005,6 +1007,23 @@ export default function ProfilePage() {
             locked={!field.isEditable}
             editable={editMode && field.isEditable}
             onUploaded={(key) => handleChange(PHOTO_COL, key)}
+          />
+        </div>
+      );
+    }
+
+    // Optional intro video → upload / replace / remove while editing, Preview (modal player)
+    // always. Re-keyed on edit-mode toggle so a discarded edit drops its local file.
+    if (field.columnName === INTRO_VIDEO_COL) {
+      return (
+        <div key={field.columnName} className="sm:col-span-2">
+          <VideoUploadField
+            key={editMode ? "edit" : "view"}
+            label={field.label ?? "Intro Video"}
+            value={toStringValue(localValues[INTRO_VIDEO_COL] ?? normalizeValue(field))}
+            locked={!field.isEditable}
+            editable={editMode && field.isEditable}
+            onChange={(key) => handleChange(INTRO_VIDEO_COL, key)}
           />
         </div>
       );

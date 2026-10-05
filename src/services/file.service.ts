@@ -44,6 +44,49 @@ export const scanImage = (file: File, meta: ScanMeta): Promise<ScanResult> =>
 export const scanDocument = (file: File, meta: ScanMeta): Promise<ScanResult> =>
   scan(API_ENDPOINTS.SCAN_DOCUMENT, "document", file, meta);
 
+/** Accepted intro-video formats and size cap (mirrors the backend `videoUpload`). */
+export const INTRO_VIDEO_MIME_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
+export const INTRO_VIDEO_MAX_MB = 30;
+
+/**
+ * Scan + upload an intro video (MP4 / WebM / MOV, max 30 MB). `onProgress` receives
+ * 0–100 while the bytes go up; the scan runs server-side after the upload completes.
+ * No axios timeout is set on the instance, so a slow connection won't abort mid-upload.
+ */
+export async function scanVideo(
+  file: File,
+  onProgress?: (percent: number) => void
+): Promise<ScanResult> {
+  const form = new FormData();
+  form.append("video", file);
+  form.append("docType", "INTRO_VIDEO");
+  const { data } = await api.post<{ data: ScanResult }>(API_ENDPOINTS.SCAN_VIDEO, form, {
+    headers: { "Content-Type": undefined },
+    onUploadProgress: (e) => {
+      if (onProgress && e.total) onProgress(Math.round((e.loaded / e.total) * 100));
+    },
+  });
+  return data.data;
+}
+
+/** Whose intro video to play. Omit to play the signed-in user's own. */
+export interface IntroVideoTarget {
+  userId: string;
+  companyId?: string;
+  roleId: number;
+}
+
+/**
+ * Short-lived (3 min) signed URL for an intro video. Fetched fresh each time the
+ * preview opens — never cached, since the link expires.
+ */
+export const getIntroVideoUrl = async (target?: IntroVideoTarget): Promise<string> => {
+  const { data } = await api.get<{ data: { url: string } }>(API_ENDPOINTS.VIDEO_URL, {
+    params: target ? { userId: target.userId, companyId: target.companyId, roleId: target.roleId } : undefined,
+  });
+  return data.data.url;
+};
+
 /**
  * Preview cache, keyed by the (immutable) `s3Key`. Without it a chat thread with N
  * image attachments issues N separate blob downloads, and opening one of those images

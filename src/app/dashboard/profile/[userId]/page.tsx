@@ -15,6 +15,7 @@ import { getFieldOptionConfig } from "@/lib/profile-field-options";
 import { ProposalFormModal } from "@/components/dashboard/connections/ProposalFormModal";
 import { useSenderIdentity } from "@/components/dashboard/connections/sender-identity";
 import { DocumentPreviewModal } from "@/components/onboarding/DocumentPreviewModal";
+import { VideoPreviewModal } from "@/components/onboarding/VideoPreviewModal";
 import { StatusPill } from "@/components/dashboard/kyc-status";
 import {
   canSendConnectionRequest,
@@ -64,10 +65,13 @@ const DOCUMENT_COLUMNS = new Set(["incorporation_certificate", "pitch_deck_certi
 function ReadOnlyField({
   field,
   onPreview,
+  onPlayVideo,
 }: {
   field: ProfileField;
   /** Open the shared preview modal for a document field's stored key. */
   onPreview: (s3Key: string, title: string) => void;
+  /** Open the video player for this user's intro video. Omitted for viewers who can't play it. */
+  onPlayVideo?: (title: string) => void;
 }) {
   const label = field.label ?? field.columnName;
   const cfg = getFieldOptionConfig(field.columnName);
@@ -98,6 +102,27 @@ function ReadOnlyField({
           </span>
         ))}
       </div>
+    ) : (
+      dash
+    );
+  } else if (field.columnName === "intro_video") {
+    // The stored key is never shown or fetched here — playback goes through the
+    // viewer-checked signed-URL endpoint (view-only, no download).
+    body = normalized ? (
+      <span className="inline-flex items-center gap-2 text-sm font-medium text-on-surface">
+        <Icon name="videocam" size={16} className="shrink-0 text-primary" />
+        Video provided
+        {onPlayVideo && (
+          <button
+            type="button"
+            onClick={() => onPlayVideo(label)}
+            className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-0.5 text-sm font-semibold text-primary transition-colors hover:bg-primary-container/40"
+          >
+            <Icon name="visibility" size={16} />
+            Preview
+          </button>
+        )}
+      </span>
     ) : (
       dash
     );
@@ -157,6 +182,8 @@ function UserProfilePageContent() {
   const [proposalOpen, setProposalOpen] = useState(false);
   /** Document open in the preview modal; null = closed. */
   const [preview, setPreview] = useState<{ s3Key: string; title: string } | null>(null);
+  /** Title of the intro video open in the player; null = closed. */
+  const [videoTitle, setVideoTitle] = useState<string | null>(null);
   // Deferred until the Connect modal opens — viewing someone else's profile shouldn't
   // cost a fetch of your OWN profile. Module-cached, so reopening is free.
   const { sender } = useSenderIdentity(proposalOpen);
@@ -206,6 +233,8 @@ function UserProfilePageContent() {
         <ReadOnlyField
           field={field}
           onPreview={(s3Key, title) => setPreview({ s3Key, title })}
+          // Staff have no video-url permission, so they only see that a video exists.
+          onPlayVideo={canOfferConnect ? setVideoTitle : undefined}
         />
       </div>
     );
@@ -313,6 +342,13 @@ function UserProfilePageContent() {
         s3Key={preview?.s3Key ?? null}
         title={preview?.title}
         onClose={() => setPreview(null)}
+      />
+
+      <VideoPreviewModal
+        open={videoTitle !== null}
+        title={videoTitle ?? undefined}
+        target={{ userId, companyId, roleId }}
+        onClose={() => setVideoTitle(null)}
       />
     </div>
   );

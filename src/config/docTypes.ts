@@ -8,6 +8,8 @@ export const DOC_TYPE = {
   PAN: "PAN",
   PITCH_DECK: "PITCH_DECK",
   INCORPORATION_CERTIFICATE: "INCORPORATION_CERTIFICATE",
+  /** Optional intro video — the backend files videos under `intro-video/`. */
+  INTRO_VIDEO: "INTRO_VIDEO",
   /** Not a KYC document — the backend files anything outside KYC_DOC_TYPES under `profile/`. */
   PROFILE_PHOTO: "PROFILE_PHOTO",
 } as const;
@@ -17,6 +19,7 @@ export const DOC_MAX_MB: Record<DocType, number> = {
   AADHAAR: 5,
   PAN: 5,
   PROFILE_PHOTO: 5,
+  INTRO_VIDEO: 30,
   PITCH_DECK: 20,
   INCORPORATION_CERTIFICATE: 20,
 };
