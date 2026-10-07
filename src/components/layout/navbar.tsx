@@ -11,7 +11,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { searchUsers } from "@/services/user.service";
 import { useMyProfilePhoto } from "@/lib/useMyProfilePhoto";
 import { initials } from "@/lib/admin-format";
-import { ROLE_META, isUserRole } from "@/lib/roles";
+import { ROLE_META, isUserRole, normalizeRole } from "@/lib/roles";
 import { StatusPill } from "@/components/dashboard/kyc-status";
 import { connectionPresenceMeta, parseConnectionStatus } from "@/lib/connections";
 import type { ApiError } from "@/lib/axios";
@@ -132,6 +132,8 @@ function NavbarSearch() {
                             results.map((u) => {
                                 const name = [u.first_name, u.last_name].filter(Boolean).join(" ").trim() || u.company_name;
                                 const connectionStatus = parseConnectionStatus(u.connection_status);
+                                const role = normalizeRole(u.role);
+                                const roleLabel = role ? ROLE_META[role].label : u.role_name || u.role;
                                 return (
                                     <button
                                         key={`${u.user_id}-${u.role_id}-${u.company_id}`}
@@ -147,7 +149,7 @@ function NavbarSearch() {
                                         <span className="flex min-w-0 flex-1 flex-col">
                                             <span className="truncate text-sm font-semibold text-on-surface">{name}</span>
                                             <span className="truncate text-xs text-on-surface-variant">
-                                                {u.company_name} · {u.email}
+                                                {[roleLabel, u.company_name].filter(Boolean).join(" · ")}
                                             </span>
                                         </span>
                                         <StatusPill {...connectionPresenceMeta(connectionStatus)} />

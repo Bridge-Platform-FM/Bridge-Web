@@ -213,6 +213,8 @@ export interface CompleteProfileForm {
   cinNumber: string;
   /** Profile photo file name (the object-URL preview is kept in component state). */
   photo: string;
+  /** Optional intro video — the stored s3 key ("" when none). */
+  introVideo: string;
   startup: StartupValues;
   investor: InvestorValues;
   b2b: B2BValues;

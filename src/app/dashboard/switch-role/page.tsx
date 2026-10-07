@@ -53,6 +53,8 @@ const GST_COLUMN = "gst_number";
 const CIN_COLUMN = "cin_number";
 const FOUNDERS_COLUMN = "founders";
 const PHOTO_COLUMN = "profile_photo";
+const GST_FORMAT_ERROR = "Enter a valid 15-character GSTIN.";
+const CIN_FORMAT_ERROR = "Enter a valid 21-character CIN.";
 
 const FOLDED_COLUMNS = new Set([
   FUNDING_CURRENCY_COL,
@@ -104,6 +106,7 @@ function IdentifierField({
   error,
   status,
   placeholder,
+  maxLength,
   onChange,
   onBlur,
 }: {
@@ -114,6 +117,7 @@ function IdentifierField({
   error?: string;
   status: FieldCheckStatus;
   placeholder: string;
+  maxLength: number;
   onChange: (value: string) => void;
   onBlur: (e: FocusEvent<HTMLInputElement>) => void;
 }) {
@@ -126,7 +130,11 @@ function IdentifierField({
       placeholder={placeholder}
       error={error}
       value={value}
-      onChange={(e) => onChange(e.target.value)}
+      maxLength={maxLength}
+      autoCapitalize="characters"
+      autoCorrect="off"
+      spellCheck={false}
+      onChange={(e) => onChange(e.target.value.replace(/\s/g, "").toUpperCase())}
       onBlur={onBlur}
       adornment={
         status === "checking" ? (
@@ -206,7 +214,7 @@ function collectIncomplete(args: {
   if (gstField?.isEditable && !fieldErrors[GST_COLUMN]) {
     const raw = (typeof values[GST_COLUMN] === "string" ? values[GST_COLUMN] : "").trim().toUpperCase();
     if (gstField.isRequired || raw) {
-      if (!GST_REGEX.test(raw)) fieldErrors[GST_COLUMN] = "Enter a valid 15-character GSTIN.";
+      if (!GST_REGEX.test(raw)) fieldErrors[GST_COLUMN] = GST_FORMAT_ERROR;
       else if (gstStatus !== "verified") fieldErrors[GST_COLUMN] = "Please verify your GST number before continuing.";
     }
   }
@@ -214,7 +222,7 @@ function collectIncomplete(args: {
   if (cinField?.isEditable && !fieldErrors[CIN_COLUMN]) {
     const raw = (typeof values[CIN_COLUMN] === "string" ? values[CIN_COLUMN] : "").trim().toUpperCase();
     if (cinField.isRequired || raw) {
-      if (!CIN_REGEX.test(raw)) fieldErrors[CIN_COLUMN] = "Enter a valid 21-character CIN.";
+      if (!CIN_REGEX.test(raw)) fieldErrors[CIN_COLUMN] = CIN_FORMAT_ERROR;
       else if (cinStatus !== "verified") fieldErrors[CIN_COLUMN] = "Please verify your CIN number before continuing.";
     }
   }
@@ -406,54 +414,74 @@ function SwitchRoleForm() {
     }
   }, [cinVal]);
 
-  const handleGstBlur = async (e: FocusEvent<HTMLInputElement>) => {
-    const raw = e.target.value.trim().toUpperCase();
-    handleChange(GST_COLUMN, raw);
-    if (!raw || !GST_REGEX.test(raw)) return;
-
+  const runGstVerify = async (raw: string): Promise<boolean> => {
     const requestId = ++gstRequestIdRef.current;
     setGstStatus("checking");
     try {
       const res = await verifyGst({ gstin: raw });
-      if (requestId !== gstRequestIdRef.current) return;
+      if (requestId !== gstRequestIdRef.current) return false;
       if (!res.data?.verified) {
         throw { message: res.message ?? ERROR_MESSAGES.GST_VERIFICATION_FAILED } as ApiError;
       }
       verifiedGstRef.current = raw;
       setGstStatus("verified");
+      setErrors((prev) => (prev[GST_COLUMN] ? { ...prev, [GST_COLUMN]: "" } : prev));
       toast.success(res.message ?? SUCCESS_MESSAGES.GST_VERIFIED);
+      return true;
     } catch (err) {
-      if (requestId !== gstRequestIdRef.current) return;
+      if (requestId !== gstRequestIdRef.current) return false;
       setGstStatus("idle");
       const message = (err as ApiError).message ?? ERROR_MESSAGES.GST_VERIFICATION_FAILED;
       setErrors((prev) => ({ ...prev, [GST_COLUMN]: message }));
       toast.error(message);
+      return false;
     }
   };
 
-  const handleCinBlur = async (e: FocusEvent<HTMLInputElement>) => {
-    const raw = e.target.value.trim().toUpperCase();
-    handleChange(CIN_COLUMN, raw);
-    if (!raw || !CIN_REGEX.test(raw)) return;
-
+  const runCinVerify = async (raw: string): Promise<boolean> => {
     const requestId = ++cinRequestIdRef.current;
     setCinStatus("checking");
     try {
       const res = await verifyCin({ cin: raw });
-      if (requestId !== cinRequestIdRef.current) return;
+      if (requestId !== cinRequestIdRef.current) return false;
       if (!res.data?.verified) {
         throw { message: res.message ?? ERROR_MESSAGES.CIN_VERIFICATION_FAILED } as ApiError;
       }
       verifiedCinRef.current = raw;
       setCinStatus("verified");
+      setErrors((prev) => (prev[CIN_COLUMN] ? { ...prev, [CIN_COLUMN]: "" } : prev));
       toast.success(res.message ?? SUCCESS_MESSAGES.CIN_VERIFIED);
+      return true;
     } catch (err) {
-      if (requestId !== cinRequestIdRef.current) return;
+      if (requestId !== cinRequestIdRef.current) return false;
       setCinStatus("idle");
       const message = (err as ApiError).message ?? ERROR_MESSAGES.CIN_VERIFICATION_FAILED;
       setErrors((prev) => ({ ...prev, [CIN_COLUMN]: message }));
       toast.error(message);
+      return false;
     }
+  };
+
+  const handleGstBlur = async (e: FocusEvent<HTMLInputElement>) => {
+    const raw = e.target.value.trim().toUpperCase();
+    handleChange(GST_COLUMN, raw);
+    if (!raw) return;
+    if (!GST_REGEX.test(raw)) {
+      setErrors((prev) => ({ ...prev, [GST_COLUMN]: GST_FORMAT_ERROR }));
+      return;
+    }
+    await runGstVerify(raw);
+  };
+
+  const handleCinBlur = async (e: FocusEvent<HTMLInputElement>) => {
+    const raw = e.target.value.trim().toUpperCase();
+    handleChange(CIN_COLUMN, raw);
+    if (!raw) return;
+    if (!CIN_REGEX.test(raw)) {
+      setErrors((prev) => ({ ...prev, [CIN_COLUMN]: CIN_FORMAT_ERROR }));
+      return;
+    }
+    await runCinVerify(raw);
   };
 
   /**
@@ -467,10 +495,36 @@ function SwitchRoleForm() {
 
   const handleSave = async () => {
     if (saving || !target || !handoff) return;
-    if (!canSubmit) {
-      setAttemptedSave(true);
-      return;
+    setAttemptedSave(true);
+
+    const gstField = fields.find((f) => f.columnName === GST_COLUMN);
+    const cinField = fields.find((f) => f.columnName === CIN_COLUMN);
+    const gstRaw = gstVal.trim().toUpperCase();
+    const cinRaw = cinVal.trim().toUpperCase();
+
+    // Paste-then-Save never fires blur, so verify well-formed identifiers here.
+    let gstVerified = gstStatus === "verified";
+    let cinVerified = cinStatus === "verified";
+    if (gstField?.isEditable && gstRaw && GST_REGEX.test(gstRaw) && !gstVerified) {
+      gstVerified = await runGstVerify(gstRaw);
+      if (!gstVerified) return;
     }
+    if (cinField?.isEditable && cinRaw && CIN_REGEX.test(cinRaw) && !cinVerified) {
+      cinVerified = await runCinVerify(cinRaw);
+      if (!cinVerified) return;
+    }
+
+    const snapshot = collectIncomplete({
+      fields,
+      values,
+      founders,
+      gstStatus: gstVerified ? "verified" : gstStatus,
+      cinStatus: cinVerified ? "verified" : cinStatus,
+    });
+    const stillBlocked =
+      Object.keys(snapshot.fieldErrors).length > 0 ||
+      snapshot.founderRowErrors.some((row) => row?.name || row?.url);
+    if (stillBlocked) return;
 
     setSaving(true);
     try {
@@ -557,6 +611,12 @@ function SwitchRoleForm() {
       const storedRaw = values[field.columnName];
       const stored = typeof storedRaw === "string" ? storedRaw : "";
       const isGst = field.columnName === GST_COLUMN;
+      const formatError =
+        stored.trim() && !(isGst ? GST_REGEX : CIN_REGEX).test(stored.trim().toUpperCase())
+          ? isGst
+            ? GST_FORMAT_ERROR
+            : CIN_FORMAT_ERROR
+          : undefined;
       return (
         <div key={field.columnName}>
           <IdentifierField
@@ -564,9 +624,10 @@ function SwitchRoleForm() {
             label={label}
             required={field.isRequired === true}
             value={stored}
-            error={error}
+            error={error || formatError}
             status={isGst ? gstStatus : cinStatus}
             placeholder={isGst ? "22AAAAA0000A1Z5" : "U12345MH2024PTC123456"}
+            maxLength={isGst ? 15 : 21}
             onChange={(val) => handleChange(field.columnName, val)}
             onBlur={isGst ? handleGstBlur : handleCinBlur}
           />
@@ -757,7 +818,7 @@ function SwitchRoleForm() {
           <p className="min-w-0 text-xs text-on-surface-variant">
             {!canSubmit && (
               <span>
-                Fill in to continue:{" "}
+                Fix to continue:{" "}
                 <span className="font-semibold text-error">{remainingLabels.join(", ")}</span>
               </span>
             )}
@@ -773,7 +834,7 @@ function SwitchRoleForm() {
             </button>
             <Button
               id="switch-role-save-btn"
-              disabled={saving || !canSubmit}
+              disabled={saving || gstStatus === "checking" || cinStatus === "checking"}
               onClick={handleSave}
               className="h-10 px-6 text-sm"
             >

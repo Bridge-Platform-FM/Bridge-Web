@@ -72,6 +72,9 @@ export const API_ENDPOINTS = {
   // Virus-scan + S3 upload (returns { s3Key }).
   SCAN_IMG: `${FILE}/scan-img`,
   SCAN_DOCUMENT: `${FILE}/scan-document`,
+  SCAN_VIDEO: `${FILE}/scan-video`,
+  // Signed, short-lived URL to play a user's intro video.
+  VIDEO_URL: `${FILE}/video-url`,
   // Watermarked file preview (returns raw bytes for a given s3Key).
   FILE_PREVIEW: `${FILE}/file-preview`,
   // Create the user profile (complete-profile step). Requires a valid JWT.

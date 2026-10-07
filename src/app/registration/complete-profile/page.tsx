@@ -37,6 +37,7 @@ import type { UserProfilePayload } from "@/types/api.types";
 import { toast } from "sonner";
 import { buildProfile, getUserProfile, type ProfileField } from "@/services/user.service";
 import { scanImage } from "@/services/file.service";
+import { VideoUploadField } from "@/components/onboarding/VideoUploadField";
 import { DOC_TYPE } from "@/config/docTypes";
 import type { ApiError } from "@/lib/axios";
 
@@ -177,6 +178,8 @@ function toUserProfilePayload(values: CompleteProfileForm, role: string): UserPr
     first_name: values.firstName,
     last_name: values.lastName,
     profile_photo: values.photo,
+    // Optional — omitted entirely when no video was added.
+    intro_video: values.introVideo || undefined,
     short_bio: values.bio,
     country: values.country,
     continent: values.continent,
@@ -334,6 +337,7 @@ function buildProfilePrefillPatch(fields: ProfileField[], role: string): Profile
   // the onboarding wizard's localStorage only ever held it for the current session —
   // so without this a returning user's saved photo never reaches the preview circle.
   if (has("profile_photo")) patch.photo = str("profile_photo");
+  if (has("intro_video")) patch.introVideo = str("intro_video");
   // Locked "Account Details" fields — GET /users/profile is authoritative here too,
   // so a returning user on a fresh session (no registration-wizard state) still sees
   // the real values instead of a blank locked field.
@@ -442,6 +446,7 @@ function buildFormDefaults(data: OnboardingData): CompleteProfileForm {
     gstNumber: (data.gstNumber as string) ?? "",
     cinNumber: (data.cinNumber as string) ?? "",
     photo: "",
+    introVideo: (data.introVideo as string) ?? "",
     startup: { ...defaultStartupValues, ...((data.startup as Partial<StartupValues>) ?? {}) },
     investor: { ...defaultInvestorValues, ...((data.investor as Partial<InvestorValues>) ?? {}) },
     b2b: {
@@ -583,6 +588,7 @@ export default function CompleteProfilePage() {
         continent: values.continent,
         primarySectors: values.primarySectors,
         photo: values.photo,
+        introVideo: values.introVideo,
         countryCode: values.countryCode,
         contact: nationalDigits(values.contact),
         ...(role === "startup" ? { startup: values.startup } : {}),
@@ -691,6 +697,19 @@ export default function CompleteProfilePage() {
               />
             </div>
           </div>
+
+          {/* Short intro video — optional */}
+          <Controller
+            control={control}
+            name="introVideo"
+            render={({ field }) => (
+              <VideoUploadField
+                label="Short Intro Video"
+                value={field.value}
+                onChange={field.onChange}
+              />
+            )}
+          />
 
           {/* Account details — captured at registration, shown locked */}
           <div className="flex flex-col gap-3">
